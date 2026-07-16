@@ -190,4 +190,76 @@ router.post('/crear',(req,res)=>{
 
 });
 
+  /* =========================
+   PREPARAR IMPRESIÓN TICKET
+========================= */
+
+router.post('/:ventaId/imprimir', (req, res) => {
+
+  const ventaId = Number(req.params.ventaId);
+
+  if (!Number.isInteger(ventaId) || ventaId <= 0) {
+    return res.status(400).json({
+      error: 'ID de venta inválido'
+    });
+  }
+
+  db.query(
+    `
+      SELECT id, impresiones
+      FROM ventas
+      WHERE id = ?
+    `,
+    [ventaId],
+    (err, resultados) => {
+
+      if (err) {
+        console.error('Error consultando impresión:', err);
+
+        return res.status(500).json({
+          error: 'Error al consultar el ticket'
+        });
+      }
+
+      if (resultados.length === 0) {
+        return res.status(404).json({
+          error: 'Venta no encontrada'
+        });
+      }
+
+      const venta = resultados[0];
+
+      const leyenda =
+        Number(venta.impresiones) === 0
+          ? 'ORIGINAL'
+          : 'COPIA';
+
+      db.query(
+        `
+          UPDATE ventas
+          SET impresiones = impresiones + 1
+          WHERE id = ?
+        `,
+        [ventaId],
+        (updateErr) => {
+
+          if (updateErr) {
+            console.error('Error actualizando impresión:', updateErr);
+
+            return res.status(500).json({
+              error: 'No fue posible registrar la impresión'
+            });
+          }
+
+          res.json({
+            venta_id: ventaId,
+            leyenda,
+            numero_impresion: Number(venta.impresiones) + 1
+          });
+        }
+      );
+    }
+  );
+});
+
 module.exports = router;

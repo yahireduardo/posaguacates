@@ -1023,6 +1023,17 @@ class="seccion">
 
   <hr>
 
+  <div
+  id="ticketLeyenda"
+  style="
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    margin: 8px 0;
+  "
+  >
+  </div>
+
   <table width="100%">
 
     <thead>
@@ -1087,6 +1098,8 @@ let carrito = [];
 let total = 0;
 
 let ultimaVenta = [];
+
+let ultimaVentaId = null;
 
 let ultimoFolio = '';
 
@@ -1495,99 +1508,130 @@ function crearCliente(){
 
 /* ================= VENTA ================= */
 
-function enviarVenta(){
+function enviarVenta() {
 
-  if(carrito.length === 0){
-
+  if (carrito.length === 0) {
     alert('Agrega productos');
-
     return;
-
   }
 
+  const clienteSelect =
+    document.getElementById('cliente_select');
+
   const cliente =
-  document.getElementById(
-    'cliente_select'
-  ).value;
+    clienteSelect.value;
 
-  if(!cliente){
-
+  if (!cliente) {
     alert('Selecciona cliente');
-
     return;
-
   }
 
   const tipoPago =
-  document.getElementById(
-    'tipo_pago'
-  ).value;
-
-  ultimoTipoPago =
-  tipoPago;
+    document.getElementById('tipo_pago').value;
 
   const clienteNombre =
-  document.getElementById(
-    'cliente_select'
-  ).options[
-    document.getElementById(
-      'cliente_select'
-    ).selectedIndex
-  ].text;
+    clienteSelect.options[
+      clienteSelect.selectedIndex
+    ].text;
 
-  ultimoCliente =
-  clienteNombre;
+  /*
+    Se crea una copia antes del fetch,
+    porque después vaciaremos el carrito.
+  */
+  const productosVendidos =
+    carrito.map(producto => ({
+      ...producto
+    }));
 
-  ultimaVenta =
-  [...carrito];
+  fetch('http://127.0.0.1:3000/ventas/crear', {
 
-  ultimaFechaVenta =
-  new Date().toLocaleString();
+    method: 'POST',
 
-  fetch('http://127.0.0.1:3000/ventas/crear',{
-
-    method:'POST',
-
-    headers:{
-      'Content-Type':'application/json'
+    headers: {
+      'Content-Type': 'application/json'
     },
 
-    body:JSON.stringify({
+    body: JSON.stringify({
 
-      cliente_id:cliente,
+      cliente_id: cliente,
 
-      usuario_id:1,
+      usuario_id: 1,
 
-      tipo_pago:tipoPago,
+      tipo_pago: tipoPago,
 
-      productos:carrito
+      productos: productosVendidos
 
     })
 
   })
 
-  .then(r=>r.json())
+  .then(respuesta => {
 
-  .then(data=>{
-
-    if(data.error){
-
-      alert(data.error);
-
-      return;
-
+    if (!respuesta.ok) {
+      return respuesta.json()
+        .then(data => {
+          throw new Error(
+            data.error ||
+            'No fue posible registrar la venta'
+          );
+        });
     }
 
+    return respuesta.json();
+
+  })
+
+  .then(data => {
+
+    /*
+      ID necesario para registrar
+      ORIGINAL o COPIA.
+    */
+    ultimaVentaId =
+      data.venta_id;
+
     ultimoFolio =
-    data.venta_id;
+      data.venta_id;
+
+    ultimaVenta =
+      productosVendidos;
+
+    ultimoTipoPago =
+      tipoPago;
+
+    ultimoCliente =
+      clienteNombre;
+
+    ultimaFechaVenta =
+      new Date().toLocaleString('es-MX');
+
+    console.log(
+      'Venta registrada con ID:',
+      ultimaVentaId
+    );
+
+    /*
+      Primero se vacía el carrito visual.
+      ultimaVenta conserva su propia copia.
+    */
+    carrito = [];
+
+    actualizarCarrito();
 
     alert('Venta realizada');
 
     imprimirTicket();
 
-    carrito=[];
+  })
 
-    actualizarCarrito();
+  .catch(error => {
+
+    console.error(
+      'Error al registrar la venta:',
+      error
+    );
+
+    alert(error.message);
 
   });
 
@@ -1595,7 +1639,41 @@ function enviarVenta(){
 
 /* ================= TICKET ================= */
 
-function imprimirTicket(){
+async function imprimirTicket(){
+
+  if (!ultimaVentaId) {
+  alert('Primero debes registrar la venta');
+  return;
+}
+
+let respuesta;
+
+try {
+
+  respuesta = await fetch(
+    `http://localhost:3000/ventas/${ultimaVentaId}/imprimir`,
+    {
+      method: 'POST'
+    }
+  );
+
+} catch (error) {
+
+  console.error(error);
+  alert('No se pudo conectar con el servidor');
+  return;
+
+}
+
+const datosImpresion = await respuesta.json();
+
+if (!respuesta.ok) {
+  alert(datosImpresion.error || 'No fue posible preparar el ticket');
+  return;
+}
+
+document.getElementById('ticketLeyenda').textContent =
+  datosImpresion.leyenda;
 
   const tbody =
   document.getElementById(
