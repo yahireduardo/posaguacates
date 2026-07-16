@@ -18,14 +18,19 @@ router.get('/analisis',(req,res)=>{
 
       SUM(dv.cantidad) as vendidos,
 
-      p.stock
+       p.stock
 
     FROM detalle_venta dv
+
+    INNER JOIN ventas v
+    ON v.id = dv.venta_id
 
     INNER JOIN productos p
     ON p.id = dv.producto_id
 
-    GROUP BY p.id
+    WHERE v.estado_venta = 'ACTIVA'
+
+    GROUP BY p.id, p.nombre, p.stock
 
     ORDER BY vendidos DESC
 

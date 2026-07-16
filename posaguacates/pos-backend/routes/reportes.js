@@ -20,12 +20,14 @@ router.get('/ventas-pdf',(req,res)=>{
       v.fecha,
       v.total,
       v.tipo_pago,
-      c.nombre as cliente
+      c.nombre_razon_social as cliente
 
     FROM ventas v
 
-    INNER JOIN clientes c
+    LEFT JOIN clientes c
     ON c.id = v.cliente_id
+
+    WHERE v.estado_venta = 'ACTIVA'
 
     ORDER BY v.id DESC
 
@@ -91,7 +93,7 @@ Tipo Pago:
 ${v.tipo_pago}
 
 Total:
-$${v.total}
+$${Number(v.total).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}
 
 Fecha:
 ${new Date(v.fecha)

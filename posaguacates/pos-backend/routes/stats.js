@@ -1,169 +1,20 @@
 const express = require('express');
-
+const db = require('../db/conexion');
 const router = express.Router();
 
-const db = require('../db/conexion');
-
-/* =========================
-   DASHBOARD STATS
-========================= */
-
-router.get('/',(req,res)=>{
-
-  const stats = {};
-
-  /* =========================
-     VENTAS HOY
-  ========================= */
-
-  db.query(`
-
-    SELECT
-
-      COUNT(*) as ventas_hoy,
-
-      IFNULL(SUM(total),0)
-      as ingresos_hoy
-
-    FROM ventas
-
-    WHERE DATE(fecha) = CURDATE()
-
-  `,(err,result)=>{
-
-    if(err){
-      return res.status(500).json(err);
-    }
-
-    stats.ventas_hoy =
-      result[0].ventas_hoy;
-
-    stats.ingresos_hoy =
-      result[0].ingresos_hoy;
-
-    /* =========================
-       CLIENTES
-    ========================= */
-
-    db.query(`
-
-      SELECT COUNT(*) as clientes
-
-      FROM clientes
-
-    `,(err,result2)=>{
-
-      if(err){
-        return res.status(500).json(err);
-      }
-
-      stats.clientes =
-        result2[0].clientes;
-
-      /* =========================
-         DEUDA TOTAL
-      ========================= */
-
-      db.query(`
-
-        SELECT
-
-          IFNULL(
-            SUM(saldo_pendiente),
-            0
-          ) as deuda_total
-
-        FROM cuentas_por_cobrar
-
-        WHERE estado != 'PAGADO'
-
-      `,(err,result3)=>{
-
-        if(err){
-          return res.status(500).json(err);
-        }
-
-        stats.deuda_total =
-          result3[0].deuda_total;
-
-        /* =========================
-           PRODUCTOS TOP
-        ========================= */
-
-        db.query(`
-
-          SELECT
-
-            p.nombre,
-
-            SUM(dv.cantidad)
-            as total
-
-          FROM detalle_venta dv
-
-          INNER JOIN productos p
-          ON p.id = dv.producto_id
-
-          GROUP BY p.nombre
-
-          ORDER BY total DESC
-
-          LIMIT 5
-
-        `,(err,result4)=>{
-
-          if(err){
-            return res.status(500).json(err);
-          }
-
-          stats.top_productos =
-            result4;
-
-          /* =========================
-             CLIENTES TOP
-          ========================= */
-
-          db.query(`
-
-            SELECT
-
-              c.nombre,
-
-              SUM(v.total)
-              as total
-
-            FROM ventas v
-
-            INNER JOIN clientes c
-            ON c.id = v.cliente_id
-
-            GROUP BY c.nombre
-
-            ORDER BY total DESC
-
-            LIMIT 5
-
-          `,(err,result5)=>{
-
-            if(err){
-              return res.status(500).json(err);
-            }
-
-            stats.top_clientes =
-              result5;
-
-            res.json(stats);
-
-          });
-
-        });
-
-      });
-
-    });
-
-  });
-
+router.get('/', async (req, res) => {
+  try {
+    const [[hoy], [clientes], [deuda], [productos], [topClientes], [semanal]] = await Promise.all([
+      db.promise.query(`SELECT COUNT(*) AS ventas_hoy, COALESCE(SUM(total),0) AS ingresos_hoy FROM ventas WHERE DATE(fecha)=CURDATE() AND estado_venta='ACTIVA'`),
+      db.promise.query('SELECT COUNT(*) AS clientes FROM clientes WHERE activo=1'),
+      db.promise.query("SELECT COALESCE(SUM(saldo_pendiente),0) AS deuda_total FROM cuentas_por_cobrar WHERE estado='PENDIENTE'"),
+      db.promise.query(`SELECT p.nombre, SUM(dv.cantidad) AS total FROM detalle_venta dv JOIN ventas v ON v.id=dv.venta_id JOIN productos p ON p.id=dv.producto_id WHERE v.estado_venta='ACTIVA' GROUP BY p.id,p.nombre ORDER BY total DESC LIMIT 5`),
+      db.promise.query(`SELECT c.nombre_razon_social, SUM(v.total) AS total FROM ventas v JOIN clientes c ON c.id=v.cliente_id WHERE v.estado_venta='ACTIVA' GROUP BY c.id,c.nombre_razon_social ORDER BY total DESC LIMIT 5`),
+      db.promise.query(`SELECT DATE(fecha) AS dia, COUNT(*) AS ventas, COALESCE(SUM(total),0) AS total FROM ventas WHERE estado_venta='ACTIVA' AND fecha >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE(fecha) ORDER BY dia`)
+    ]);
+    res.json({ ...hoy[0], clientes: clientes[0].clientes, deuda_total: deuda[0].deuda_total,
+      top_productos: productos, top_clientes: topClientes, semanal });
+  } catch (error) { console.error(error); res.status(500).json({ error: 'No fue posible cargar el dashboard' }); }
 });
 
 module.exports = router;

@@ -18,12 +18,7 @@ const {
    API KEY
 ========================= */
 
-const genAI =
-new GoogleGenerativeAI(
-
-  'AIzaSyD0zljFkkpFRlOs9WdDQdIOrkDQRXU4x_A'
-
-);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 /* =========================
    MODELO
@@ -61,6 +56,8 @@ router.post('/',async(req,res)=>{
         as ingresos
 
       FROM ventas
+
+      WHERE estado_venta = 'ACTIVA'
 
     `,
 

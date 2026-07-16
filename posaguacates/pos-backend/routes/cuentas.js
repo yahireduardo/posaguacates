@@ -1,191 +1,66 @@
 const express = require('express');
-
+const db = require('../db/conexion');
 const router = express.Router();
 
-const db = require('../db/conexion');
-
-/* =========================
-   CLIENTES DEUDORES
-========================= */
-
-router.get('/',(req,res)=>{
-
-  db.query(`
-
-    SELECT
-
-      c.id as cliente_id,
-      c.nombre,
-
-      SUM(cxc.saldo_pendiente)
-      as saldo_total
-
-    FROM cuentas_por_cobrar cxc
-
-    INNER JOIN clientes c
-    ON c.id = cxc.cliente_id
-
-    WHERE cxc.estado != 'PAGADO'
-
-    GROUP BY c.id
-
-    ORDER BY saldo_total DESC
-
-  `,(err,result)=>{
-
-    if(err){
-      return res.status(500).json(err);
-    }
-
-    res.json(result);
-
-  });
-
+router.get('/', async (req, res) => {
+  try {
+    const [rows] = await db.promise.query(
+      `SELECT c.id AS cliente_id, c.nombre_razon_social,
+              SUM(cxc.saldo_pendiente) AS saldo_total
+       FROM cuentas_por_cobrar cxc JOIN clientes c ON c.id = cxc.cliente_id
+       WHERE cxc.estado = 'PENDIENTE'
+       GROUP BY c.id, c.nombre_razon_social ORDER BY saldo_total DESC`
+    );
+    res.json(rows);
+  } catch (error) { res.status(500).json({ error: 'No fue posible consultar cuentas' }); }
 });
 
-/* =========================
-   DETALLE CLIENTE
-========================= */
-
-router.get('/cliente/:id',(req,res)=>{
-
-  const clienteId = req.params.id;
-
-  db.query(`
-
-    SELECT
-
-      cxc.id,
-      cxc.venta_id,
-      cxc.total_deuda,
-      cxc.saldo_pendiente,
-      cxc.estado,
-      v.fecha
-
-    FROM cuentas_por_cobrar cxc
-
-    INNER JOIN ventas v
-    ON v.id = cxc.venta_id
-
-    WHERE
-    cxc.cliente_id = ?
-    AND cxc.estado != 'PAGADO'
-
-    ORDER BY cxc.id DESC
-
-  `,
-
-  [clienteId],
-
-  (err,result)=>{
-
-    if(err){
-      return res.status(500).json(err);
-    }
-
-    res.json(result);
-
-  });
-
+router.get('/cliente/:id', async (req, res) => {
+  const clienteId = Number(req.params.id);
+  if (!Number.isInteger(clienteId) || clienteId <= 0) return res.status(400).json({ error: 'Cliente inválido' });
+  try {
+    const [cuentas] = await db.promise.query(
+      `SELECT cxc.id, cxc.venta_id, cxc.total_deuda, cxc.saldo_pendiente, cxc.estado, cxc.fecha
+       FROM cuentas_por_cobrar cxc WHERE cxc.cliente_id = ? ORDER BY cxc.id DESC`, [clienteId]
+    );
+    const [pagos] = await db.promise.query(
+      `SELECT p.id, p.cuenta_id, p.monto, p.metodo_pago, p.fecha
+       FROM pagos p JOIN cuentas_por_cobrar cxc ON cxc.id = p.cuenta_id
+       WHERE cxc.cliente_id = ? ORDER BY p.id DESC`, [clienteId]
+    );
+    res.json({ cuentas, pagos });
+  } catch (error) { res.status(500).json({ error: 'No fue posible consultar el historial' }); }
 });
 
-/* =========================
-   ABONAR
-========================= */
-
-router.post('/abonar',(req,res)=>{
-
-  const {
-    cuenta_id,
-    monto
-  } = req.body;
-
-  db.query(`
-
-    SELECT *
-    FROM cuentas_por_cobrar
-
-    WHERE id = ?
-
-  `,[cuenta_id],(err,result)=>{
-
-    if(err){
-      return res.status(500).json(err);
-    }
-
-    if(result.length === 0){
-
-      return res.json({
-        error:'Cuenta no encontrada'
-      });
-
-    }
-
-    const cuenta = result[0];
-
-    if(cuenta.estado === 'PAGADO'){
-
-      return res.json({
-        error:'Cuenta liquidada'
-      });
-
-    }
-
-    if(parseFloat(monto) >
-    parseFloat(cuenta.saldo_pendiente)){
-
-      return res.json({
-        error:'El abono supera el saldo'
-      });
-
-    }
-
-    let nuevoSaldo =
-      cuenta.saldo_pendiente - monto;
-
-    let estado = 'PENDIENTE';
-
-    if(nuevoSaldo <= 0){
-
-      nuevoSaldo = 0;
-
-      estado = 'PAGADO';
-
-    }
-
-    db.query(`
-
-      UPDATE cuentas_por_cobrar
-
-      SET
-
-      saldo_pendiente = ?,
-      estado = ?
-
-      WHERE id = ?
-
-    `,
-
-    [
-      nuevoSaldo,
-      estado,
-      cuenta_id
-    ],
-
-    (err)=>{
-
-      if(err){
-        return res.status(500).json(err);
-      }
-
-      res.json({
-        mensaje:'Pago registrado'
-      });
-
-    });
-
-  });
-
+router.post('/abonar', async (req, res) => {
+  const cuentaId = Number(req.body.cuenta_id);
+  const monto = Number(req.body.monto);
+  const metodo = String(req.body.metodo_pago || 'EFECTIVO').trim().toUpperCase();
+  if (!Number.isInteger(cuentaId) || cuentaId <= 0 || !Number.isFinite(monto) || monto <= 0 || !metodo) {
+    return res.status(400).json({ error: 'Cuenta, monto y método de pago válidos son obligatorios' });
+  }
+  const connection = await db.promise.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.query(
+      'SELECT saldo_pendiente, estado FROM cuentas_por_cobrar WHERE id = ? FOR UPDATE', [cuentaId]
+    );
+    if (!rows.length) throw Object.assign(new Error('Cuenta no encontrada'), { status: 404 });
+    if (rows[0].estado !== 'PENDIENTE') throw Object.assign(new Error('La cuenta no admite abonos'), { status: 409 });
+    const saldo = Number(rows[0].saldo_pendiente);
+    if (monto > saldo) throw Object.assign(new Error('El abono supera el saldo pendiente'), { status: 409 });
+    const nuevoSaldo = Number((saldo - monto).toFixed(2));
+    await connection.query('INSERT INTO pagos (cuenta_id, monto, metodo_pago) VALUES (?, ?, ?)', [cuentaId, monto, metodo]);
+    await connection.query(
+      'UPDATE cuentas_por_cobrar SET saldo_pendiente = ?, estado = ? WHERE id = ?',
+      [nuevoSaldo, nuevoSaldo === 0 ? 'PAGADO' : 'PENDIENTE', cuentaId]
+    );
+    await connection.commit();
+    res.status(201).json({ mensaje: 'Abono registrado', saldo_pendiente: nuevoSaldo });
+  } catch (error) {
+    await connection.rollback();
+    res.status(error.status || 500).json({ error: error.status ? error.message : 'No fue posible registrar el abono' });
+  } finally { connection.release(); }
 });
 
 module.exports = router;

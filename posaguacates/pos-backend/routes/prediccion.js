@@ -20,6 +20,8 @@ router.get('/',(req,res)=>{
 
     FROM ventas
 
+    WHERE estado_venta = 'ACTIVA'
+
     GROUP BY DATE(fecha)
 
     ORDER BY dia ASC

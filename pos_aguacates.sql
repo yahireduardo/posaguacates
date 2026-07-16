@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 16-07-2026 a las 04:38:08
+-- Tiempo de generación: 16-07-2026 a las 06:18:07
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -29,10 +29,11 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `clientes` (
   `id` int(11) NOT NULL,
-  `nombre` varchar(100) NOT NULL,
+  `nombre_razon_social` varchar(180) NOT NULL,
+  `rfc` varchar(13) DEFAULT NULL,
   `telefono` varchar(20) DEFAULT NULL,
-  `direccion` text DEFAULT NULL,
-  `activo` tinyint(1) DEFAULT 1,
+  `correo_electronico` varchar(180) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -40,18 +41,18 @@ CREATE TABLE `clientes` (
 -- Volcado de datos para la tabla `clientes`
 --
 
-INSERT INTO `clientes` (`id`, `nombre`, `telefono`, `direccion`, `activo`, `creado_en`) VALUES
-(1, 'Publico General', '', NULL, 1, '2026-04-30 20:14:27'),
-(2, 'Roberto', '9991323459', '132 842 Central Abastos', 1, '2026-05-07 20:08:00'),
-(3, 'MEGACOSECHA', '9991020542', 'Central Abastos Bodega Nueva', 1, '2026-05-07 20:08:25'),
-(4, 'Ve Central', '99942056423', '124 2341 97000 Jardines', 1, '2026-05-07 20:36:24'),
-(7, 'Luis Chan', '9991020305', 'C-88a Inalambrica', 1, '2026-05-07 20:39:59'),
-(8, 'Rafael', '9991344587', 'Calle 33 834 Jardines', 1, '2026-05-08 13:42:41'),
-(9, 'Yahir Arceo', '9993404620', '124c 333 Yucalpeten', 1, '2026-05-14 17:33:09'),
-(10, 'Caballitos', '', '', 1, '2026-05-14 19:12:16'),
-(11, 'Jesus Caamal', '', '', 1, '2026-05-14 19:12:37'),
-(12, 'Don Miguel Escalante', '', '', 1, '2026-05-14 19:13:21'),
-(13, 'Jose Caamal', '', '', 1, '2026-05-14 19:14:37');
+INSERT INTO `clientes` (`id`, `nombre_razon_social`, `rfc`, `telefono`, `correo_electronico`, `activo`, `creado_en`) VALUES
+(1, 'Publico General', NULL, '', NULL, 1, '2026-04-30 20:14:27'),
+(2, 'Roberto', NULL, '9991323459', NULL, 1, '2026-05-07 20:08:00'),
+(3, 'MEGACOSECHA', NULL, '9991020542', NULL, 1, '2026-05-07 20:08:25'),
+(4, 'Ve Central', NULL, '99942056423', NULL, 1, '2026-05-07 20:36:24'),
+(7, 'Luis Chan', NULL, '9991020305', NULL, 1, '2026-05-07 20:39:59'),
+(8, 'Rafael', NULL, '9991344587', NULL, 1, '2026-05-08 13:42:41'),
+(9, 'Yahir Arceo', NULL, '9993404620', NULL, 1, '2026-05-14 17:33:09'),
+(10, 'Caballitos', NULL, '', NULL, 1, '2026-05-14 19:12:16'),
+(11, 'Jesus Caamal', NULL, '', NULL, 1, '2026-05-14 19:12:37'),
+(12, 'Don Miguel Escalante', NULL, '', NULL, 1, '2026-05-14 19:13:21'),
+(13, 'Jose Caamal', NULL, '', NULL, 1, '2026-05-14 19:14:37');
 
 -- --------------------------------------------------------
 
@@ -73,11 +74,11 @@ CREATE TABLE `compras` (
 
 CREATE TABLE `cuentas_por_cobrar` (
   `id` int(11) NOT NULL,
-  `venta_id` int(11) DEFAULT NULL,
-  `cliente_id` int(11) DEFAULT NULL,
-  `total_deuda` decimal(10,2) DEFAULT NULL,
-  `saldo_pendiente` decimal(10,2) DEFAULT NULL,
-  `estado` enum('PENDIENTE','PAGADO') DEFAULT 'PENDIENTE',
+  `venta_id` int(11) NOT NULL,
+  `cliente_id` int(11) NOT NULL,
+  `total_deuda` decimal(12,2) NOT NULL,
+  `saldo_pendiente` decimal(12,2) NOT NULL,
+  `estado` enum('PENDIENTE','PAGADO','CANCELADA') NOT NULL DEFAULT 'PENDIENTE',
   `fecha` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -123,9 +124,9 @@ CREATE TABLE `detalle_venta` (
   `id` int(11) NOT NULL,
   `venta_id` int(11) DEFAULT NULL,
   `producto_id` int(11) DEFAULT NULL,
-  `cantidad` decimal(10,2) DEFAULT NULL,
-  `precio_unitario` decimal(10,2) DEFAULT NULL,
-  `subtotal` decimal(10,2) DEFAULT NULL
+  `cantidad` decimal(12,2) NOT NULL,
+  `precio_unitario` decimal(12,2) NOT NULL,
+  `subtotal` decimal(12,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -222,10 +223,11 @@ INSERT INTO `detalle_venta` (`id`, `venta_id`, `producto_id`, `cantidad`, `preci
 CREATE TABLE `movimientos_inventario` (
   `id` int(11) NOT NULL,
   `producto_id` int(11) DEFAULT NULL,
-  `tipo` enum('ENTRADA','SALIDA') DEFAULT NULL,
-  `cantidad` decimal(10,2) DEFAULT NULL,
-  `motivo` varchar(100) DEFAULT NULL,
+  `tipo` enum('ENTRADA','SALIDA') NOT NULL,
+  `cantidad` decimal(12,2) NOT NULL,
+  `motivo` varchar(150) NOT NULL,
   `referencia_id` int(11) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
   `fecha` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -233,86 +235,86 @@ CREATE TABLE `movimientos_inventario` (
 -- Volcado de datos para la tabla `movimientos_inventario`
 --
 
-INSERT INTO `movimientos_inventario` (`id`, `producto_id`, `tipo`, `cantidad`, `motivo`, `referencia_id`, `fecha`) VALUES
-(3, 1, 'SALIDA', 5.00, 'VENTA', 8, '2026-04-30 20:48:43'),
-(4, 1, 'SALIDA', 1.00, 'VENTA', 9, '2026-04-30 21:04:05'),
-(5, 2, 'SALIDA', 1.00, 'VENTA', 9, '2026-04-30 21:04:05'),
-(6, 3, 'SALIDA', 1.00, 'VENTA', 9, '2026-04-30 21:04:05'),
-(7, 4, 'SALIDA', 1.00, 'VENTA', 9, '2026-04-30 21:04:05'),
-(8, 1, 'SALIDA', 1.00, 'VENTA', 10, '2026-04-30 22:27:18'),
-(9, 2, 'SALIDA', 1.00, 'VENTA', 10, '2026-04-30 22:27:18'),
-(10, 3, 'SALIDA', 1.00, 'VENTA', 10, '2026-04-30 22:27:18'),
-(11, 4, 'SALIDA', 1.00, 'VENTA', 10, '2026-04-30 22:27:18'),
-(12, 1, 'SALIDA', 1.00, 'VENTA', 11, '2026-04-30 22:27:35'),
-(13, 3, 'SALIDA', 1.00, 'VENTA', 11, '2026-04-30 22:27:35'),
-(14, 2, 'SALIDA', 1.00, 'VENTA', 11, '2026-04-30 22:27:35'),
-(15, 4, 'SALIDA', 1.00, 'VENTA', 11, '2026-04-30 22:27:36'),
-(16, 1, 'SALIDA', 2.00, 'VENTA', 12, '2026-04-30 22:28:39'),
-(17, 2, 'SALIDA', 2.00, 'VENTA', 12, '2026-04-30 22:28:39'),
-(18, 3, 'SALIDA', 2.00, 'VENTA', 12, '2026-04-30 22:28:39'),
-(19, 4, 'SALIDA', 2.00, 'VENTA', 12, '2026-04-30 22:28:40'),
-(20, 1, 'SALIDA', 2.00, 'VENTA', 13, '2026-05-07 18:33:26'),
-(21, 2, 'SALIDA', 3.00, 'VENTA', 13, '2026-05-07 18:33:26'),
-(22, 3, 'SALIDA', 2.00, 'VENTA', 13, '2026-05-07 18:33:26'),
-(23, 4, 'SALIDA', 3.00, 'VENTA', 13, '2026-05-07 18:33:26'),
-(24, 3, 'SALIDA', 10.00, 'VENTA', 14, '2026-05-07 19:23:48'),
-(25, 4, 'SALIDA', 10.00, 'VENTA', 15, '2026-05-07 19:23:53'),
-(26, 1, 'SALIDA', 8.00, 'VENTA', 16, '2026-05-07 19:39:06'),
-(27, 2, 'SALIDA', 10.00, 'VENTA', 16, '2026-05-07 19:39:06'),
-(28, 3, 'SALIDA', 10.00, 'VENTA', 16, '2026-05-07 19:39:06'),
-(29, 4, 'SALIDA', 3.00, 'VENTA', 16, '2026-05-07 19:39:06'),
-(30, 4, 'SALIDA', 3.00, 'VENTA', 17, '2026-05-07 19:43:33'),
-(31, 3, 'SALIDA', 10.00, 'VENTA', 17, '2026-05-07 19:43:33'),
-(32, 2, 'SALIDA', 10.00, 'VENTA', 17, '2026-05-07 19:43:33'),
-(33, 1, 'SALIDA', 8.00, 'VENTA', 17, '2026-05-07 19:43:33'),
-(34, 4, 'SALIDA', 1.00, 'VENTA', 18, '2026-05-07 20:21:27'),
-(35, 3, 'SALIDA', 1.00, 'VENTA', 18, '2026-05-07 20:21:27'),
-(36, 2, 'SALIDA', 1.00, 'VENTA', 18, '2026-05-07 20:21:27'),
-(37, 1, 'SALIDA', 1.00, 'VENTA', 18, '2026-05-07 20:21:27'),
-(38, 4, 'SALIDA', 1.00, 'VENTA', 19, '2026-05-07 20:30:10'),
-(39, 4, 'SALIDA', 1.00, 'VENTA', 20, '2026-05-07 20:56:38'),
-(40, 3, 'SALIDA', 100.00, 'VENTA', 20, '2026-05-07 20:56:38'),
-(41, 2, 'SALIDA', 60.00, 'VENTA', 20, '2026-05-07 20:56:38'),
-(42, 1, 'SALIDA', 30.00, 'VENTA', 20, '2026-05-07 20:56:38'),
-(43, 4, 'SALIDA', 120.00, 'VENTA', 21, '2026-05-08 13:44:29'),
-(44, 3, 'SALIDA', 10.00, 'VENTA', 21, '2026-05-08 13:44:29'),
-(45, 2, 'SALIDA', 100.00, 'VENTA', 21, '2026-05-08 13:44:29'),
-(46, 1, 'SALIDA', 10.00, 'VENTA', 21, '2026-05-08 13:44:29'),
-(47, 1, 'SALIDA', 10.00, 'VENTA', 22, '2026-05-14 17:33:52'),
-(48, 2, 'SALIDA', 200.00, 'VENTA', 22, '2026-05-14 17:33:52'),
-(49, 3, 'SALIDA', 300.00, 'VENTA', 22, '2026-05-14 17:33:52'),
-(50, 4, 'SALIDA', 100.00, 'VENTA', 22, '2026-05-14 17:33:52'),
-(51, 1, 'SALIDA', 10.00, 'VENTA', 23, '2026-05-14 18:16:30'),
-(52, 2, 'SALIDA', 100.00, 'VENTA', 23, '2026-05-14 18:16:30'),
-(53, 4, 'SALIDA', 1000.00, 'VENTA', 23, '2026-05-14 18:16:30'),
-(54, 4, 'SALIDA', 1000.00, 'VENTA', 24, '2026-05-14 18:18:37'),
-(55, 1, 'SALIDA', 10.00, 'VENTA', 24, '2026-05-14 18:18:37'),
-(56, 2, 'SALIDA', 100.00, 'VENTA', 24, '2026-05-14 18:18:37'),
-(57, 3, 'SALIDA', 100.00, 'VENTA', 24, '2026-05-14 18:18:37'),
-(58, 4, 'SALIDA', 1000.00, 'VENTA', 24, '2026-05-14 18:18:37'),
-(59, 4, 'SALIDA', 1.00, 'VENTA', 25, '2026-05-14 18:43:25'),
-(60, 4, 'SALIDA', 100.00, 'VENTA', 25, '2026-05-14 18:43:25'),
-(61, 3, 'SALIDA', 100.00, 'VENTA', 25, '2026-05-14 18:43:25'),
-(62, 2, 'SALIDA', 100.00, 'VENTA', 25, '2026-05-14 18:43:25'),
-(63, 1, 'SALIDA', 100.00, 'VENTA', 25, '2026-05-14 18:43:25'),
-(64, 2, 'SALIDA', 10.00, 'VENTA', 26, '2026-05-14 18:54:58'),
-(65, 1, 'SALIDA', 100.00, 'VENTA', 27, '2026-05-14 18:56:29'),
-(66, 4, 'SALIDA', 1.00, 'VENTA', 27, '2026-05-14 18:56:29'),
-(67, 3, 'SALIDA', 1.00, 'VENTA', 27, '2026-05-14 18:56:29'),
-(68, 2, 'SALIDA', 1.00, 'VENTA', 27, '2026-05-14 18:56:30'),
-(69, 4, 'SALIDA', 30.00, 'VENTA', 28, '2026-05-14 19:26:25'),
-(70, 3, 'SALIDA', 15.00, 'VENTA', 28, '2026-05-14 19:26:25'),
-(71, 2, 'SALIDA', 10.00, 'VENTA', 28, '2026-05-14 19:26:25'),
-(72, 1, 'SALIDA', 100.00, 'VENTA', 28, '2026-05-14 19:26:25'),
-(73, 1, 'SALIDA', 100.00, 'VENTA', 29, '2026-05-14 19:35:42'),
-(74, 1, 'SALIDA', 100.00, 'VENTA', 30, '2026-05-14 19:54:41'),
-(75, 4, 'SALIDA', 100.00, 'VENTA', 30, '2026-05-14 19:54:41'),
-(76, 3, 'SALIDA', 15.00, 'VENTA', 30, '2026-05-14 19:54:41'),
-(77, 2, 'SALIDA', 15.00, 'VENTA', 30, '2026-05-14 19:54:41'),
-(78, 1, 'SALIDA', 10.00, 'VENTA', 31, '2026-05-14 19:55:13'),
-(79, 3, 'SALIDA', 100.00, 'VENTA', 31, '2026-05-14 19:55:13'),
-(80, 3, 'SALIDA', 100.00, 'VENTA', 32, '2026-05-14 20:02:05'),
-(81, 2, 'SALIDA', 10.00, 'VENTA', 32, '2026-05-14 20:02:05');
+INSERT INTO `movimientos_inventario` (`id`, `producto_id`, `tipo`, `cantidad`, `motivo`, `referencia_id`, `usuario_id`, `fecha`) VALUES
+(3, 1, 'SALIDA', 5.00, 'VENTA', 8, NULL, '2026-04-30 20:48:43'),
+(4, 1, 'SALIDA', 1.00, 'VENTA', 9, NULL, '2026-04-30 21:04:05'),
+(5, 2, 'SALIDA', 1.00, 'VENTA', 9, NULL, '2026-04-30 21:04:05'),
+(6, 3, 'SALIDA', 1.00, 'VENTA', 9, NULL, '2026-04-30 21:04:05'),
+(7, 4, 'SALIDA', 1.00, 'VENTA', 9, NULL, '2026-04-30 21:04:05'),
+(8, 1, 'SALIDA', 1.00, 'VENTA', 10, NULL, '2026-04-30 22:27:18'),
+(9, 2, 'SALIDA', 1.00, 'VENTA', 10, NULL, '2026-04-30 22:27:18'),
+(10, 3, 'SALIDA', 1.00, 'VENTA', 10, NULL, '2026-04-30 22:27:18'),
+(11, 4, 'SALIDA', 1.00, 'VENTA', 10, NULL, '2026-04-30 22:27:18'),
+(12, 1, 'SALIDA', 1.00, 'VENTA', 11, NULL, '2026-04-30 22:27:35'),
+(13, 3, 'SALIDA', 1.00, 'VENTA', 11, NULL, '2026-04-30 22:27:35'),
+(14, 2, 'SALIDA', 1.00, 'VENTA', 11, NULL, '2026-04-30 22:27:35'),
+(15, 4, 'SALIDA', 1.00, 'VENTA', 11, NULL, '2026-04-30 22:27:36'),
+(16, 1, 'SALIDA', 2.00, 'VENTA', 12, NULL, '2026-04-30 22:28:39'),
+(17, 2, 'SALIDA', 2.00, 'VENTA', 12, NULL, '2026-04-30 22:28:39'),
+(18, 3, 'SALIDA', 2.00, 'VENTA', 12, NULL, '2026-04-30 22:28:39'),
+(19, 4, 'SALIDA', 2.00, 'VENTA', 12, NULL, '2026-04-30 22:28:40'),
+(20, 1, 'SALIDA', 2.00, 'VENTA', 13, NULL, '2026-05-07 18:33:26'),
+(21, 2, 'SALIDA', 3.00, 'VENTA', 13, NULL, '2026-05-07 18:33:26'),
+(22, 3, 'SALIDA', 2.00, 'VENTA', 13, NULL, '2026-05-07 18:33:26'),
+(23, 4, 'SALIDA', 3.00, 'VENTA', 13, NULL, '2026-05-07 18:33:26'),
+(24, 3, 'SALIDA', 10.00, 'VENTA', 14, NULL, '2026-05-07 19:23:48'),
+(25, 4, 'SALIDA', 10.00, 'VENTA', 15, NULL, '2026-05-07 19:23:53'),
+(26, 1, 'SALIDA', 8.00, 'VENTA', 16, NULL, '2026-05-07 19:39:06'),
+(27, 2, 'SALIDA', 10.00, 'VENTA', 16, NULL, '2026-05-07 19:39:06'),
+(28, 3, 'SALIDA', 10.00, 'VENTA', 16, NULL, '2026-05-07 19:39:06'),
+(29, 4, 'SALIDA', 3.00, 'VENTA', 16, NULL, '2026-05-07 19:39:06'),
+(30, 4, 'SALIDA', 3.00, 'VENTA', 17, NULL, '2026-05-07 19:43:33'),
+(31, 3, 'SALIDA', 10.00, 'VENTA', 17, NULL, '2026-05-07 19:43:33'),
+(32, 2, 'SALIDA', 10.00, 'VENTA', 17, NULL, '2026-05-07 19:43:33'),
+(33, 1, 'SALIDA', 8.00, 'VENTA', 17, NULL, '2026-05-07 19:43:33'),
+(34, 4, 'SALIDA', 1.00, 'VENTA', 18, NULL, '2026-05-07 20:21:27'),
+(35, 3, 'SALIDA', 1.00, 'VENTA', 18, NULL, '2026-05-07 20:21:27'),
+(36, 2, 'SALIDA', 1.00, 'VENTA', 18, NULL, '2026-05-07 20:21:27'),
+(37, 1, 'SALIDA', 1.00, 'VENTA', 18, NULL, '2026-05-07 20:21:27'),
+(38, 4, 'SALIDA', 1.00, 'VENTA', 19, NULL, '2026-05-07 20:30:10'),
+(39, 4, 'SALIDA', 1.00, 'VENTA', 20, NULL, '2026-05-07 20:56:38'),
+(40, 3, 'SALIDA', 100.00, 'VENTA', 20, NULL, '2026-05-07 20:56:38'),
+(41, 2, 'SALIDA', 60.00, 'VENTA', 20, NULL, '2026-05-07 20:56:38'),
+(42, 1, 'SALIDA', 30.00, 'VENTA', 20, NULL, '2026-05-07 20:56:38'),
+(43, 4, 'SALIDA', 120.00, 'VENTA', 21, NULL, '2026-05-08 13:44:29'),
+(44, 3, 'SALIDA', 10.00, 'VENTA', 21, NULL, '2026-05-08 13:44:29'),
+(45, 2, 'SALIDA', 100.00, 'VENTA', 21, NULL, '2026-05-08 13:44:29'),
+(46, 1, 'SALIDA', 10.00, 'VENTA', 21, NULL, '2026-05-08 13:44:29'),
+(47, 1, 'SALIDA', 10.00, 'VENTA', 22, NULL, '2026-05-14 17:33:52'),
+(48, 2, 'SALIDA', 200.00, 'VENTA', 22, NULL, '2026-05-14 17:33:52'),
+(49, 3, 'SALIDA', 300.00, 'VENTA', 22, NULL, '2026-05-14 17:33:52'),
+(50, 4, 'SALIDA', 100.00, 'VENTA', 22, NULL, '2026-05-14 17:33:52'),
+(51, 1, 'SALIDA', 10.00, 'VENTA', 23, NULL, '2026-05-14 18:16:30'),
+(52, 2, 'SALIDA', 100.00, 'VENTA', 23, NULL, '2026-05-14 18:16:30'),
+(53, 4, 'SALIDA', 1000.00, 'VENTA', 23, NULL, '2026-05-14 18:16:30'),
+(54, 4, 'SALIDA', 1000.00, 'VENTA', 24, NULL, '2026-05-14 18:18:37'),
+(55, 1, 'SALIDA', 10.00, 'VENTA', 24, NULL, '2026-05-14 18:18:37'),
+(56, 2, 'SALIDA', 100.00, 'VENTA', 24, NULL, '2026-05-14 18:18:37'),
+(57, 3, 'SALIDA', 100.00, 'VENTA', 24, NULL, '2026-05-14 18:18:37'),
+(58, 4, 'SALIDA', 1000.00, 'VENTA', 24, NULL, '2026-05-14 18:18:37'),
+(59, 4, 'SALIDA', 1.00, 'VENTA', 25, NULL, '2026-05-14 18:43:25'),
+(60, 4, 'SALIDA', 100.00, 'VENTA', 25, NULL, '2026-05-14 18:43:25'),
+(61, 3, 'SALIDA', 100.00, 'VENTA', 25, NULL, '2026-05-14 18:43:25'),
+(62, 2, 'SALIDA', 100.00, 'VENTA', 25, NULL, '2026-05-14 18:43:25'),
+(63, 1, 'SALIDA', 100.00, 'VENTA', 25, NULL, '2026-05-14 18:43:25'),
+(64, 2, 'SALIDA', 10.00, 'VENTA', 26, NULL, '2026-05-14 18:54:58'),
+(65, 1, 'SALIDA', 100.00, 'VENTA', 27, NULL, '2026-05-14 18:56:29'),
+(66, 4, 'SALIDA', 1.00, 'VENTA', 27, NULL, '2026-05-14 18:56:29'),
+(67, 3, 'SALIDA', 1.00, 'VENTA', 27, NULL, '2026-05-14 18:56:29'),
+(68, 2, 'SALIDA', 1.00, 'VENTA', 27, NULL, '2026-05-14 18:56:30'),
+(69, 4, 'SALIDA', 30.00, 'VENTA', 28, NULL, '2026-05-14 19:26:25'),
+(70, 3, 'SALIDA', 15.00, 'VENTA', 28, NULL, '2026-05-14 19:26:25'),
+(71, 2, 'SALIDA', 10.00, 'VENTA', 28, NULL, '2026-05-14 19:26:25'),
+(72, 1, 'SALIDA', 100.00, 'VENTA', 28, NULL, '2026-05-14 19:26:25'),
+(73, 1, 'SALIDA', 100.00, 'VENTA', 29, NULL, '2026-05-14 19:35:42'),
+(74, 1, 'SALIDA', 100.00, 'VENTA', 30, NULL, '2026-05-14 19:54:41'),
+(75, 4, 'SALIDA', 100.00, 'VENTA', 30, NULL, '2026-05-14 19:54:41'),
+(76, 3, 'SALIDA', 15.00, 'VENTA', 30, NULL, '2026-05-14 19:54:41'),
+(77, 2, 'SALIDA', 15.00, 'VENTA', 30, NULL, '2026-05-14 19:54:41'),
+(78, 1, 'SALIDA', 10.00, 'VENTA', 31, NULL, '2026-05-14 19:55:13'),
+(79, 3, 'SALIDA', 100.00, 'VENTA', 31, NULL, '2026-05-14 19:55:13'),
+(80, 3, 'SALIDA', 100.00, 'VENTA', 32, NULL, '2026-05-14 20:02:05'),
+(81, 2, 'SALIDA', 10.00, 'VENTA', 32, NULL, '2026-05-14 20:02:05');
 
 -- --------------------------------------------------------
 
@@ -360,8 +362,9 @@ CREATE TABLE `predicciones` (
 CREATE TABLE `productos` (
   `id` int(11) NOT NULL,
   `nombre` varchar(100) NOT NULL,
-  `precio_venta` decimal(10,2) NOT NULL,
-  `stock` decimal(10,2) DEFAULT 0.00,
+  `precio_venta` decimal(12,2) NOT NULL,
+  `stock` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `stock_minimo` decimal(12,2) NOT NULL DEFAULT 0.00,
   `unidad` varchar(20) DEFAULT 'kg',
   `activo` tinyint(1) DEFAULT 1,
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
@@ -371,11 +374,11 @@ CREATE TABLE `productos` (
 -- Volcado de datos para la tabla `productos`
 --
 
-INSERT INTO `productos` (`id`, `nombre`, `precio_venta`, `stock`, `unidad`, `activo`, `creado_en`) VALUES
-(1, 'Aguacate Hass Extra', 50.00, -509.00, 'kg', 1, '2026-04-30 20:48:13'),
-(2, 'Aguacate Hass Grande', 45.00, -635.00, 'kg', 1, '2026-04-30 20:48:13'),
-(3, 'Aguacate Hass Mediano', 40.00, -779.00, 'kg', 1, '2026-04-30 20:48:13'),
-(4, 'Aguacate Hass Tercera', 30.00, -3379.00, 'kg', 1, '2026-04-30 20:48:13');
+INSERT INTO `productos` (`id`, `nombre`, `precio_venta`, `stock`, `stock_minimo`, `unidad`, `activo`, `creado_en`) VALUES
+(1, 'Aguacate Hass Extra', 50.00, -509.00, 0.00, 'kg', 1, '2026-04-30 20:48:13'),
+(2, 'Aguacate Hass Grande', 45.00, -635.00, 0.00, 'kg', 1, '2026-04-30 20:48:13'),
+(3, 'Aguacate Hass Mediano', 40.00, -779.00, 0.00, 'kg', 1, '2026-04-30 20:48:13'),
+(4, 'Aguacate Hass Tercera', 30.00, -3379.00, 0.00, 'kg', 1, '2026-04-30 20:48:13');
 
 -- --------------------------------------------------------
 
@@ -386,17 +389,19 @@ INSERT INTO `productos` (`id`, `nombre`, `precio_venta`, `stock`, `unidad`, `act
 CREATE TABLE `usuarios` (
   `id` int(11) NOT NULL,
   `nombre` varchar(100) DEFAULT NULL,
-  `username` varchar(50) DEFAULT NULL,
+  `username` varchar(50) NOT NULL,
   `password` varchar(100) DEFAULT NULL,
-  `activo` tinyint(1) DEFAULT 1
+  `password_hash` varchar(255) DEFAULT NULL,
+  `rol` enum('ADMON_GRAL','CAJERO') NOT NULL DEFAULT 'CAJERO',
+  `activo` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `usuarios`
 --
 
-INSERT INTO `usuarios` (`id`, `nombre`, `username`, `password`, `activo`) VALUES
-(1, 'Admin', 'admin', '1234', 1);
+INSERT INTO `usuarios` (`id`, `nombre`, `username`, `password`, `password_hash`, `rol`, `activo`) VALUES
+(1, 'Admin', 'admin', '1234', NULL, 'ADMON_GRAL', 1);
 
 -- --------------------------------------------------------
 
@@ -408,9 +413,15 @@ CREATE TABLE `ventas` (
   `id` int(11) NOT NULL,
   `cliente_id` int(11) DEFAULT NULL,
   `usuario_id` int(11) DEFAULT NULL,
-  `total` decimal(10,2) NOT NULL,
+  `total` decimal(12,2) NOT NULL,
   `tipo_pago` enum('CONTADO','CREDITO') NOT NULL,
-  `estado` enum('PAGADO','PENDIENTE') DEFAULT 'PENDIENTE',
+  `estado_pago` enum('PAGADO','PENDIENTE') NOT NULL DEFAULT 'PENDIENTE',
+  `estado_venta` enum('ACTIVA','CANCELADA') NOT NULL DEFAULT 'ACTIVA',
+  `cancelada_por` int(11) DEFAULT NULL,
+  `cancelada_at` datetime DEFAULT NULL,
+  `motivo_cancelacion` varchar(255) DEFAULT NULL,
+  `impresiones` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `ultima_impresion_at` datetime DEFAULT NULL,
   `fecha` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -418,36 +429,36 @@ CREATE TABLE `ventas` (
 -- Volcado de datos para la tabla `ventas`
 --
 
-INSERT INTO `ventas` (`id`, `cliente_id`, `usuario_id`, `total`, `tipo_pago`, `estado`, `fecha`) VALUES
-(2, 1, 1, 725.00, 'CONTADO', 'PENDIENTE', '2026-04-30 20:15:45'),
-(3, 1, 1, 250.00, 'CREDITO', 'PENDIENTE', '2026-04-30 20:26:45'),
-(4, 1, 1, 250.00, 'CREDITO', 'PENDIENTE', '2026-04-30 20:27:53'),
-(5, 1, 1, 250.00, 'CREDITO', 'PENDIENTE', '2026-04-30 20:31:40'),
-(8, 1, 1, 250.00, 'CREDITO', 'PENDIENTE', '2026-04-30 20:48:42'),
-(9, 1, 1, 165.00, 'CREDITO', 'PENDIENTE', '2026-04-30 21:04:05'),
-(10, 1, 1, 165.00, 'CONTADO', 'PENDIENTE', '2026-04-30 22:27:16'),
-(11, 1, 1, 165.00, 'CREDITO', 'PENDIENTE', '2026-04-30 22:27:35'),
-(12, 1, 1, 330.00, 'CREDITO', 'PENDIENTE', '2026-04-30 22:28:39'),
-(13, 1, 1, 405.00, 'CREDITO', 'PENDIENTE', '2026-05-07 18:33:25'),
-(14, 1, 1, 400.00, 'CREDITO', 'PENDIENTE', '2026-05-07 19:23:47'),
-(15, 1, 1, 300.00, 'CONTADO', 'PENDIENTE', '2026-05-07 19:23:53'),
-(16, 1, 1, 1340.00, 'CREDITO', 'PENDIENTE', '2026-05-07 19:39:06'),
-(17, 1, 1, 1340.00, 'CONTADO', 'PENDIENTE', '2026-05-07 19:43:33'),
-(18, 3, 1, 165.00, 'CREDITO', 'PENDIENTE', '2026-05-07 20:21:26'),
-(19, NULL, 1, 30.00, 'CONTADO', 'PENDIENTE', '2026-05-07 20:30:09'),
-(20, 3, 1, 8230.00, 'CONTADO', 'PENDIENTE', '2026-05-07 20:56:37'),
-(21, 3, 1, 9000.00, 'CONTADO', 'PENDIENTE', '2026-05-08 13:44:29'),
-(22, 9, 1, 24500.00, 'CONTADO', 'PENDIENTE', '2026-05-14 17:33:52'),
-(23, NULL, 1, 35000.00, 'CONTADO', 'PENDIENTE', '2026-05-14 18:16:30'),
-(24, NULL, 1, 69000.00, 'CONTADO', 'PENDIENTE', '2026-05-14 18:18:37'),
-(25, 3, 1, 16530.00, 'CONTADO', 'PENDIENTE', '2026-05-14 18:43:25'),
-(26, 1, 1, 450.00, 'CONTADO', 'PENDIENTE', '2026-05-14 18:54:57'),
-(27, 1, 1, 5115.00, 'CONTADO', 'PENDIENTE', '2026-05-14 18:56:29'),
-(28, 11, 1, 6950.00, 'CREDITO', 'PENDIENTE', '2026-05-14 19:26:24'),
-(29, 1, 1, 5000.00, 'CONTADO', 'PENDIENTE', '2026-05-14 19:35:42'),
-(30, 4, 1, 9275.00, 'CREDITO', 'PENDIENTE', '2026-05-14 19:54:40'),
-(31, 3, 1, 4500.00, 'CREDITO', 'PENDIENTE', '2026-05-14 19:55:13'),
-(32, 3, 1, 4450.00, 'CREDITO', 'PENDIENTE', '2026-05-14 20:02:04');
+INSERT INTO `ventas` (`id`, `cliente_id`, `usuario_id`, `total`, `tipo_pago`, `estado_pago`, `estado_venta`, `cancelada_por`, `cancelada_at`, `motivo_cancelacion`, `impresiones`, `ultima_impresion_at`, `fecha`) VALUES
+(2, 1, 1, 725.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 20:15:45'),
+(3, 1, 1, 250.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 20:26:45'),
+(4, 1, 1, 250.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 20:27:53'),
+(5, 1, 1, 250.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 20:31:40'),
+(8, 1, 1, 250.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 20:48:42'),
+(9, 1, 1, 165.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 21:04:05'),
+(10, 1, 1, 165.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 22:27:16'),
+(11, 1, 1, 165.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 22:27:35'),
+(12, 1, 1, 330.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-04-30 22:28:39'),
+(13, 1, 1, 405.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-07 18:33:25'),
+(14, 1, 1, 400.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-07 19:23:47'),
+(15, 1, 1, 300.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-07 19:23:53'),
+(16, 1, 1, 1340.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-07 19:39:06'),
+(17, 1, 1, 1340.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-07 19:43:33'),
+(18, 3, 1, 165.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-07 20:21:26'),
+(19, NULL, 1, 30.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-07 20:30:09'),
+(20, 3, 1, 8230.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-07 20:56:37'),
+(21, 3, 1, 9000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-08 13:44:29'),
+(22, 9, 1, 24500.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 17:33:52'),
+(23, NULL, 1, 35000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 18:16:30'),
+(24, NULL, 1, 69000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 18:18:37'),
+(25, 3, 1, 16530.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 18:43:25'),
+(26, 1, 1, 450.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 18:54:57'),
+(27, 1, 1, 5115.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 18:56:29'),
+(28, 11, 1, 6950.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 19:26:24'),
+(29, 1, 1, 5000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 19:35:42'),
+(30, 4, 1, 9275.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 19:54:40'),
+(31, 3, 1, 4500.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 19:55:13'),
+(32, 3, 1, 4450.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 20:02:04');
 
 --
 -- Índices para tablas volcadas
@@ -457,7 +468,8 @@ INSERT INTO `ventas` (`id`, `cliente_id`, `usuario_id`, `total`, `tipo_pago`, `e
 -- Indices de la tabla `clientes`
 --
 ALTER TABLE `clientes`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_clientes_rfc` (`rfc`);
 
 --
 -- Indices de la tabla `compras`
@@ -470,8 +482,8 @@ ALTER TABLE `compras`
 --
 ALTER TABLE `cuentas_por_cobrar`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `venta_id` (`venta_id`),
-  ADD KEY `cliente_id` (`cliente_id`);
+  ADD UNIQUE KEY `ux_cuentas_venta` (`venta_id`),
+  ADD KEY `ix_cuentas_cliente_estado` (`cliente_id`,`estado`);
 
 --
 -- Indices de la tabla `detalle_compra`
@@ -494,7 +506,9 @@ ALTER TABLE `detalle_venta`
 --
 ALTER TABLE `movimientos_inventario`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `producto_id` (`producto_id`);
+  ADD KEY `producto_id` (`producto_id`),
+  ADD KEY `ix_movimientos_referencia` (`referencia_id`),
+  ADD KEY `ix_movimientos_usuario` (`usuario_id`);
 
 --
 -- Indices de la tabla `pagos`
@@ -520,7 +534,8 @@ ALTER TABLE `productos`
 -- Indices de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_usuarios_username` (`username`);
 
 --
 -- Indices de la tabla `ventas`
@@ -528,7 +543,9 @@ ALTER TABLE `usuarios`
 ALTER TABLE `ventas`
   ADD PRIMARY KEY (`id`),
   ADD KEY `cliente_id` (`cliente_id`),
-  ADD KEY `usuario_id` (`usuario_id`);
+  ADD KEY `usuario_id` (`usuario_id`),
+  ADD KEY `ix_ventas_fecha_estado` (`fecha`,`estado_venta`),
+  ADD KEY `ix_ventas_cancelada_por` (`cancelada_por`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
@@ -608,8 +625,8 @@ ALTER TABLE `ventas`
 -- Filtros para la tabla `cuentas_por_cobrar`
 --
 ALTER TABLE `cuentas_por_cobrar`
-  ADD CONSTRAINT `cuentas_por_cobrar_ibfk_1` FOREIGN KEY (`venta_id`) REFERENCES `ventas` (`id`),
-  ADD CONSTRAINT `cuentas_por_cobrar_ibfk_2` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`);
+  ADD CONSTRAINT `fk_cuentas_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`),
+  ADD CONSTRAINT `fk_cuentas_venta` FOREIGN KEY (`venta_id`) REFERENCES `ventas` (`id`);
 
 --
 -- Filtros para la tabla `detalle_compra`
@@ -629,6 +646,7 @@ ALTER TABLE `detalle_venta`
 -- Filtros para la tabla `movimientos_inventario`
 --
 ALTER TABLE `movimientos_inventario`
+  ADD CONSTRAINT `fk_movimientos_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
   ADD CONSTRAINT `movimientos_inventario_ibfk_1` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
 
 --
@@ -647,6 +665,7 @@ ALTER TABLE `predicciones`
 -- Filtros para la tabla `ventas`
 --
 ALTER TABLE `ventas`
+  ADD CONSTRAINT `fk_ventas_cancelada_por` FOREIGN KEY (`cancelada_por`) REFERENCES `usuarios` (`id`),
   ADD CONSTRAINT `ventas_ibfk_1` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`),
   ADD CONSTRAINT `ventas_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`);
 COMMIT;
