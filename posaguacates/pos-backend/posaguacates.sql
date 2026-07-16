@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 16-07-2026 a las 06:18:07
+-- Tiempo de generación: 16-07-2026 a las 23:26:19
 -- Versión del servidor: 10.4.32-MariaDB
--- Versión de PHP: 8.2.12
+-- Versión de PHP: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Base de datos: `pos_aguacates`
+-- Base de datos: `posaguacates`
 --
 
 -- --------------------------------------------------------
@@ -98,7 +98,8 @@ INSERT INTO `cuentas_por_cobrar` (`id`, `venta_id`, `cliente_id`, `total_deuda`,
 (11, 28, 11, 6950.00, 6300.00, 'PENDIENTE', '2026-05-14 19:26:25'),
 (12, 30, 4, 9275.00, 9275.00, 'PENDIENTE', '2026-05-14 19:54:41'),
 (13, 31, 3, 4500.00, 0.00, 'PAGADO', '2026-05-14 19:55:13'),
-(14, 32, 3, 4450.00, 4450.00, 'PENDIENTE', '2026-05-14 20:02:05');
+(14, 32, 3, 4450.00, 4450.00, 'PENDIENTE', '2026-05-14 20:02:05'),
+(15, 34, 1, 45000.00, 45000.00, 'PENDIENTE', '2026-07-16 18:50:26');
 
 -- --------------------------------------------------------
 
@@ -212,7 +213,14 @@ INSERT INTO `detalle_venta` (`id`, `venta_id`, `producto_id`, `cantidad`, `preci
 (82, 31, 1, 10.00, 50.00, 500.00),
 (83, 31, 3, 100.00, 40.00, 4000.00),
 (84, 32, 3, 100.00, 40.00, 4000.00),
-(85, 32, 2, 10.00, 45.00, 450.00);
+(85, 32, 2, 10.00, 45.00, 450.00),
+(86, 33, 1, 10.00, 500.00, 5000.00),
+(87, 33, 2, 20.00, 450.00, 9000.00),
+(88, 33, 3, 5.00, 400.00, 2000.00),
+(89, 34, 1, 20.00, 500.00, 10000.00),
+(90, 34, 3, 50.00, 400.00, 20000.00),
+(91, 34, 4, 50.00, 300.00, 15000.00),
+(92, 35, 1, 110.00, 500.00, 55000.00);
 
 -- --------------------------------------------------------
 
@@ -314,7 +322,18 @@ INSERT INTO `movimientos_inventario` (`id`, `producto_id`, `tipo`, `cantidad`, `
 (78, 1, 'SALIDA', 10.00, 'VENTA', 31, NULL, '2026-05-14 19:55:13'),
 (79, 3, 'SALIDA', 100.00, 'VENTA', 31, NULL, '2026-05-14 19:55:13'),
 (80, 3, 'SALIDA', 100.00, 'VENTA', 32, NULL, '2026-05-14 20:02:05'),
-(81, 2, 'SALIDA', 10.00, 'VENTA', 32, NULL, '2026-05-14 20:02:05');
+(81, 2, 'SALIDA', 10.00, 'VENTA', 32, NULL, '2026-05-14 20:02:05'),
+(82, 1, 'ENTRADA', 10000.00, 'COMPRA', NULL, 1, '2026-07-16 18:48:00'),
+(83, 2, 'ENTRADA', 2000.00, 'COMPRA', NULL, 1, '2026-07-16 18:48:06'),
+(84, 3, 'ENTRADA', 5000.00, 'COMPRA', NULL, 1, '2026-07-16 18:48:21'),
+(85, 4, 'ENTRADA', 25000.00, 'COMPRA', NULL, 1, '2026-07-16 18:48:36'),
+(86, 1, 'SALIDA', 10.00, 'VENTA', 33, 1, '2026-07-16 18:49:40'),
+(87, 2, 'SALIDA', 20.00, 'VENTA', 33, 1, '2026-07-16 18:49:40'),
+(88, 3, 'SALIDA', 5.00, 'VENTA', 33, 1, '2026-07-16 18:49:40'),
+(89, 1, 'SALIDA', 20.00, 'VENTA', 34, 1, '2026-07-16 18:50:26'),
+(90, 3, 'SALIDA', 50.00, 'VENTA', 34, 1, '2026-07-16 18:50:26'),
+(91, 4, 'SALIDA', 50.00, 'VENTA', 34, 1, '2026-07-16 18:50:26'),
+(92, 1, 'SALIDA', 110.00, 'VENTA', 35, 1, '2026-07-16 20:14:45');
 
 -- --------------------------------------------------------
 
@@ -361,24 +380,28 @@ CREATE TABLE `predicciones` (
 
 CREATE TABLE `productos` (
   `id` int(11) NOT NULL,
+  `codigo` varchar(30) DEFAULT NULL,
   `nombre` varchar(100) NOT NULL,
   `precio_venta` decimal(12,2) NOT NULL,
   `stock` decimal(12,2) NOT NULL DEFAULT 0.00,
   `stock_minimo` decimal(12,2) NOT NULL DEFAULT 0.00,
   `unidad` varchar(20) DEFAULT 'kg',
   `activo` tinyint(1) DEFAULT 1,
-  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `kilos_por_caja` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `productos`
 --
 
-INSERT INTO `productos` (`id`, `nombre`, `precio_venta`, `stock`, `stock_minimo`, `unidad`, `activo`, `creado_en`) VALUES
-(1, 'Aguacate Hass Extra', 50.00, -509.00, 0.00, 'kg', 1, '2026-04-30 20:48:13'),
-(2, 'Aguacate Hass Grande', 45.00, -635.00, 0.00, 'kg', 1, '2026-04-30 20:48:13'),
-(3, 'Aguacate Hass Mediano', 40.00, -779.00, 0.00, 'kg', 1, '2026-04-30 20:48:13'),
-(4, 'Aguacate Hass Tercera', 30.00, -3379.00, 0.00, 'kg', 1, '2026-04-30 20:48:13');
+INSERT INTO `productos` (`id`, `codigo`, `nombre`, `precio_venta`, `stock`, `stock_minimo`, `unidad`, `activo`, `creado_en`, `kilos_por_caja`) VALUES
+(1, '01', 'aguacate extra x caja', 500.00, 9351.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
+(2, '02', 'aguacate grande x caja', 450.00, 1345.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
+(3, '03', 'aguacate mediano x caja', 400.00, 4166.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
+(4, '04', 'aguacate tercera x caja', 300.00, 21571.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
+(5, '07', 'agucate roña x caja', 600.00, 1500.00, 0.00, 'CAJA', 1, '2026-07-16 20:16:55', NULL),
+(6, '06', 'aguacate x kilo', 35.00, 100.00, 0.00, 'kg', 1, '2026-07-16 18:30:23', NULL);
 
 -- --------------------------------------------------------
 
@@ -401,7 +424,7 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `nombre`, `username`, `password`, `password_hash`, `rol`, `activo`) VALUES
-(1, 'Admin', 'admin', '1234', NULL, 'ADMON_GRAL', 1);
+(1, 'Admin', 'admin', NULL, '$2b$12$QfQKTdP6.4wgRKaRFG90Au/inXIizuRs7wZuGUguA5vSBQ56kIGta', 'ADMON_GRAL', 1);
 
 -- --------------------------------------------------------
 
@@ -458,7 +481,10 @@ INSERT INTO `ventas` (`id`, `cliente_id`, `usuario_id`, `total`, `tipo_pago`, `e
 (29, 1, 1, 5000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 19:35:42'),
 (30, 4, 1, 9275.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 19:54:40'),
 (31, 3, 1, 4500.00, 'CREDITO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 19:55:13'),
-(32, 3, 1, 4450.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 20:02:04');
+(32, 3, 1, 4450.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 20:02:04'),
+(33, 1, 1, 16000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 4, '2026-07-16 12:49:58', '2026-07-16 18:49:40'),
+(34, 1, 1, 45000.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-07-16 18:50:26'),
+(35, 10, 1, 55000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-07-16 20:14:45');
 
 --
 -- Índices para tablas volcadas
@@ -528,7 +554,8 @@ ALTER TABLE `predicciones`
 -- Indices de la tabla `productos`
 --
 ALTER TABLE `productos`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_productos_codigo` (`codigo`);
 
 --
 -- Indices de la tabla `usuarios`
@@ -567,7 +594,7 @@ ALTER TABLE `compras`
 -- AUTO_INCREMENT de la tabla `cuentas_por_cobrar`
 --
 ALTER TABLE `cuentas_por_cobrar`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT de la tabla `detalle_compra`
@@ -579,13 +606,13 @@ ALTER TABLE `detalle_compra`
 -- AUTO_INCREMENT de la tabla `detalle_venta`
 --
 ALTER TABLE `detalle_venta`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=86;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=93;
 
 --
 -- AUTO_INCREMENT de la tabla `movimientos_inventario`
 --
 ALTER TABLE `movimientos_inventario`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=82;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=93;
 
 --
 -- AUTO_INCREMENT de la tabla `pagos`
@@ -603,7 +630,7 @@ ALTER TABLE `predicciones`
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
@@ -615,7 +642,7 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `ventas`
 --
 ALTER TABLE `ventas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- Restricciones para tablas volcadas

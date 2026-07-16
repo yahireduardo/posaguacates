@@ -255,6 +255,183 @@
           grid-column: 1 / -1;
         }
       }
+
+      /* =========================
+   VENTAS DE MOSTRADOR
+========================= */
+
+.ventas-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.filtros-ventas {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.filtros-ventas label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #385247;
+}
+
+.filtros-ventas input,
+.filtros-ventas select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #c6d2cb;
+  border-radius: 8px;
+  background: white;
+}
+
+.acciones-filtros {
+  display: flex;
+  gap: 8px;
+}
+
+.resumen-ventas {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(180px, 260px));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.resumen-ventas span {
+  display: block;
+  color: #687a70;
+  font-size: 13px;
+}
+
+.resumen-ventas strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 25px;
+}
+
+.tabla-ventas-contenedor {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.tabla-ventas {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla-ventas thead {
+  background: #168b52;
+  color: white;
+}
+
+.tabla-ventas th,
+.tabla-ventas td {
+  padding: 10px;
+  border-bottom: 1px solid #e1e8e4;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tabla-ventas tbody tr {
+  cursor: pointer;
+}
+
+.tabla-ventas tbody tr:hover {
+  background: #eff7f2;
+}
+
+.estado-activa {
+  display: inline-block;
+  padding: 5px 9px;
+  background: #d9f2e3;
+  color: #14723f;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.estado-cancelada {
+  display: inline-block;
+  padding: 5px 9px;
+  background: #fde1df;
+  color: #a93226;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tabla-vacia {
+  padding: 45px !important;
+  text-align: center !important;
+  color: #718078;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, .45);
+}
+
+.modal-contenido {
+  width: min(900px, 96vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 22px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, .25);
+}
+
+.modal-encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.modal-encabezado button {
+  font-size: 22px;
+}
+
+.detalle-resumen {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.detalle-resumen div {
+  padding: 12px;
+  background: #f4f8f5;
+  border-radius: 9px;
+}
+
+.detalle-resumen span {
+  display: block;
+  color: #6d7d74;
+  font-size: 12px;
+}
+
+.detalle-resumen strong {
+  display: block;
+  margin-top: 5px;
+}
+
+
   </style>
 </head>
 <body>
@@ -349,11 +526,12 @@
                     Unidad
                   </label>
 
-                  <select id="unidadCaptura">
-                    <option value="kg">Kilogramos</option>
-                    <option value="caja">Cajas</option>
-                    <option value="pieza">Piezas</option>
-                  </select>
+                  <input
+  id="unidadCaptura"
+  type="text"
+  value="kg"
+  readonly
+>
 
                 </div>
 
@@ -495,11 +673,273 @@
 
       <section id="inventario" class="seccion"><h2>Inventario</h2><form id="movimientoForm" class="panel form-grid"><select id="productoMovimiento"></select><select id="tipoMovimiento"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida / merma</option></select><input id="cantidadMovimiento" type="number" min="0.01" step="0.01" placeholder="Cantidad" required><input id="motivoMovimiento" placeholder="Motivo" required><button class="primary">Registrar</button></form><div id="movimientos" style="margin-top:16px"></div></section>
 
-      <section id="ventas" class="seccion"><h2>Ventas recientes</h2><div id="listaVentas" class="panel"></div></section>
+      <section
+  id="ventas"
+  class="seccion"
+>
+
+  <div class="ventas-titulo">
+
+    <div>
+      <h2>Ventas de mostrador</h2>
+
+      <p class="muted">
+        Consulta notas actuales y ventas anteriores
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="primary"
+      id="actualizarVentas"
+    >
+      Actualizar
+    </button>
+
+  </div>
+
+  <!-- =========================
+       FILTROS
+  ========================== -->
+
+  <form
+    id="filtrosVentas"
+    class="panel filtros-ventas"
+  >
+
+    <div>
+
+      <label for="filtroFolio">
+        Folio
+      </label>
+
+      <input
+        id="filtroFolio"
+        type="text"
+        placeholder="Ej. 125"
+      >
+
+    </div>
+
+    <div>
+
+      <label for="filtroCliente">
+        Cliente
+      </label>
+
+      <input
+        id="filtroCliente"
+        type="text"
+        placeholder="Nombre del cliente"
+      >
+
+    </div>
+
+    <div>
+
+      <label for="filtroFechaInicio">
+        Desde
+      </label>
+
+      <input
+        id="filtroFechaInicio"
+        type="date"
+      >
+
+    </div>
+
+    <div>
+
+      <label for="filtroFechaFin">
+        Hasta
+      </label>
+
+      <input
+        id="filtroFechaFin"
+        type="date"
+      >
+
+    </div>
+
+    <div>
+
+      <label for="filtroTipoPago">
+        Tipo de pago
+      </label>
+
+      <select id="filtroTipoPago">
+
+        <option value="">
+          Todos
+        </option>
+
+        <option value="CONTADO">
+          Contado
+        </option>
+
+        <option value="CREDITO">
+          Crédito
+        </option>
+
+      </select>
+
+    </div>
+
+    <div>
+
+      <label for="filtroEstadoVenta">
+        Estado
+      </label>
+
+      <select id="filtroEstadoVenta">
+
+        <option value="">
+          Todas
+        </option>
+
+        <option value="ACTIVA">
+          Activas
+        </option>
+
+        <option value="CANCELADA">
+          Canceladas
+        </option>
+
+      </select>
+
+    </div>
+
+    <div class="acciones-filtros">
+
+      <button
+        type="submit"
+        class="primary"
+      >
+        Buscar
+      </button>
+
+      <button
+        type="button"
+        id="limpiarFiltrosVentas"
+      >
+        Limpiar
+      </button>
+
+    </div>
+
+  </form>
+
+  <!-- =========================
+       RESUMEN
+  ========================== -->
+
+  <div class="resumen-ventas">
+
+    <div class="panel">
+
+      <span>Ventas encontradas</span>
+
+      <strong id="ventasEncontradas">
+        0
+      </strong>
+
+    </div>
+
+    <div class="panel">
+
+      <span>Importe total</span>
+
+      <strong
+        id="importeVentas"
+        class="money"
+      >
+        $0.00
+      </strong>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+       TABLA
+  ========================== -->
+
+  <div class="panel tabla-ventas-contenedor">
+
+    <table class="tabla-ventas">
+
+      <thead>
+
+        <tr>
+          <th>Fecha</th>
+          <th>Folio</th>
+          <th>Cliente</th>
+          <th>Importe total</th>
+          <th>Tipo de pago</th>
+          <th>Estado</th>
+          <th>Cajero</th>
+          <th>Hora</th>
+          <th>Acciones</th>
+        </tr>
+
+      </thead>
+
+      <tbody id="listaVentas">
+
+        <tr>
+
+          <td
+            colspan="9"
+            class="tabla-vacia"
+          >
+            Cargando ventas...
+          </td>
+
+        </tr>
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</section>
 
       <section id="dashboard" class="seccion"><h2>Dashboard</h2><div id="metricas" class="grid"></div><div class="panel" style="margin-top:16px"><h3>Ventas de los últimos 7 días</h3><canvas id="graficaSemanal"></canvas></div><div class="actions"><button class="secondary" id="reporte">Abrir reporte PDF</button></div></section>
     </main>
   </div>
+
+  
+  <div
+  id="modalDetalleVenta"
+  class="modal hidden"
+>
+
+  <div class="modal-contenido">
+
+    <div class="modal-encabezado">
+
+      <h2 id="tituloDetalleVenta">
+        Detalle de venta
+      </h2>
+
+      <button
+        type="button"
+        id="cerrarDetalleVenta"
+        class="danger"
+      >
+        ×
+      </button>
+
+    </div>
+
+    <div id="contenidoDetalleVenta">
+    </div>
+
+  </div>
+
+</div>
+
 
   <script>
     const API='http://127.0.0.1:3000'; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, grafica=null, productoSeleccionado = null, indiceResultadoActivo = -1;
@@ -507,12 +947,178 @@
     const cantidad=n=>new Intl.NumberFormat('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0);
     const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
-    async function api(path,options={}){const headers={...(options.body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:`Bearer ${token}`}:{})};const response=await fetch(API+path,{...options,headers:{...headers,...options.headers}});if(response.status===401){cerrarSesion();throw new Error('Tu sesión expiró');}const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Error en la solicitud');return data}
+    async function api(path, options = {}) {
+
+  const headers = {
+
+    ...(options.body
+      ? {
+          'Content-Type':
+            'application/json'
+        }
+      : {}),
+
+    ...(token
+      ? {
+          Authorization:
+            `Bearer ${token}`
+        }
+      : {})
+
+  };
+
+  const response =
+    await fetch(
+      API + path,
+      {
+        ...options,
+
+        headers: {
+          ...headers,
+          ...options.headers
+        }
+      }
+    );
+
+  const data =
+    await response
+      .json()
+      .catch(() => ({}));
+
+  const esLogin =
+    path === '/auth/login';
+
+  if (
+    response.status === 401 &&
+    !esLogin &&
+    token
+  ) {
+
+    cerrarSesion();
+
+    throw new Error(
+      'Tu sesión expiró'
+    );
+
+  }
+
+  if (!response.ok) {
+
+    throw new Error(
+      data.error ||
+      'Error en la solicitud'
+    );
+
+  }
+
+  return data;
+
+}
     function mostrar(id){document.querySelectorAll('.seccion').forEach(x=>x.classList.toggle('activa',x.id===id));if(id==='cuentas')cargarCuentas();if(id==='inventario')cargarInventario();if(id==='ventas')cargarVentas();if(id==='dashboard')cargarDashboard()}
     document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>mostrar(b.dataset.section));
 
-    document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();try{const data=await api('/auth/login',{method:'POST',body:JSON.stringify({username:username.value.trim(),password:password.value})});token=data.token;usuario=data.usuario;localStorage.setItem('tokenPOS',token);localStorage.setItem('usuarioPOS',JSON.stringify(usuario));iniciarApp()}catch(err){loginError.textContent=err.message}};
-    function iniciarApp(){login.classList.add('hidden');sistema.classList.remove('hidden');sesion.textContent=`${usuario.nombre||usuario.username} · ${usuario.rol}`;document.querySelectorAll('.admin').forEach(x=>x.classList.toggle('hidden',usuario.rol!=='ADMON_GRAL'));cargarProductos();cargarClientes()}
+    document
+  .getElementById('loginForm')
+  .onsubmit = async evento => {
+
+    evento.preventDefault();
+
+    const usernameInput =
+      document.getElementById(
+        'username'
+      );
+
+    const passwordInput =
+      document.getElementById(
+        'password'
+      );
+
+    const loginError =
+      document.getElementById(
+        'loginError'
+      );
+
+    loginError.textContent = '';
+
+    try {
+
+      const data =
+        await api(
+          '/auth/login',
+          {
+            method: 'POST',
+
+            body: JSON.stringify({
+
+              username:
+                usernameInput
+                  .value
+                  .trim(),
+
+              password:
+                passwordInput.value
+
+            })
+
+          }
+        );
+
+      token = data.token;
+      usuario = data.usuario;
+
+      localStorage.setItem(
+        'tokenPOS',
+        token
+      );
+
+      localStorage.setItem(
+        'usuarioPOS',
+        JSON.stringify(usuario)
+      );
+
+      iniciarApp();
+
+    } catch (error) {
+
+      loginError.textContent =
+        error.message;
+
+    }
+
+  };
+   function iniciarApp() {
+
+  document
+    .getElementById('login')
+    .classList.add('hidden');
+
+  document
+    .getElementById('sistema')
+    .classList.remove('hidden');
+
+  document
+    .getElementById('sesion')
+    .textContent =
+      `${
+        usuario.nombre ||
+        usuario.username
+      } · ${usuario.rol}`;
+
+  document
+    .querySelectorAll('.admin')
+    .forEach(elemento => {
+
+      elemento.classList.toggle(
+        'hidden',
+        usuario.rol !== 'ADMON_GRAL'
+      );
+
+    });
+
+  cargarProductos();
+  cargarClientes();
+
+}
     function cerrarSesion(){localStorage.removeItem('tokenPOS');localStorage.removeItem('usuarioPOS');location.reload()} document.getElementById('logout').onclick=cerrarSesion;
 
         async function cargarProductos() {
@@ -717,7 +1323,7 @@ function seleccionarProducto(id) {
     `${producto.codigo || producto.id} - ${producto.nombre}`;
 
   if (producto.unidad) {
-    unidadCaptura.value = producto.unidad;
+    unidadCaptura.value = producto.unidad || 'kg';
   }
 
   cerrarResultados();
@@ -988,9 +1594,7 @@ function limpiarCaptura() {
   buscarProducto.focus();
 
 }
-    const productosDiv=document.getElementById('productos');
-    async function editarPrecio(id){const p=productos.find(x=>x.id===id),nuevo=prompt('Nuevo precio de venta',p.precio_venta);if(nuevo===null)return;try{await api(`/productos/${id}/precio`,{method:'PUT',body:JSON.stringify({precio_venta:Number(nuevo)})});await cargarProductos()}catch(e){alert(e.message)}}
-    function agregar(id){const p=productos.find(x=>x.id===id),cant=Number(document.getElementById(`cant-${id}`).value),actual=carrito.find(x=>x.producto_id===id),acumulado=cant+(actual?.cantidad||0);if(!(cant>0)||acumulado>Number(p.stock))return alert('Cantidad inválida o superior al stock');if(actual)actual.cantidad=acumulado;else carrito.push({producto_id:id,nombre:p.nombre,cantidad:cant,precio:Number(p.precio_venta)});dibujarCarrito()}
+   
     function dibujarCarrito() {
 
   const detalleVenta =
@@ -1277,12 +1881,566 @@ function quitar(indice) {
     async function cargarInventario(){await cargarProductos();const data=await api('/inventario');movimientos.innerHTML=data.map(m=>`<div class="panel row"><span>${esc(m.producto)} · ${esc(m.motivo)}<br><small>${new Date(m.fecha).toLocaleString('es-MX')}</small></span><strong>${m.tipo==='ENTRADA'?'+':'−'}${cantidad(m.cantidad)}</strong></div>`).join('')}
     movimientoForm.onsubmit=async e=>{e.preventDefault();try{await api('/inventario/movimiento',{method:'POST',body:JSON.stringify({producto_id:Number(productoMovimiento.value),tipo:tipoMovimiento.value,cantidad:Number(cantidadMovimiento.value),motivo:motivoMovimiento.value})});movimientoForm.reset();await cargarInventario()}catch(e){alert(e.message)}};
 
-    async function cargarVentas(){const data=await api('/ventas');listaVentas.innerHTML=data.map(v=>`<div class="row"><span>#${v.id} · ${esc(v.cliente||'Sin cliente')} · ${esc(v.username||'')}<br><small>${new Date(v.fecha).toLocaleString('es-MX')} · ${v.estado_venta}</small></span><span>${dinero.format(v.total)} ${v.estado_venta==='ACTIVA'?`<button class="danger" onclick="cancelarVenta(${v.id})">Cancelar</button>`:''}</span></div>`).join('')}
-    async function cancelarVenta(id){const motivo=prompt('Motivo de cancelación');if(!motivo)return;try{await api(`/ventas/${id}/cancelar`,{method:'POST',body:JSON.stringify({motivo})});await cargarVentas();await cargarProductos()}catch(e){alert(e.message)}}
+    async function cargarVentas() {
+
+  const lista =
+    document.getElementById(
+      'listaVentas'
+    );
+
+  lista.innerHTML = `
+
+    <tr>
+
+      <td
+        colspan="9"
+        class="tabla-vacia"
+      >
+        Cargando ventas...
+      </td>
+
+    </tr>
+
+  `;
+
+  try {
+
+    const parametros =
+      new URLSearchParams();
+
+    const folio =
+      document.getElementById(
+        'filtroFolio'
+      ).value.trim();
+
+    const cliente =
+      document.getElementById(
+        'filtroCliente'
+      ).value.trim();
+
+    const fechaInicio =
+      document.getElementById(
+        'filtroFechaInicio'
+      ).value;
+
+    const fechaFin =
+      document.getElementById(
+        'filtroFechaFin'
+      ).value;
+
+    const tipoPago =
+      document.getElementById(
+        'filtroTipoPago'
+      ).value;
+
+    const estadoVenta =
+      document.getElementById(
+        'filtroEstadoVenta'
+      ).value;
+
+    if (folio) {
+      parametros.set('folio', folio);
+    }
+
+    if (cliente) {
+      parametros.set('cliente', cliente);
+    }
+
+    if (fechaInicio) {
+      parametros.set(
+        'fecha_inicio',
+        fechaInicio
+      );
+    }
+
+    if (fechaFin) {
+      parametros.set(
+        'fecha_fin',
+        fechaFin
+      );
+    }
+
+    if (tipoPago) {
+      parametros.set(
+        'tipo_pago',
+        tipoPago
+      );
+    }
+
+    if (estadoVenta) {
+      parametros.set(
+        'estado_venta',
+        estadoVenta
+      );
+    }
+
+    parametros.set('limite', '500');
+
+    const ventas =
+      await api(
+        `/ventas?${parametros.toString()}`
+      );
+
+    document.getElementById(
+      'ventasEncontradas'
+    ).textContent =
+      ventas.length;
+
+    const importeTotal =
+      ventas
+        .filter(
+          venta =>
+            venta.estado_venta !==
+            'CANCELADA'
+        )
+        .reduce(
+          (suma, venta) =>
+            suma + Number(venta.total),
+          0
+        );
+
+    document.getElementById(
+      'importeVentas'
+    ).textContent =
+      dinero.format(importeTotal);
+
+    if (!ventas.length) {
+
+      lista.innerHTML = `
+
+        <tr>
+
+          <td
+            colspan="9"
+            class="tabla-vacia"
+          >
+            No se encontraron ventas
+          </td>
+
+        </tr>
+
+      `;
+
+      return;
+
+    }
+
+    lista.innerHTML =
+      ventas.map(venta => {
+
+        const fecha =
+          new Date(venta.fecha);
+
+        const claseEstado =
+          venta.estado_venta ===
+          'CANCELADA'
+            ? 'estado-cancelada'
+            : 'estado-activa';
+
+        return `
+
+          <tr
+            ondblclick="
+              verDetalleVenta(${venta.id})
+            "
+          >
+
+            <td>
+              ${fecha.toLocaleDateString(
+                'es-MX'
+              )}
+            </td>
+
+            <td>
+              <strong>
+                ${venta.id}
+              </strong>
+            </td>
+
+            <td>
+              ${esc(
+                venta.cliente ||
+                'Sin cliente'
+              )}
+            </td>
+
+            <td class="money">
+              ${dinero.format(
+                Number(venta.total)
+              )}
+            </td>
+
+            <td>
+              ${esc(venta.tipo_pago)}
+            </td>
+
+            <td>
+
+              <span class="${claseEstado}">
+                ${esc(
+                  venta.estado_venta
+                )}
+              </span>
+
+            </td>
+
+            <td>
+              ${esc(
+                venta.usuario ||
+                'Sin usuario'
+              )}
+            </td>
+
+            <td>
+              ${fecha.toLocaleTimeString(
+                'es-MX',
+                {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }
+              )}
+            </td>
+
+            <td>
+
+  <div class="actions">
+
+    <button
+      type="button"
+      onclick="
+        verDetalleVenta(${venta.id})
+      "
+    >
+      Ver
+    </button>
+
+    ${
+      venta.estado_venta === 'ACTIVA'
+        ? `
+          <button
+            type="button"
+            class="danger"
+            onclick="
+              cancelarVenta(${venta.id})
+            "
+          >
+            Cancelar
+          </button>
+        `
+        : ''
+    }
+
+  </div>
+
+</td>
+
+          </tr>
+
+        `;
+
+      }).join('');
+
+  } catch (error) {
+
+    console.error(error);
+
+    lista.innerHTML = `
+
+      <tr>
+
+        <td
+          colspan="9"
+          class="tabla-vacia"
+        >
+          ${esc(error.message)}
+        </td>
+
+      </tr>
+
+    `;
+
+  }
+
+}
+document
+  .getElementById('filtrosVentas')
+  .addEventListener(
+    'submit',
+    evento => {
+
+      evento.preventDefault();
+
+      cargarVentas();
+
+    }
+  );
+
+document
+  .getElementById('actualizarVentas')
+  .addEventListener(
+    'click',
+    cargarVentas
+  );
+
+document
+  .getElementById(
+    'limpiarFiltrosVentas'
+  )
+  .addEventListener(
+    'click',
+    () => {
+
+      document
+        .getElementById(
+          'filtrosVentas'
+        )
+        .reset();
+
+      cargarVentas();
+
+    }
+  );
+
+  async function verDetalleVenta(
+  ventaId
+) {
+
+  try {
+
+    const data =
+      await api(
+        `/ventas/${ventaId}/detalle`
+      );
+
+    const venta =
+      data.venta;
+
+    const fecha =
+      new Date(venta.fecha);
+
+    document.getElementById(
+      'tituloDetalleVenta'
+    ).textContent =
+      `Venta #${venta.id}`;
+
+    document.getElementById(
+      'contenidoDetalleVenta'
+    ).innerHTML = `
+
+      <div class="detalle-resumen">
+
+        <div>
+          <span>Cliente</span>
+          <strong>
+            ${esc(
+              venta.cliente ||
+              'Sin cliente'
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <span>Fecha</span>
+          <strong>
+            ${fecha.toLocaleString(
+              'es-MX'
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <span>Tipo de pago</span>
+          <strong>
+            ${esc(venta.tipo_pago)}
+          </strong>
+        </div>
+
+        <div>
+          <span>Estado</span>
+          <strong>
+            ${esc(venta.estado_venta)}
+          </strong>
+        </div>
+
+        <div>
+          <span>Cajero</span>
+          <strong>
+            ${esc(
+              venta.usuario ||
+              'Sin usuario'
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <span>Total</span>
+          <strong class="money">
+            ${dinero.format(
+              Number(venta.total)
+            )}
+          </strong>
+        </div>
+
+      </div>
+
+      <table class="tabla-ventas">
+
+        <thead>
+
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Unidad</th>
+            <th>Precio</th>
+            <th>Subtotal</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${data.productos.map(
+            producto => `
+
+              <tr>
+
+                <td>
+                  ${esc(
+                    producto.codigo ||
+                    producto.producto_id
+                  )}
+                </td>
+
+                <td>
+                  ${esc(
+                    producto.nombre
+                  )}
+                </td>
+
+                <td>
+                  ${cantidad(
+                    producto.cantidad
+                  )}
+                </td>
+
+                <td>
+                  ${esc(
+                    producto.unidad ||
+                    ''
+                  )}
+                </td>
+
+                <td>
+                  ${dinero.format(
+                    Number(
+                      producto.precio_unitario
+                    )
+                  )}
+                </td>
+
+                <td class="money">
+                  ${dinero.format(
+                    Number(
+                      producto.subtotal
+                    )
+                  )}
+                </td>
+
+              </tr>
+
+            `
+          ).join('')}
+
+        </tbody>
+
+      </table>
+
+    `;
+
+    document
+      .getElementById(
+        'modalDetalleVenta'
+      )
+      .classList.remove('hidden');
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+}
+
+document
+  .getElementById(
+    'cerrarDetalleVenta'
+  )
+  .addEventListener(
+    'click',
+    () => {
+
+      document
+        .getElementById(
+          'modalDetalleVenta'
+        )
+        .classList.add('hidden');
+
+    }
+  );
+
+    async function cancelarVenta(id) {
+
+  const motivo =
+    prompt('Motivo de cancelación');
+
+  if (!motivo || !motivo.trim()) {
+    return;
+  }
+
+  const password =
+    prompt(
+      'Escribe la contraseña del Administrador General'
+    );
+
+  if (!password) {
+    return;
+  }
+
+  try {
+
+    await api(
+      `/ventas/${id}/cancelar`,
+      {
+        method: 'POST',
+
+        body: JSON.stringify({
+          motivo: motivo.trim(),
+          password
+        })
+      }
+    );
+
+    alert(
+      'Venta cancelada e inventario restaurado'
+    );
+
+    await cargarVentas();
+    await cargarProductos();
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+}
     async function cargarDashboard(){try{const d=await api('/stats');metricas.innerHTML=[['Ventas hoy',d.ventas_hoy],['Ingresos hoy',dinero.format(d.ingresos_hoy)],['Clientes',d.clientes],['Deuda',dinero.format(d.deuda_total)]].map(x=>`<div class="card"><h3>${x[0]}</h3><h2>${x[1]}</h2></div>`).join('');const mapa=new Map(d.semanal.map(x=>[String(x.dia).slice(0,10),Number(x.total)])),labels=[],values=[];for(let i=6;i>=0;i--){const f=new Date();f.setHours(0,0,0,0);f.setDate(f.getDate()-i);const k=`${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`;labels.push(f.toLocaleDateString('es-MX',{weekday:'short',day:'2-digit'}));values.push(mapa.get(k)||0)}if(grafica)grafica.destroy();grafica=new Chart(graficaSemanal,{type:'bar',data:{labels,datasets:[{label:'Ventas',data:values,backgroundColor:'#168b52'}]},options:{scales:{y:{beginAtZero:true,ticks:{callback:v=>dinero.format(v)}}}}})}catch(e){alert(e.message)}}
-    reporte.onclick=async()=>{try{const r=await fetch('/reportes/ventas-pdf',{headers:{Authorization:`Bearer ${token}`}});if(!r.ok)throw new Error('No fue posible generar el reporte');const url=URL.createObjectURL(await r.blob());window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),60000)}catch(e){alert(e.message)}};
+    reporte.onclick=async()=>{try{const r=await fetch('${API}/reportes/ventas-pdf',{headers:{Authorization:`Bearer ${token}`}});if(!r.ok)throw new Error('No fue posible generar el reporte');const url=URL.createObjectURL(await r.blob());window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),60000)}catch(e){alert(e.message)}};
 
     try{usuario=JSON.parse(localStorage.getItem('usuarioPOS'))}catch{} if(token&&usuario)iniciarApp();
   </script>
+
+
 </body>
 </html>
