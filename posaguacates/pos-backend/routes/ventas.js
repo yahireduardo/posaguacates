@@ -50,6 +50,18 @@ router.get(
             )
           : 100;
 
+      const paginaSolicitada = Number(req.query.pagina || 1);
+      const pagina = Number.isInteger(paginaSolicitada) && paginaSolicitada > 0
+        ? paginaSolicitada : 1;
+      const offset = (pagina - 1) * limite;
+
+      const fechaValida = valor => /^\d{4}-\d{2}-\d{2}$/.test(valor) &&
+        !Number.isNaN(Date.parse(`${valor}T00:00:00Z`));
+      if ((fechaInicio && !fechaValida(fechaInicio)) || (fechaFin && !fechaValida(fechaFin)) ||
+          (fechaInicio && fechaFin && fechaInicio > fechaFin)) {
+        return res.status(400).json({ error: 'Rango de fechas inválido' });
+      }
+
       const condiciones = [];
       const parametros = [];
 
@@ -59,13 +71,12 @@ router.get(
 
       if (folio) {
 
-        condiciones.push(
-          'CAST(v.id AS CHAR) LIKE ?'
-        );
-
-        parametros.push(
-          `%${folio}%`
-        );
+        if (/^\d+$/.test(folio)) {
+          condiciones.push('v.id = ?');
+          parametros.push(Number(folio));
+        } else {
+          return res.status(400).json({ error: 'El folio debe ser numérico' });
+        }
 
       }
 
@@ -161,7 +172,7 @@ router.get(
           : '';
 
       const [ventas] =
-        await db.promise().query(
+        await db.promise.query(
           `
             SELECT
               v.id,
@@ -194,11 +205,12 @@ router.get(
               v.fecha DESC,
               v.id DESC
 
-            LIMIT ?
+            LIMIT ? OFFSET ?
           `,
           [
             ...parametros,
-            limite
+            limite,
+            offset
           ]
         );
 
@@ -249,7 +261,7 @@ router.get(
       }
 
       const [ventas] =
-        await db.promise().query(
+        await db.promise.query(
           `
             SELECT
               v.id,
@@ -296,7 +308,7 @@ router.get(
       }
 
       const [productos] =
-        await db.promise().query(
+        await db.promise.query(
           `
             SELECT
               dv.producto_id,
@@ -440,7 +452,7 @@ router.post('/crear', async (req, res) => {
   try {
 
     connection =
-      await db.promise().getConnection();
+      await db.promise.getConnection();
 
     await connection.beginTransaction();
 
@@ -783,6 +795,8 @@ router.post('/crear', async (req, res) => {
 
       venta_id: ventaId,
 
+      folio: ventaId,
+
       total,
 
       productos: detalle
@@ -885,7 +899,7 @@ router.post(
       ========================= */
 
       const [administradores] =
-        await db.promise().query(
+        await db.promise.query(
           `
             SELECT
               id,
@@ -943,7 +957,7 @@ router.post(
       }
 
       connection =
-        await db.promise().getConnection();
+        await db.promise.getConnection();
 
       await connection.beginTransaction();
 
@@ -1236,7 +1250,7 @@ router.post(
     try {
 
       connection =
-        await db.promise().getConnection();
+        await db.promise.getConnection();
 
       await connection.beginTransaction();
 

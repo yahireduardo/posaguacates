@@ -22,7 +22,7 @@ function datosCliente(body) {
   };
 }
 
-router.post('/crear', async (req, res) => {
+async function crearCliente(req, res) {
   const c = datosCliente(req.body);
   if (!c.nombre) return res.status(400).json({ error: 'Nombre o razón social obligatorio' });
   try {
@@ -35,7 +35,10 @@ router.post('/crear', async (req, res) => {
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El RFC ya está registrado' });
     res.status(500).json({ error: 'No fue posible crear el cliente' });
   }
-});
+}
+
+router.post('/', crearCliente);
+router.post('/crear', crearCliente); // Compatibilidad temporal con el frontend anterior.
 
 router.put('/:id', permitirRoles('ADMON_GRAL'), async (req, res) => {
   const id = Number(req.params.id);

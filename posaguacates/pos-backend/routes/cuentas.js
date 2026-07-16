@@ -50,10 +50,20 @@ router.post('/abonar', async (req, res) => {
     const saldo = Number(rows[0].saldo_pendiente);
     if (monto > saldo) throw Object.assign(new Error('El abono supera el saldo pendiente'), { status: 409 });
     const nuevoSaldo = Number((saldo - monto).toFixed(2));
-    await connection.query('INSERT INTO pagos (cuenta_id, monto, metodo_pago) VALUES (?, ?, ?)', [cuentaId, monto, metodo]);
+    // El dump actual aún no contiene tipo_movimiento, saldo_restante ni usuario_id.
+    // Esas columnas se proponen en sql/migracion_pendiente.sql sin romper esta ruta.
+    await connection.query(
+      'INSERT INTO pagos (cuenta_id, monto, metodo_pago) VALUES (?, ?, ?)',
+      [cuentaId, monto, metodo]
+    );
     await connection.query(
       'UPDATE cuentas_por_cobrar SET saldo_pendiente = ?, estado = ? WHERE id = ?',
       [nuevoSaldo, nuevoSaldo === 0 ? 'PAGADO' : 'PENDIENTE', cuentaId]
+    );
+    await connection.query(
+      `UPDATE ventas v JOIN cuentas_por_cobrar cxc ON cxc.venta_id = v.id
+       SET v.estado_pago = ? WHERE cxc.id = ?`,
+      [nuevoSaldo === 0 ? 'PAGADO' : 'PENDIENTE', cuentaId]
     );
     await connection.commit();
     res.status(201).json({ mensaje: 'Abono registrado', saldo_pendiente: nuevoSaldo });
