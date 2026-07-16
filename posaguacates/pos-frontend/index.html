@@ -5,257 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>POS Aguacates</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    *{box-sizing:border-box}body{margin:0;font-family:system-ui,Arial;background:#f3f6f4;color:#20342a}button,input,select{font:inherit}button{cursor:pointer;border:0;border-radius:8px;padding:10px 14px}.primary{background:#168b52;color:#fff}.danger{background:#c0392b;color:#fff}.secondary{background:#34495e;color:#fff}.hidden{display:none!important}
-    #login{min-height:100vh;display:grid;place-items:center;background:#168b52}.login-card{width:min(400px,92vw);background:#fff;padding:32px;border-radius:18px;box-shadow:0 12px 35px #0003}.login-card input{width:100%;padding:12px;margin:7px 0}.login-card button{width:100%;margin-top:12px}
-    header{background:#168b52;color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between}.tabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 20px;background:#fff;box-shadow:0 2px 8px #0001}.tab{background:#e6f2eb;color:#185d3d}.seccion{display:none;padding:22px}.seccion.activa{display:block}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.card,.panel{background:#fff;border-radius:14px;padding:18px;box-shadow:0 3px 12px #0001}.pos-layout{display:grid;grid-template-columns:2fr 1fr;gap:18px}.producto input{width:100%;padding:8px;margin:8px 0}.money{font-weight:700;color:#168b52}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.form-grid input,.form-grid select{padding:10px;border:1px solid #ccd7d0;border-radius:8px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.row{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid #e8ece9}.muted{color:#687a70;font-size:.9rem}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;border-bottom:1px solid #e5eae7}canvas{max-height:330px}@media(max-width:800px){.pos-layout{grid-template-columns:1fr}.seccion{padding:14px}}
-          /* =========================
-        CAPTURA DE VENTA
-      ========================= */
-
-      .venta-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 2.3fr) minmax(300px, 0.7fr);
-        gap: 18px;
-        align-items: start;
-      }
-
-      .nota-panel {
-        min-height: 600px;
-      }
-
-      .nota-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 20px;
-        margin-bottom: 22px;
-      }
-
-      .contador-articulos {
-        min-width: 125px;
-        padding: 12px 18px;
-        text-align: center;
-        background: #e6f2eb;
-        border-radius: 12px;
-      }
-
-      .contador-articulos span {
-        display: block;
-        color: #687a70;
-        font-size: 13px;
-      }
-
-      .contador-articulos strong {
-        display: block;
-        margin-top: 4px;
-        font-size: 25px;
-        color: #168b52;
-      }
-
-      .captura-producto {
-        display: grid;
-        grid-template-columns: minmax(260px, 2fr) 120px 145px auto;
-        gap: 12px;
-        align-items: end;
-        padding: 16px;
-        margin-bottom: 20px;
-        background: #f5f8f6;
-        border: 1px solid #dbe6df;
-        border-radius: 12px;
-      }
-
-      .captura-producto label,
-      .cobro-panel label {
-        display: block;
-        margin-bottom: 6px;
-        font-size: 13px;
-        font-weight: 700;
-        color: #385247;
-      }
-
-      .captura-producto input,
-      .captura-producto select,
-      .cobro-panel select {
-        width: 100%;
-        padding: 11px;
-        border: 1px solid #b9c8c0;
-        border-radius: 8px;
-        background: white;
-      }
-
-      .captura-boton button {
-        min-height: 42px;
-      }
-
-      .campo-codigo {
-        position: relative;
-      }
-
-      .resultados-productos {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        z-index: 100;
-        max-height: 280px;
-        overflow-y: auto;
-        background: white;
-        border: 1px solid #b9c8c0;
-        border-radius: 8px;
-        box-shadow: 0 12px 30px rgba(0, 0, 0, .15);
-      }
-
-      .resultado-producto {
-        display: grid;
-        grid-template-columns: 80px 1fr auto;
-        gap: 10px;
-        padding: 11px 12px;
-        border-bottom: 1px solid #edf1ef;
-        cursor: pointer;
-      }
-
-      .resultado-producto:hover,
-      .resultado-producto.activo {
-        background: #e9f5ee;
-      }
-
-      .resultado-producto:last-child {
-        border-bottom: 0;
-      }
-
-      .resultado-codigo {
-        font-weight: 700;
-        color: #168b52;
-      }
-
-      .resultado-precio {
-        font-weight: 700;
-      }
-
-      .tabla-contenedor {
-        width: 100%;
-        overflow-x: auto;
-        border: 1px solid #dce5e0;
-        border-radius: 10px;
-      }
-
-      .tabla-venta {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-      }
-
-      .tabla-venta thead {
-        background: #168b52;
-        color: white;
-      }
-
-      .tabla-venta th,
-      .tabla-venta td {
-        padding: 11px 10px;
-        border-bottom: 1px solid #e5ebe7;
-        text-align: left;
-        white-space: nowrap;
-      }
-
-      .tabla-venta th {
-        font-size: 13px;
-      }
-
-      .tabla-venta tbody tr:hover {
-        background: #f6faf8;
-      }
-
-      .tabla-venta input,
-      .tabla-venta select {
-        width: 95px;
-        padding: 7px;
-        border: 1px solid #c4d0ca;
-        border-radius: 6px;
-      }
-
-      .tabla-vacia {
-        padding: 55px 15px !important;
-        text-align: center !important;
-        color: #7a8b82;
-      }
-
-      .boton-eliminar-producto {
-        padding: 7px 10px;
-        background: #c0392b;
-        color: white;
-      }
-
-      .cobro-panel {
-        position: sticky;
-        top: 20px;
-      }
-
-      .cobro-panel select {
-        margin-bottom: 14px;
-      }
-
-      .resumen-venta {
-        margin: 18px 0;
-        padding: 14px;
-        background: #f5f8f6;
-        border-radius: 10px;
-      }
-
-      .resumen-venta div {
-        display: flex;
-        justify-content: space-between;
-        padding: 7px 0;
-      }
-
-      .total-cobro {
-        margin: 20px 0;
-        padding: 18px;
-        background: #e6f2eb;
-        border-radius: 12px;
-      }
-
-      .total-cobro span {
-        display: block;
-        color: #466056;
-      }
-
-      .total-cobro strong {
-        display: block;
-        margin-top: 5px;
-        font-size: 35px;
-        color: #168b52;
-      }
-
-      .boton-cobrar,
-      .boton-ticket {
-        width: 100%;
-        margin-top: 9px;
-        padding: 14px;
-        font-size: 16px;
-      }
-
-      @media (max-width: 1050px) {
-        .venta-layout {
-          grid-template-columns: 1fr;
-        }
-
-        .cobro-panel {
-          position: static;
-        }
-      }
-
-      @media (max-width: 750px) {
-        .captura-producto {
-          grid-template-columns: 1fr 1fr;
-        }
-
-        .campo-codigo {
-          grid-column: 1 / -1;
-        }
-      }
-  </style>
+  <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
   <div id="login">
@@ -349,11 +99,12 @@
                     Unidad
                   </label>
 
-                  <select id="unidadCaptura">
-                    <option value="kg">Kilogramos</option>
-                    <option value="caja">Cajas</option>
-                    <option value="pieza">Piezas</option>
-                  </select>
+                  <input
+  id="unidadCaptura"
+  type="text"
+  value="kg"
+  readonly
+>
 
                 </div>
 
@@ -495,794 +246,275 @@
 
       <section id="inventario" class="seccion"><h2>Inventario</h2><form id="movimientoForm" class="panel form-grid"><select id="productoMovimiento"></select><select id="tipoMovimiento"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida / merma</option></select><input id="cantidadMovimiento" type="number" min="0.01" step="0.01" placeholder="Cantidad" required><input id="motivoMovimiento" placeholder="Motivo" required><button class="primary">Registrar</button></form><div id="movimientos" style="margin-top:16px"></div></section>
 
-      <section id="ventas" class="seccion"><h2>Ventas recientes</h2><div id="listaVentas" class="panel"></div></section>
+      <section
+  id="ventas"
+  class="seccion"
+>
+
+  <div class="ventas-titulo">
+
+    <div>
+      <h2>Ventas de mostrador</h2>
+
+      <p class="muted">
+        Consulta notas actuales y ventas anteriores
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="primary"
+      id="actualizarVentas"
+    >
+      Actualizar
+    </button>
+
+  </div>
+
+  <!-- =========================
+       FILTROS
+  ========================== -->
+
+  <form
+    id="filtrosVentas"
+    class="panel filtros-ventas"
+  >
+
+    <div>
+
+      <label for="filtroFolio">
+        Folio
+      </label>
+
+      <input
+        id="filtroFolio"
+        type="text"
+        placeholder="Ej. 125"
+      >
+
+    </div>
+
+    <div>
+
+      <label for="filtroCliente">
+        Cliente
+      </label>
+
+      <input
+        id="filtroCliente"
+        type="text"
+        placeholder="Nombre del cliente"
+      >
+
+    </div>
+
+    <div>
+
+      <label for="filtroFechaInicio">
+        Desde
+      </label>
+
+      <input
+        id="filtroFechaInicio"
+        type="date"
+      >
+
+    </div>
+
+    <div>
+
+      <label for="filtroFechaFin">
+        Hasta
+      </label>
+
+      <input
+        id="filtroFechaFin"
+        type="date"
+      >
+
+    </div>
+
+    <div>
+
+      <label for="filtroTipoPago">
+        Tipo de pago
+      </label>
+
+      <select id="filtroTipoPago">
+
+        <option value="">
+          Todos
+        </option>
+
+        <option value="CONTADO">
+          Contado
+        </option>
+
+        <option value="CREDITO">
+          Crédito
+        </option>
+
+      </select>
+
+    </div>
+
+    <div>
+
+      <label for="filtroEstadoVenta">
+        Estado
+      </label>
+
+      <select id="filtroEstadoVenta">
+
+        <option value="">
+          Todas
+        </option>
+
+        <option value="ACTIVA">
+          Activas
+        </option>
+
+        <option value="CANCELADA">
+          Canceladas
+        </option>
+
+      </select>
+
+    </div>
+
+    <div class="acciones-filtros">
+
+      <button
+        type="submit"
+        class="primary"
+      >
+        Buscar
+      </button>
+
+      <button
+        type="button"
+        id="limpiarFiltrosVentas"
+      >
+        Limpiar
+      </button>
+
+    </div>
+
+  </form>
+
+  <!-- =========================
+       RESUMEN
+  ========================== -->
+
+  <div class="resumen-ventas">
+
+    <div class="panel">
+
+      <span>Ventas encontradas</span>
+
+      <strong id="ventasEncontradas">
+        0
+      </strong>
+
+    </div>
+
+    <div class="panel">
+
+      <span>Importe total</span>
+
+      <strong
+        id="importeVentas"
+        class="money"
+      >
+        $0.00
+      </strong>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+       TABLA
+  ========================== -->
+
+  <div class="panel tabla-ventas-contenedor">
+
+    <table class="tabla-ventas">
+
+      <thead>
+
+        <tr>
+          <th>Fecha</th>
+          <th>Folio</th>
+          <th>Cliente</th>
+          <th>Importe total</th>
+          <th>Tipo de pago</th>
+          <th>Estado</th>
+          <th>Cajero</th>
+          <th>Hora</th>
+          <th>Acciones</th>
+        </tr>
+
+      </thead>
+
+      <tbody id="listaVentas">
+
+        <tr>
+
+          <td
+            colspan="9"
+            class="tabla-vacia"
+          >
+            Cargando ventas...
+          </td>
+
+        </tr>
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</section>
 
       <section id="dashboard" class="seccion"><h2>Dashboard</h2><div id="metricas" class="grid"></div><div class="panel" style="margin-top:16px"><h3>Ventas de los últimos 7 días</h3><canvas id="graficaSemanal"></canvas></div><div class="actions"><button class="secondary" id="reporte">Abrir reporte PDF</button></div></section>
     </main>
   </div>
 
-  <script>
-    const API='http://127.0.0.1:3000'; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, grafica=null, productoSeleccionado = null, indiceResultadoActivo = -1;
-    const dinero=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2,maximumFractionDigits:2});
-    const cantidad=n=>new Intl.NumberFormat('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0);
-    const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  
+  <div
+  id="modalDetalleVenta"
+  class="modal hidden"
+>
 
-    async function api(path,options={}){const headers={...(options.body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:`Bearer ${token}`}:{})};const response=await fetch(API+path,{...options,headers:{...headers,...options.headers}});if(response.status===401){cerrarSesion();throw new Error('Tu sesión expiró');}const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Error en la solicitud');return data}
-    function mostrar(id){document.querySelectorAll('.seccion').forEach(x=>x.classList.toggle('activa',x.id===id));if(id==='cuentas')cargarCuentas();if(id==='inventario')cargarInventario();if(id==='ventas')cargarVentas();if(id==='dashboard')cargarDashboard()}
-    document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>mostrar(b.dataset.section));
+  <div class="modal-contenido">
 
-    document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();try{const data=await api('/auth/login',{method:'POST',body:JSON.stringify({username:username.value.trim(),password:password.value})});token=data.token;usuario=data.usuario;localStorage.setItem('tokenPOS',token);localStorage.setItem('usuarioPOS',JSON.stringify(usuario));iniciarApp()}catch(err){loginError.textContent=err.message}};
-    function iniciarApp(){login.classList.add('hidden');sistema.classList.remove('hidden');sesion.textContent=`${usuario.nombre||usuario.username} · ${usuario.rol}`;document.querySelectorAll('.admin').forEach(x=>x.classList.toggle('hidden',usuario.rol!=='ADMON_GRAL'));cargarProductos();cargarClientes()}
-    function cerrarSesion(){localStorage.removeItem('tokenPOS');localStorage.removeItem('usuarioPOS');location.reload()} document.getElementById('logout').onclick=cerrarSesion;
+    <div class="modal-encabezado">
 
-        async function cargarProductos() {
+      <h2 id="tituloDetalleVenta">
+        Detalle de venta
+      </h2>
 
-      try {
-
-        productos = await api('/productos');
-
-        const productoMovimiento =
-          document.getElementById('productoMovimiento');
-
-        if (productoMovimiento) {
-
-          productoMovimiento.innerHTML =
-            productos.map(producto => `
-
-              <option value="${producto.id}">
-
-                ${esc(producto.codigo || producto.id)}
-                -
-                ${esc(producto.nombre)}
-                (${cantidad(producto.stock)})
-
-              </option>
-
-            `).join('');
-
-        }
-
-      } catch (error) {
-
-        console.error(
-          'Error cargando productos:',
-          error
-        );
-
-        alert(error.message);
-
-      }
-
-    }
-    const buscarProducto =
-  document.getElementById('buscarProducto');
-
-    const resultadosProductos =
-      document.getElementById('resultadosProductos');
-
-    const cantidadCaptura =
-      document.getElementById('cantidadCaptura');
-
-    const unidadCaptura =
-      document.getElementById('unidadCaptura');
-
-    const agregarCaptura =
-      document.getElementById('agregarCaptura');
-
-      buscarProducto.addEventListener(
-  'input',
-  mostrarCoincidencias
-);
-
-buscarProducto.addEventListener(
-  'keydown',
-  manejarTecladoBuscador
-);
-
-document.addEventListener('click', evento => {
-
-  if (
-    !buscarProducto.contains(evento.target) &&
-    !resultadosProductos.contains(evento.target)
-  ) {
-
-    cerrarResultados();
-
-  }
-
-});
-
-function mostrarCoincidencias() {
-
-  productoSeleccionado = null;
-  indiceResultadoActivo = -1;
-
-  const texto =
-    buscarProducto.value
-      .trim()
-      .toLowerCase();
-
-  if (!texto) {
-
-    cerrarResultados();
-
-    return;
-
-  }
-
-  const coincidencias =
-    productos.filter(producto => {
-
-      const codigo =
-        String(
-          producto.codigo || producto.id
-        ).toLowerCase();
-
-      const nombre =
-        String(producto.nombre)
-          .toLowerCase();
-
-      return (
-        codigo.includes(texto) ||
-        nombre.includes(texto)
-      );
-
-    }).slice(0, 8);
-
-  if (!coincidencias.length) {
-
-    resultadosProductos.innerHTML = `
-
-      <div class="resultado-producto">
-        No se encontraron productos
-      </div>
-
-    `;
-
-    resultadosProductos.classList.remove(
-      'hidden'
-    );
-
-    return;
-
-  }
-
-  resultadosProductos.innerHTML =
-    coincidencias.map((producto, indice) => `
-
-      <div
-        class="resultado-producto"
-        data-id="${producto.id}"
-        data-indice="${indice}"
+      <button
+        type="button"
+        id="cerrarDetalleVenta"
+        class="danger"
       >
+        ×
+      </button>
 
-        <span class="resultado-codigo">
-          ${esc(producto.codigo || producto.id)}
-        </span>
+    </div>
 
-        <span>
-          ${esc(producto.nombre)}
+    <div id="contenidoDetalleVenta">
+    </div>
+    <div class="actions"><button id="reimprimirDetalle" type="button">Reimprimir ticket</button></div>
 
-          <small class="muted">
-            Stock:
-            ${cantidad(producto.stock)}
-          </small>
-        </span>
+  </div>
 
-        <span class="resultado-precio">
-          ${dinero.format(producto.precio_venta)}
-        </span>
+</div>
 
-      </div>
 
-    `).join('');
-
-  resultadosProductos.classList.remove(
-    'hidden'
-  );
-
-  resultadosProductos
-    .querySelectorAll('.resultado-producto[data-id]')
-    .forEach(elemento => {
-
-      elemento.addEventListener(
-        'click',
-        () => {
-
-          seleccionarProducto(
-            Number(elemento.dataset.id)
-          );
-
-        }
-      );
-
-    });
-
-}
-
-function seleccionarProducto(id) {
-
-  const producto =
-    productos.find(
-      item => item.id === id
-    );
-
-  if (!producto) {
-    return;
-  }
-
-  productoSeleccionado = producto;
-
-  buscarProducto.value =
-    `${producto.codigo || producto.id} - ${producto.nombre}`;
-
-  if (producto.unidad) {
-    unidadCaptura.value = producto.unidad;
-  }
-
-  cerrarResultados();
-
-  cantidadCaptura.focus();
-  cantidadCaptura.select();
-
-}
-function manejarTecladoBuscador(evento) {
-
-  const resultados = [
-    ...resultadosProductos.querySelectorAll(
-      '.resultado-producto[data-id]'
-    )
-  ];
-
-  if (
-    evento.key === 'ArrowDown' &&
-    resultados.length
-  ) {
-
-    evento.preventDefault();
-
-    indiceResultadoActivo =
-      Math.min(
-        indiceResultadoActivo + 1,
-        resultados.length - 1
-      );
-
-    marcarResultadoActivo(resultados);
-
-    return;
-
-  }
-
-  if (
-    evento.key === 'ArrowUp' &&
-    resultados.length
-  ) {
-
-    evento.preventDefault();
-
-    indiceResultadoActivo =
-      Math.max(
-        indiceResultadoActivo - 1,
-        0
-      );
-
-    marcarResultadoActivo(resultados);
-
-    return;
-
-  }
-
-  if (evento.key === 'Enter') {
-
-    evento.preventDefault();
-
-    if (
-      resultados.length &&
-      indiceResultadoActivo >= 0
-    ) {
-
-      seleccionarProducto(
-        Number(
-          resultados[
-            indiceResultadoActivo
-          ].dataset.id
-        )
-      );
-
-      return;
-
-    }
-
-    const texto =
-      buscarProducto.value
-        .trim()
-        .toLowerCase();
-
-    const coincidenciaExacta =
-      productos.find(producto => {
-
-        return (
-          String(
-            producto.codigo || producto.id
-          ).toLowerCase() === texto ||
-
-          producto.nombre
-            .toLowerCase() === texto
-        );
-
-      });
-
-    if (coincidenciaExacta) {
-
-      seleccionarProducto(
-        coincidenciaExacta.id
-      );
-
-    }
-
-  }
-
-}
-
-function marcarResultadoActivo(resultados) {
-
-  resultados.forEach(
-    (elemento, indice) => {
-
-      elemento.classList.toggle(
-        'activo',
-        indice === indiceResultadoActivo
-      );
-
-    }
-  );
-
-  resultados[
-    indiceResultadoActivo
-  ]?.scrollIntoView({
-    block: 'nearest'
-  });
-
-}
-
-function cerrarResultados() {
-
-  resultadosProductos.classList.add(
-    'hidden'
-  );
-
-  resultadosProductos.innerHTML = '';
-
-  indiceResultadoActivo = -1;
-
-}
-
-agregarCaptura.addEventListener(
-  'click',
-  agregarProductoCapturado
-);
-
-cantidadCaptura.addEventListener(
-  'keydown',
-  evento => {
-
-    if (evento.key === 'Enter') {
-
-      evento.preventDefault();
-
-      agregarProductoCapturado();
-
-    }
-
-  }
-);
-
-function agregarProductoCapturado() {
-
-  if (!productoSeleccionado) {
-
-    alert(
-      'Selecciona un producto de la lista'
-    );
-
-    buscarProducto.focus();
-
-    return;
-
-  }
-
-  const cantidadNueva =
-    Number(cantidadCaptura.value);
-
-  if (
-    !Number.isFinite(cantidadNueva) ||
-    cantidadNueva <= 0
-  ) {
-
-    alert('Cantidad inválida');
-
-    cantidadCaptura.focus();
-
-    return;
-
-  }
-
-  const existente =
-    carrito.find(
-      item =>
-        item.producto_id ===
-        productoSeleccionado.id
-    );
-
-  const cantidadAcumulada =
-    cantidadNueva +
-    Number(existente?.cantidad || 0);
-
-  if (
-    cantidadAcumulada >
-    Number(productoSeleccionado.stock)
-  ) {
-
-    alert(
-      `Stock insuficiente. Disponible: ${
-        cantidad(productoSeleccionado.stock)
-      }`
-    );
-
-    return;
-
-  }
-
-  if (existente) {
-
-    existente.cantidad =
-      cantidadAcumulada;
-
-    existente.unidad =
-      unidadCaptura.value;
-
-  } else {
-
-    carrito.push({
-
-      producto_id:
-        productoSeleccionado.id,
-
-      codigo:
-        productoSeleccionado.codigo ||
-        productoSeleccionado.id,
-
-      nombre:
-        productoSeleccionado.nombre,
-
-      cantidad:
-        cantidadNueva,
-
-      unidad:
-        unidadCaptura.value,
-
-      precio:
-        Number(
-          productoSeleccionado.precio_venta
-        )
-
-    });
-
-  }
-
-  limpiarCaptura();
-  dibujarCarrito();
-
-}
-
-function limpiarCaptura() {
-
-  productoSeleccionado = null;
-
-  buscarProducto.value = '';
-
-  cantidadCaptura.value = '1';
-
-  cerrarResultados();
-
-  buscarProducto.focus();
-
-}
-    const productosDiv=document.getElementById('productos');
-    async function editarPrecio(id){const p=productos.find(x=>x.id===id),nuevo=prompt('Nuevo precio de venta',p.precio_venta);if(nuevo===null)return;try{await api(`/productos/${id}/precio`,{method:'PUT',body:JSON.stringify({precio_venta:Number(nuevo)})});await cargarProductos()}catch(e){alert(e.message)}}
-    function agregar(id){const p=productos.find(x=>x.id===id),cant=Number(document.getElementById(`cant-${id}`).value),actual=carrito.find(x=>x.producto_id===id),acumulado=cant+(actual?.cantidad||0);if(!(cant>0)||acumulado>Number(p.stock))return alert('Cantidad inválida o superior al stock');if(actual)actual.cantidad=acumulado;else carrito.push({producto_id:id,nombre:p.nombre,cantidad:cant,precio:Number(p.precio_venta)});dibujarCarrito()}
-    function dibujarCarrito() {
-
-  const detalleVenta =
-    document.getElementById('detalleVenta');
-
-  const totalElemento =
-    document.getElementById('total');
-
-  const cantidadArticulos =
-    document.getElementById(
-      'cantidadArticulos'
-    );
-
-  const resumenProductos =
-    document.getElementById(
-      'resumenProductos'
-    );
-
-  const resumenCantidad =
-    document.getElementById(
-      'resumenCantidad'
-    );
-
-  if (!carrito.length) {
-
-    detalleVenta.innerHTML = `
-
-      <tr>
-
-        <td
-          colspan="7"
-          class="tabla-vacia"
-        >
-          Todavía no hay productos en la nota
-        </td>
-
-      </tr>
-
-    `;
-
-    totalElemento.textContent =
-      dinero.format(0);
-
-    cantidadArticulos.textContent =
-      cantidad(0);
-
-    resumenProductos.textContent = '0';
-
-    resumenCantidad.textContent =
-      cantidad(0);
-
-    return;
-
-  }
-
-  detalleVenta.innerHTML =
-    carrito.map((producto, indice) => {
-
-      const importe =
-        Number(producto.cantidad) *
-        Number(producto.precio);
-
-      return `
-
-        <tr>
-
-          <td>
-            ${esc(producto.codigo)}
-          </td>
-
-          <td>
-            ${esc(producto.nombre)}
-          </td>
-
-          <td>
-
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value="${producto.cantidad}"
-              onchange="
-                cambiarCantidad(
-                  ${indice},
-                  this.value
-                )
-              "
-            >
-
-          </td>
-
-          <td>
-
-            <select
-              onchange="
-                cambiarUnidad(
-                  ${indice},
-                  this.value
-                )
-              "
-            >
-
-              <option
-                value="kg"
-                ${
-                  producto.unidad === 'kg'
-                    ? 'selected'
-                    : ''
-                }
-              >
-                kg
-              </option>
-
-              <option
-                value="caja"
-                ${
-                  producto.unidad === 'caja'
-                    ? 'selected'
-                    : ''
-                }
-              >
-                caja
-              </option>
-
-              <option
-                value="pieza"
-                ${
-                  producto.unidad === 'pieza'
-                    ? 'selected'
-                    : ''
-                }
-              >
-                pieza
-              </option>
-
-            </select>
-
-          </td>
-
-          <td>
-            ${dinero.format(producto.precio)}
-          </td>
-
-          <td class="money">
-            ${dinero.format(importe)}
-          </td>
-
-          <td>
-
-            <button
-              type="button"
-              class="boton-eliminar-producto"
-              onclick="quitar(${indice})"
-            >
-              ×
-            </button>
-
-          </td>
-
-        </tr>
-
-      `;
-
-    }).join('');
-
-  const totalVenta =
-    carrito.reduce(
-      (suma, producto) => {
-
-        return suma +
-          Number(producto.cantidad) *
-          Number(producto.precio);
-
-      },
-      0
-    );
-
-  const totalCantidad =
-    carrito.reduce(
-      (suma, producto) =>
-        suma + Number(producto.cantidad),
-      0
-    );
-
-  totalElemento.textContent =
-    dinero.format(totalVenta);
-
-  cantidadArticulos.textContent =
-    cantidad(totalCantidad);
-
-  resumenProductos.textContent =
-    String(carrito.length);
-
-  resumenCantidad.textContent =
-    cantidad(totalCantidad);
-
-}
-
-function cambiarCantidad(
-  indice,
-  nuevoValor
-) {
-
-  const nuevaCantidad =
-    Number(nuevoValor);
-
-  const productoCarrito =
-    carrito[indice];
-
-  const productoOriginal =
-    productos.find(
-      producto =>
-        producto.id ===
-        productoCarrito.producto_id
-    );
-
-  if (
-    !Number.isFinite(nuevaCantidad) ||
-    nuevaCantidad <= 0
-  ) {
-
-    alert('Cantidad inválida');
-
-    dibujarCarrito();
-
-    return;
-
-  }
-
-  if (
-    nuevaCantidad >
-    Number(productoOriginal.stock)
-  ) {
-
-    alert(
-      `Stock insuficiente. Disponible: ${
-        cantidad(productoOriginal.stock)
-      }`
-    );
-
-    dibujarCarrito();
-
-    return;
-
-  }
-
-  productoCarrito.cantidad =
-    nuevaCantidad;
-
-  dibujarCarrito();
-
-}
-
-function cambiarUnidad(
-  indice,
-  unidad
-) {
-
-  carrito[indice].unidad =
-    unidad;
-
-}
-
-
-
-function quitar(indice) {
-
-  carrito.splice(indice, 1);
-
-  dibujarCarrito();
-
-}
-    vender.onclick=async()=>{if(!carrito.length)return alert('Agrega productos');try{const data=await api('/ventas/crear',{method:'POST',body:JSON.stringify({cliente_id:Number(clienteVenta.value),tipo_pago:tipoPago.value,productos:carrito.map(({producto_id,cantidad})=>({producto_id,cantidad}))})});ultimaVenta={...data,cliente:clienteVenta.options[clienteVenta.selectedIndex].text,tipo:tipoPago.value,fecha:new Date()};carrito=[];dibujarCarrito();imprimir.disabled=false;await cargarProductos();alert(`Venta #${data.venta_id} registrada por ${dinero.format(data.total)}`)}catch(e){alert(e.message)}};
-    imprimir.onclick=async()=>{if(!ultimaVenta)return;try{const imp=await api(`/ventas/${ultimaVenta.venta_id}/imprimir`,{method:'POST'}),v=ultimaVenta,w=window.open('','ticket','width=420,height=650');w.document.write(`<meta charset="utf-8"><style>body{font-family:monospace;padding:18px}h2{text-align:center}table{width:100%}td:last-child{text-align:right}</style><h2>AGUACATES DE PERIBÁN</h2><h2>${imp.leyenda}</h2><p>Folio: ${v.venta_id}<br>Cliente: ${esc(v.cliente)}<br>Pago: ${v.tipo}<br>Fecha: ${v.fecha.toLocaleString('es-MX')}</p><hr><table>${v.productos.map(p=>`<tr><td>${cantidad(p.cantidad)} ${esc(p.nombre)}</td><td>${dinero.format(p.subtotal)}</td></tr>`).join('')}</table><hr><h2>Total ${dinero.format(v.total)}</h2>`);w.document.close();w.print()}catch(e){alert(e.message)}};
-
-    async function cargarClientes(){clientes=await api('/clientes');clienteVenta.innerHTML=clientes.map(c=>`<option value="${c.id}">${esc(c.nombre_razon_social)}</option>`).join('');listaClientes.innerHTML=clientes.map(c=>`<article class="card"><h3>${esc(c.nombre_razon_social)}</h3><p>${esc(c.rfc||'Sin RFC')} · ${esc(c.telefono||'Sin teléfono')}<br>${esc(c.correo_electronico||'Sin correo')}</p>${usuario.rol==='ADMON_GRAL'?`<button onclick="seleccionarCliente(${c.id})">Editar</button>`:''}</article>`).join('')}
-    function seleccionarCliente(id){const c=clientes.find(x=>x.id===id);clienteId.value=c.id;nombreRazon.value=c.nombre_razon_social;rfc.value=c.rfc||'';telefono.value=c.telefono||'';correo.value=c.correo_electronico||'';cancelarEdicion.classList.remove('hidden')}
-    cancelarEdicion.onclick=()=>{clienteForm.reset();clienteId.value='';cancelarEdicion.classList.add('hidden')};clienteForm.onsubmit=async e=>{e.preventDefault();const body=JSON.stringify({nombre_razon_social:nombreRazon.value,rfc:rfc.value,telefono:telefono.value,correo_electronico:correo.value});try{await api(clienteId.value?`/clientes/${clienteId.value}`:'/clientes/crear',{method:clienteId.value?'PUT':'POST',body});cancelarEdicion.click();await cargarClientes()}catch(e){alert(e.message)}};
-
-    async function cargarCuentas(){try{const data=await api('/cuentas');listaCuentas.innerHTML=data.length?data.map(c=>`<article class="card"><h3>${esc(c.nombre_razon_social)}</h3><div class="money">${dinero.format(c.saldo_total)}</div><button onclick="verCuenta(${c.cliente_id})">Detalle e historial</button></article>`).join(''):'<p>Sin saldos pendientes.</p>'}catch(e){alert(e.message)}}
-    async function verCuenta(id){try{const d=await api(`/cuentas/cliente/${id}`);detalleCuenta.classList.remove('hidden');detalleCuenta.innerHTML=`<h3>Cuentas</h3>${d.cuentas.map(c=>`<div class="row"><span>Venta #${c.venta_id} · ${c.estado}<br>${new Date(c.fecha).toLocaleString('es-MX')}</span><span>${dinero.format(c.saldo_pendiente)} ${c.estado==='PENDIENTE'?`<button class="primary" onclick="abonar(${c.id},${c.saldo_pendiente})">Abonar</button>`:''}</span></div>`).join('')}<h3>Historial de abonos</h3>${d.pagos.length?d.pagos.map(p=>`<div class="row"><span>${new Date(p.fecha).toLocaleString('es-MX')} · ${esc(p.metodo_pago)}</span><strong>${dinero.format(p.monto)}</strong></div>`).join(''):'<p>Sin abonos.</p>'}`}catch(e){alert(e.message)}}
-    async function abonar(id,saldo){const monto=prompt(`Monto a abonar (saldo ${dinero.format(saldo)})`);if(monto===null)return;const metodo=prompt('Método de pago','EFECTIVO');if(metodo===null)return;try{await api('/cuentas/abonar',{method:'POST',body:JSON.stringify({cuenta_id:id,monto:Number(monto),metodo_pago:metodo})});await cargarCuentas();detalleCuenta.classList.add('hidden')}catch(e){alert(e.message)}}
-
-    async function cargarInventario(){await cargarProductos();const data=await api('/inventario');movimientos.innerHTML=data.map(m=>`<div class="panel row"><span>${esc(m.producto)} · ${esc(m.motivo)}<br><small>${new Date(m.fecha).toLocaleString('es-MX')}</small></span><strong>${m.tipo==='ENTRADA'?'+':'−'}${cantidad(m.cantidad)}</strong></div>`).join('')}
-    movimientoForm.onsubmit=async e=>{e.preventDefault();try{await api('/inventario/movimiento',{method:'POST',body:JSON.stringify({producto_id:Number(productoMovimiento.value),tipo:tipoMovimiento.value,cantidad:Number(cantidadMovimiento.value),motivo:motivoMovimiento.value})});movimientoForm.reset();await cargarInventario()}catch(e){alert(e.message)}};
-
-    async function cargarVentas(){const data=await api('/ventas');listaVentas.innerHTML=data.map(v=>`<div class="row"><span>#${v.id} · ${esc(v.cliente||'Sin cliente')} · ${esc(v.username||'')}<br><small>${new Date(v.fecha).toLocaleString('es-MX')} · ${v.estado_venta}</small></span><span>${dinero.format(v.total)} ${v.estado_venta==='ACTIVA'?`<button class="danger" onclick="cancelarVenta(${v.id})">Cancelar</button>`:''}</span></div>`).join('')}
-    async function cancelarVenta(id){const motivo=prompt('Motivo de cancelación');if(!motivo)return;try{await api(`/ventas/${id}/cancelar`,{method:'POST',body:JSON.stringify({motivo})});await cargarVentas();await cargarProductos()}catch(e){alert(e.message)}}
-    async function cargarDashboard(){try{const d=await api('/stats');metricas.innerHTML=[['Ventas hoy',d.ventas_hoy],['Ingresos hoy',dinero.format(d.ingresos_hoy)],['Clientes',d.clientes],['Deuda',dinero.format(d.deuda_total)]].map(x=>`<div class="card"><h3>${x[0]}</h3><h2>${x[1]}</h2></div>`).join('');const mapa=new Map(d.semanal.map(x=>[String(x.dia).slice(0,10),Number(x.total)])),labels=[],values=[];for(let i=6;i>=0;i--){const f=new Date();f.setHours(0,0,0,0);f.setDate(f.getDate()-i);const k=`${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`;labels.push(f.toLocaleDateString('es-MX',{weekday:'short',day:'2-digit'}));values.push(mapa.get(k)||0)}if(grafica)grafica.destroy();grafica=new Chart(graficaSemanal,{type:'bar',data:{labels,datasets:[{label:'Ventas',data:values,backgroundColor:'#168b52'}]},options:{scales:{y:{beginAtZero:true,ticks:{callback:v=>dinero.format(v)}}}}})}catch(e){alert(e.message)}}
-    reporte.onclick=async()=>{try{const r=await fetch('/reportes/ventas-pdf',{headers:{Authorization:`Bearer ${token}`}});if(!r.ok)throw new Error('No fue posible generar el reporte');const url=URL.createObjectURL(await r.blob());window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),60000)}catch(e){alert(e.message)}};
-
-    try{usuario=JSON.parse(localStorage.getItem('usuarioPOS'))}catch{} if(token&&usuario)iniciarApp();
-  </script>
+  <script type="module" src="./js/app.js"></script>
 </body>
 </html>

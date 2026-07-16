@@ -6,7 +6,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.promise.query(
-      'SELECT id, nombre, precio_venta, stock, stock_minimo, unidad FROM productos WHERE activo = 1 ORDER BY nombre'
+      'SELECT id, codigo, nombre, precio_venta, stock, stock_minimo, unidad FROM productos WHERE activo = 1 ORDER BY nombre'
     );
     res.json(rows);
   } catch (error) { res.status(500).json({ error: 'No fue posible consultar productos' }); }

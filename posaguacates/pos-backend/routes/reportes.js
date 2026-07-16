@@ -1,114 +1,48 @@
 const express = require('express');
+const PDFDocument = require('pdfkit');
+const db = require('../db/conexion');
+const { permitirRoles } = require('../middleware/auth');
 
 const router = express.Router();
+router.use(permitirRoles('ADMON_GRAL'));
 
-const db = require('../db/conexion');
+router.get('/ventas-pdf', async (req, res) => {
+  try {
+    const [ventas] = await db.promise.query(
+      `SELECT v.id, v.fecha, v.total, v.tipo_pago, v.estado_venta,
+              c.nombre_razon_social AS cliente
+       FROM ventas v LEFT JOIN clientes c ON c.id = v.cliente_id
+       ORDER BY v.id DESC`
+    );
 
-const PDFDocument = require('pdfkit');
-
-/* =========================
-   REPORTE VENTAS PDF
-========================= */
-
-router.get('/ventas-pdf',(req,res)=>{
-
-  db.query(`
-
-    SELECT
-
-      v.id,
-      v.fecha,
-      v.total,
-      v.tipo_pago,
-      c.nombre_razon_social as cliente
-
-    FROM ventas v
-
-    LEFT JOIN clientes c
-    ON c.id = v.cliente_id
-
-    WHERE v.estado_venta = 'ACTIVA'
-
-    ORDER BY v.id DESC
-
-  `,(err,result)=>{
-
-    if(err){
-      return res.status(500).json(err);
-    }
-
-    const doc = new PDFDocument({
-
-      margin:40
-
+    const doc = new PDFDocument({ margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="ventas.pdf"');
+    doc.on('error', error => {
+      console.error('Error generando PDF:', error);
+      if (!res.headersSent) res.status(500).json({ error: 'No fue posible generar el reporte' });
+      else res.destroy(error);
     });
-
-    res.setHeader(
-      'Content-Type',
-      'application/pdf'
-    );
-
-    res.setHeader(
-      'Content-Disposition',
-      'inline; filename=ventas.pdf'
-    );
-
     doc.pipe(res);
+    doc.fontSize(22).text('Reporte de Ventas', { align: 'center' }).moveDown();
 
-    /* =========================
-       TITULO
-    ========================= */
-
-    doc
-
-    .fontSize(22)
-
-    .text(
-      'Reporte de Ventas',
-      {
-        align:'center'
-      }
-    );
-
-    doc.moveDown();
-
-    /* =========================
-       TABLA
-    ========================= */
-
-    result.forEach(v=>{
-
-      doc
-
-      .fontSize(12)
-
-      .text(`
-
-Venta #${v.id}
-
-Cliente:
-${v.cliente}
-
-Tipo Pago:
-${v.tipo_pago}
-
-Total:
-$${Number(v.total).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}
-
-Fecha:
-${new Date(v.fecha)
-.toLocaleString()}
-
-----------------------------------
-
-      `);
-
-    });
-
+    for (const venta of ventas) {
+      const total = Number(venta.total).toLocaleString('es-MX', {
+        style: 'currency', currency: 'MXN', minimumFractionDigits: 2
+      });
+      doc.fontSize(11).text(
+        `Venta #${venta.id} · ${venta.estado_venta}\n` +
+        `Cliente: ${venta.cliente || 'Sin cliente'}\n` +
+        `Pago: ${venta.tipo_pago} · Total: ${total}\n` +
+        `Fecha: ${new Date(venta.fecha).toLocaleString('es-MX')}\n` +
+        '------------------------------------------\n'
+      );
+    }
     doc.end();
-
-  });
-
+  } catch (error) {
+    console.error('Error consultando reporte:', error);
+    if (!res.headersSent) res.status(500).json({ error: 'No fue posible generar el reporte' });
+  }
 });
 
 module.exports = router;

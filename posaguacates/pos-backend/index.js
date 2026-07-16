@@ -11,8 +11,36 @@ if (!process.env.JWT_SECRET) {
 }
 
 const app = express();
-app.use(cors());
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'");
+  next();
+});
+
+const allowedOrigins = String(process.env.CORS_ORIGINS || '')
+  .split(',').map(origin => origin.trim()).filter(Boolean);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(Object.assign(new Error('Origen no permitido por CORS'), { status: 403 }));
+  }
+}));
 app.use(express.json({ limit: '1mb' }));
+
+const loginAttempts = new Map();
+app.use('/auth/login', (req, res, next) => {
+  if (req.method !== 'POST') return next();
+  const now = Date.now();
+  const key = req.ip;
+  const recent = (loginAttempts.get(key) || []).filter(time => now - time < 15 * 60 * 1000);
+  if (recent.length >= 10) return res.status(429).json({ error: 'Demasiados intentos. Intenta de nuevo más tarde' });
+  recent.push(now);
+  loginAttempts.set(key, recent);
+  return next();
+});
 
 app.use('/auth', require('./routes/auth'));
 app.use('/productos', autenticar, require('./routes/productos'));
@@ -30,10 +58,14 @@ const frontendPath = path.join(__dirname, '..', 'pos-frontend');
 app.use(express.static(frontendPath));
 app.get('/', (req, res) => res.sendFile(path.join(frontendPath, 'index.html')));
 
+app.use((req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
+
 app.use((error, req, res, next) => {
-  console.error(error);
+  console.error(`${req.method} ${req.originalUrl}:`, error);
   if (res.headersSent) return next(error);
-  return res.status(500).json({ error: 'Error interno del servidor' });
+  return res.status(error.status || 500).json({
+    error: error.status ? error.message : 'Error interno del servidor'
+  });
 });
 
 const port = Number(process.env.PORT || 3000);

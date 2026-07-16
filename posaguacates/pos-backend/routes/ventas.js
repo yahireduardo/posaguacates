@@ -10,7 +10,7 @@ const {
 const router = express.Router();
 
 /* =========================================================
-   OBTENER VENTAS
+   VENTAS DE MOSTRADOR CON FILTROS
    Solo Administrador General
 ========================================================= */
 
@@ -21,36 +21,198 @@ router.get(
 
     try {
 
-      const [ventas] = await db.promise().query(
-        `
-          SELECT
-            v.id,
-            v.total,
-            v.tipo_pago,
-            v.estado_pago,
-            v.estado_venta,
-            v.impresiones,
-            v.fecha,
-            v.cancelada_at,
-            v.motivo_cancelacion,
+      const folio =
+        String(req.query.folio || '').trim();
 
-            c.nombre_razon_social AS cliente,
+      const cliente =
+        String(req.query.cliente || '').trim();
 
-            u.username AS usuario
+      const fechaInicio =
+        String(req.query.fecha_inicio || '').trim();
 
-          FROM ventas v
+      const fechaFin =
+        String(req.query.fecha_fin || '').trim();
 
-          LEFT JOIN clientes c
-            ON c.id = v.cliente_id
+      const estadoVenta =
+        String(req.query.estado_venta || '').trim();
 
-          LEFT JOIN usuarios u
-            ON u.id = v.usuario_id
+      const tipoPago =
+        String(req.query.tipo_pago || '').trim();
 
-          ORDER BY v.id DESC
+      const limiteSolicitado =
+        Number(req.query.limite || 100);
 
-          LIMIT 100
-        `
-      );
+      const limite =
+        Number.isInteger(limiteSolicitado)
+          ? Math.min(
+              Math.max(limiteSolicitado, 1),
+              500
+            )
+          : 100;
+
+      const paginaSolicitada = Number(req.query.pagina || 1);
+      const pagina = Number.isInteger(paginaSolicitada) && paginaSolicitada > 0
+        ? paginaSolicitada : 1;
+      const offset = (pagina - 1) * limite;
+
+      const fechaValida = valor => /^\d{4}-\d{2}-\d{2}$/.test(valor) &&
+        !Number.isNaN(Date.parse(`${valor}T00:00:00Z`));
+      if ((fechaInicio && !fechaValida(fechaInicio)) || (fechaFin && !fechaValida(fechaFin)) ||
+          (fechaInicio && fechaFin && fechaInicio > fechaFin)) {
+        return res.status(400).json({ error: 'Rango de fechas inválido' });
+      }
+
+      const condiciones = [];
+      const parametros = [];
+
+      /* =========================
+         FILTRO POR FOLIO
+      ========================= */
+
+      if (folio) {
+
+        if (/^\d+$/.test(folio)) {
+          condiciones.push('v.id = ?');
+          parametros.push(Number(folio));
+        } else {
+          return res.status(400).json({ error: 'El folio debe ser numérico' });
+        }
+
+      }
+
+      /* =========================
+         FILTRO POR CLIENTE
+      ========================= */
+
+      if (cliente) {
+
+        condiciones.push(
+          'c.nombre_razon_social LIKE ?'
+        );
+
+        parametros.push(
+          `%${cliente}%`
+        );
+
+      }
+
+      /* =========================
+         FILTRO FECHA INICIAL
+      ========================= */
+
+      if (fechaInicio) {
+
+        condiciones.push(
+          'DATE(v.fecha) >= ?'
+        );
+
+        parametros.push(
+          fechaInicio
+        );
+
+      }
+
+      /* =========================
+         FILTRO FECHA FINAL
+      ========================= */
+
+      if (fechaFin) {
+
+        condiciones.push(
+          'DATE(v.fecha) <= ?'
+        );
+
+        parametros.push(
+          fechaFin
+        );
+
+      }
+
+      /* =========================
+         FILTRO ESTADO
+      ========================= */
+
+      if (
+        ['ACTIVA', 'CANCELADA']
+          .includes(estadoVenta)
+      ) {
+
+        condiciones.push(
+          'v.estado_venta = ?'
+        );
+
+        parametros.push(
+          estadoVenta
+        );
+
+      }
+
+      /* =========================
+         FILTRO TIPO DE PAGO
+      ========================= */
+
+      if (
+        ['CONTADO', 'CREDITO']
+          .includes(tipoPago)
+      ) {
+
+        condiciones.push(
+          'v.tipo_pago = ?'
+        );
+
+        parametros.push(
+          tipoPago
+        );
+
+      }
+
+      const where =
+        condiciones.length > 0
+          ? `WHERE ${condiciones.join(' AND ')}`
+          : '';
+
+      const [ventas] =
+        await db.promise.query(
+          `
+            SELECT
+              v.id,
+              v.fecha,
+              v.total,
+              v.tipo_pago,
+              v.estado_pago,
+              v.estado_venta,
+              v.impresiones,
+              v.cancelada_at,
+              v.motivo_cancelacion,
+
+              c.nombre_razon_social
+                AS cliente,
+
+              u.username
+                AS usuario
+
+            FROM ventas v
+
+            LEFT JOIN clientes c
+              ON c.id = v.cliente_id
+
+            LEFT JOIN usuarios u
+              ON u.id = v.usuario_id
+
+            ${where}
+
+            ORDER BY
+              v.fecha DESC,
+              v.id DESC
+
+            LIMIT ? OFFSET ?
+          `,
+          [
+            ...parametros,
+            limite,
+            offset
+          ]
+        );
 
       return res.json(ventas);
 
@@ -62,13 +224,135 @@ router.get(
       );
 
       return res.status(500).json({
-        error: 'No fue posible consultar las ventas'
+        error:
+          'No fue posible consultar las ventas'
       });
 
     }
 
   }
 );
+
+
+
+/* =========================================================
+   DETALLE DE UNA VENTA
+========================================================= */
+
+router.get(
+  '/:ventaId/detalle',
+  permitirRoles('ADMON_GRAL'),
+  async (req, res) => {
+
+    try {
+
+      const ventaId =
+        Number(req.params.ventaId);
+
+      if (
+        !Number.isInteger(ventaId) ||
+        ventaId <= 0
+      ) {
+
+        return res.status(400).json({
+          error: 'ID de venta inválido'
+        });
+
+      }
+
+      const [ventas] =
+        await db.promise.query(
+          `
+            SELECT
+              v.id,
+              v.fecha,
+              v.total,
+              v.tipo_pago,
+              v.estado_pago,
+              v.estado_venta,
+              v.impresiones,
+              v.cancelada_at,
+              v.motivo_cancelacion,
+
+              c.nombre_razon_social
+                AS cliente,
+
+              c.rfc,
+              c.telefono,
+              c.correo_electronico,
+
+              u.username
+                AS usuario
+
+            FROM ventas v
+
+            LEFT JOIN clientes c
+              ON c.id = v.cliente_id
+
+            LEFT JOIN usuarios u
+              ON u.id = v.usuario_id
+
+            WHERE v.id = ?
+
+            LIMIT 1
+          `,
+          [ventaId]
+        );
+
+      if (!ventas.length) {
+
+        return res.status(404).json({
+          error: 'Venta no encontrada'
+        });
+
+      }
+
+      const [productos] =
+        await db.promise.query(
+          `
+            SELECT
+              dv.producto_id,
+              p.codigo,
+              p.nombre,
+              p.unidad,
+              dv.cantidad,
+              dv.precio_unitario,
+              dv.subtotal
+
+            FROM detalle_venta dv
+
+            INNER JOIN productos p
+              ON p.id = dv.producto_id
+
+            WHERE dv.venta_id = ?
+
+            ORDER BY dv.id
+          `,
+          [ventaId]
+        );
+
+      return res.json({
+        venta: ventas[0],
+        productos
+      });
+
+    } catch (error) {
+
+      console.error(
+        'Error consultando detalle:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'No fue posible consultar el detalle'
+      });
+
+    }
+
+  }
+);
+
 
 /* =========================================================
    CREAR VENTA
@@ -168,7 +452,7 @@ router.post('/crear', async (req, res) => {
   try {
 
     connection =
-      await db.promise().getConnection();
+      await db.promise.getConnection();
 
     await connection.beginTransaction();
 
@@ -511,6 +795,8 @@ router.post('/crear', async (req, res) => {
 
       venta_id: ventaId,
 
+      folio: ventaId,
+
       total,
 
       productos: detalle
@@ -613,7 +899,7 @@ router.post(
       ========================= */
 
       const [administradores] =
-        await db.promise().query(
+        await db.promise.query(
           `
             SELECT
               id,
@@ -671,7 +957,7 @@ router.post(
       }
 
       connection =
-        await db.promise().getConnection();
+        await db.promise.getConnection();
 
       await connection.beginTransaction();
 
@@ -964,7 +1250,7 @@ router.post(
     try {
 
       connection =
-        await db.promise().getConnection();
+        await db.promise.getConnection();
 
       await connection.beginTransaction();
 
