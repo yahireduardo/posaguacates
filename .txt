@@ -1,0 +1,1 @@
+agregar detalles en cada cliente en modulo clientes
