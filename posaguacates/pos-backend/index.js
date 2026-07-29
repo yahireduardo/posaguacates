@@ -45,6 +45,7 @@ app.use('/auth/login', (req, res, next) => {
 app.use('/auth', require('./routes/auth'));
 app.use('/productos', autenticar, require('./routes/productos'));
 app.use('/ventas', autenticar, require('./routes/ventas'));
+app.use('/ordenes', autenticar, require('./routes/ordenes'));
 app.use('/clientes', autenticar, require('./routes/clientes'));
 app.use('/cuentas', autenticar, require('./routes/cuentas'));
 app.use('/stats', autenticar, require('./routes/stats'));
@@ -69,6 +70,7 @@ app.use((error, req, res, next) => {
 });
 
 const port = Number(process.env.PORT || 3000);
-app.listen(port, () => {
-  console.log(`Servidor corriendo en http://localhost:${port}`);
+const host = process.env.HOST || '0.0.0.0';
+app.listen(port, host, () => {
+  console.log(`Servidor corriendo en http://${host}:${port}`);
 });

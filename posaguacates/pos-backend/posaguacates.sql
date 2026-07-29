@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 16-07-2026 a las 23:26:19
+-- Tiempo de generación: 29-07-2026 a las 20:33:42
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.0.30
 
@@ -20,6 +20,28 @@ SET time_zone = "+00:00";
 --
 -- Base de datos: `posaguacates`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `aplicaciones_pago`
+--
+
+CREATE TABLE `aplicaciones_pago` (
+  `id` int(11) NOT NULL,
+  `pago_id` int(11) NOT NULL,
+  `cuenta_id` int(11) NOT NULL,
+  `monto_aplicado` decimal(12,2) NOT NULL,
+  `saldo_anterior` decimal(12,2) NOT NULL,
+  `saldo_resultante` decimal(12,2) NOT NULL
+) ;
+
+--
+-- Volcado de datos para la tabla `aplicaciones_pago`
+--
+
+INSERT INTO `aplicaciones_pago` (`id`, `pago_id`, `cuenta_id`, `monto_aplicado`, `saldo_anterior`, `saldo_resultante`) VALUES
+(1, 5, 3, 200.00, 250.00, 50.00);
 
 -- --------------------------------------------------------
 
@@ -114,6 +136,22 @@ CREATE TABLE `detalle_compra` (
   `cantidad` decimal(10,2) DEFAULT NULL,
   `precio_compra` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `detalle_orden_venta`
+--
+
+CREATE TABLE `detalle_orden_venta` (
+  `id` int(11) NOT NULL,
+  `orden_id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `cantidad` decimal(12,2) NOT NULL,
+  `precio_estimado` decimal(12,2) NOT NULL,
+  `subtotal_estimado` decimal(12,2) NOT NULL,
+  `observaciones` varchar(255) DEFAULT NULL
+) ;
 
 -- --------------------------------------------------------
 
@@ -220,7 +258,51 @@ INSERT INTO `detalle_venta` (`id`, `venta_id`, `producto_id`, `cantidad`, `preci
 (89, 34, 1, 20.00, 500.00, 10000.00),
 (90, 34, 3, 50.00, 400.00, 20000.00),
 (91, 34, 4, 50.00, 300.00, 15000.00),
-(92, 35, 1, 110.00, 500.00, 55000.00);
+(92, 35, 1, 110.00, 500.00, 55000.00),
+(93, 36, 1, 1.00, 500.00, 500.00),
+(94, 36, 6, 100.00, 35.00, 3500.00);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `movimientos_cartera`
+--
+
+CREATE TABLE `movimientos_cartera` (
+  `id` int(11) NOT NULL,
+  `cliente_id` int(11) NOT NULL,
+  `venta_id` int(11) DEFAULT NULL,
+  `cuenta_id` int(11) DEFAULT NULL,
+  `pago_id` int(11) DEFAULT NULL,
+  `fecha` datetime NOT NULL DEFAULT current_timestamp(),
+  `concepto` enum('VENTA_MOSTRADOR','VENTA_CREDITO','COBRO','COBRO_MOSTRADOR','CANCELACION','AJUSTE') NOT NULL,
+  `folio` varchar(30) NOT NULL,
+  `cargo` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `credito` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `saldo_resultante` decimal(12,2) NOT NULL,
+  `descripcion` varchar(500) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL
+) ;
+
+--
+-- Volcado de datos para la tabla `movimientos_cartera`
+--
+
+INSERT INTO `movimientos_cartera` (`id`, `cliente_id`, `venta_id`, `cuenta_id`, `pago_id`, `fecha`, `concepto`, `folio`, `cargo`, `credito`, `saldo_resultante`, `descripcion`, `usuario_id`) VALUES
+(1, 1, 8, 3, NULL, '2026-04-30 14:48:43', 'VENTA_CREDITO', 'V-00000008', 250.00, 0.00, 250.00, 'Venta a crédito', 1),
+(2, 1, 9, 4, NULL, '2026-04-30 15:04:05', 'VENTA_CREDITO', 'V-00000009', 165.00, 0.00, 165.00, 'Venta a crédito', 1),
+(3, 1, 11, 5, NULL, '2026-04-30 16:27:36', 'VENTA_CREDITO', 'V-00000011', 165.00, 0.00, 165.00, 'Venta a crédito', 1),
+(4, 1, 12, 6, NULL, '2026-04-30 16:28:40', 'VENTA_CREDITO', 'V-00000012', 330.00, 0.00, 330.00, 'Venta a crédito', 1),
+(5, 1, 13, 7, NULL, '2026-05-07 12:33:26', 'VENTA_CREDITO', 'V-00000013', 405.00, 0.00, 405.00, 'Venta a crédito', 1),
+(6, 1, 14, 8, NULL, '2026-05-07 13:23:48', 'VENTA_CREDITO', 'V-00000014', 400.00, 0.00, 400.00, 'Venta a crédito', 1),
+(7, 1, 16, 9, NULL, '2026-05-07 13:39:06', 'VENTA_CREDITO', 'V-00000016', 1340.00, 0.00, 1340.00, 'Venta a crédito', 1),
+(8, 3, 18, 10, NULL, '2026-05-07 14:21:27', 'VENTA_CREDITO', 'V-00000018', 165.00, 0.00, 165.00, 'Venta a crédito', 1),
+(9, 11, 28, 11, NULL, '2026-05-14 13:26:25', 'VENTA_CREDITO', 'V-00000028', 6950.00, 0.00, 6950.00, 'Venta a crédito', 1),
+(10, 4, 30, 12, NULL, '2026-05-14 13:54:41', 'VENTA_CREDITO', 'V-00000030', 9275.00, 0.00, 9275.00, 'Venta a crédito', 1),
+(11, 3, 31, 13, NULL, '2026-05-14 13:55:13', 'VENTA_CREDITO', 'V-00000031', 4500.00, 0.00, 4500.00, 'Venta a crédito', 1),
+(12, 3, 32, 14, NULL, '2026-05-14 14:02:05', 'VENTA_CREDITO', 'V-00000032', 4450.00, 0.00, 4450.00, 'Venta a crédito', 1),
+(13, 1, 34, 15, NULL, '2026-07-16 12:50:26', 'VENTA_CREDITO', 'V-00000034', 45000.00, 0.00, 45000.00, 'Venta a crédito', 1),
+(16, 1, 8, 3, 5, '2026-04-30 14:50:03', 'COBRO', 'P-00000005', 0.00, 200.00, 50.00, 'Pago histórico migrado', NULL);
 
 -- --------------------------------------------------------
 
@@ -333,7 +415,30 @@ INSERT INTO `movimientos_inventario` (`id`, `producto_id`, `tipo`, `cantidad`, `
 (89, 1, 'SALIDA', 20.00, 'VENTA', 34, 1, '2026-07-16 18:50:26'),
 (90, 3, 'SALIDA', 50.00, 'VENTA', 34, 1, '2026-07-16 18:50:26'),
 (91, 4, 'SALIDA', 50.00, 'VENTA', 34, 1, '2026-07-16 18:50:26'),
-(92, 1, 'SALIDA', 110.00, 'VENTA', 35, 1, '2026-07-16 20:14:45');
+(92, 1, 'SALIDA', 110.00, 'VENTA', 35, 1, '2026-07-16 20:14:45'),
+(93, 1, 'SALIDA', 1.00, 'VENTA', 36, 1, '2026-07-25 17:21:51'),
+(94, 6, 'SALIDA', 100.00, 'VENTA', 36, 1, '2026-07-25 17:21:51'),
+(95, 6, 'ENTRADA', 1000.00, 'ENTRADA', NULL, 1, '2026-07-29 18:13:16');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `ordenes_venta`
+--
+
+CREATE TABLE `ordenes_venta` (
+  `id` int(11) NOT NULL,
+  `folio` varchar(20) NOT NULL,
+  `cliente_id` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `estado` enum('BORRADOR','PENDIENTE','CONVERTIDA','CANCELADA') NOT NULL DEFAULT 'BORRADOR',
+  `observaciones` varchar(500) DEFAULT NULL,
+  `total_estimado` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `venta_id` int(11) DEFAULT NULL,
+  `creada_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizada_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `convertida_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -343,9 +448,14 @@ INSERT INTO `movimientos_inventario` (`id`, `producto_id`, `tipo`, `cantidad`, `
 
 CREATE TABLE `pagos` (
   `id` int(11) NOT NULL,
+  `cliente_id` int(11) DEFAULT NULL,
   `cuenta_id` int(11) DEFAULT NULL,
   `monto` decimal(10,2) DEFAULT NULL,
+  `monto_total` decimal(12,2) DEFAULT NULL,
   `metodo_pago` varchar(50) DEFAULT NULL,
+  `referencia` varchar(100) DEFAULT NULL,
+  `observaciones` varchar(500) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
   `fecha` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -353,9 +463,9 @@ CREATE TABLE `pagos` (
 -- Volcado de datos para la tabla `pagos`
 --
 
-INSERT INTO `pagos` (`id`, `cuenta_id`, `monto`, `metodo_pago`, `fecha`) VALUES
-(2, NULL, NULL, 'EFECTIVO', '2026-04-30 20:23:58'),
-(5, 3, 200.00, 'EFECTIVO', '2026-04-30 20:50:03');
+INSERT INTO `pagos` (`id`, `cliente_id`, `cuenta_id`, `monto`, `monto_total`, `metodo_pago`, `referencia`, `observaciones`, `usuario_id`, `fecha`) VALUES
+(2, NULL, NULL, NULL, NULL, 'EFECTIVO', NULL, NULL, NULL, '2026-04-30 20:23:58'),
+(5, 1, 3, 200.00, 200.00, 'EFECTIVO', NULL, NULL, NULL, '2026-04-30 20:50:03');
 
 -- --------------------------------------------------------
 
@@ -396,12 +506,12 @@ CREATE TABLE `productos` (
 --
 
 INSERT INTO `productos` (`id`, `codigo`, `nombre`, `precio_venta`, `stock`, `stock_minimo`, `unidad`, `activo`, `creado_en`, `kilos_por_caja`) VALUES
-(1, '01', 'aguacate extra x caja', 500.00, 9351.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
+(1, '01', 'aguacate extra x caja', 500.00, 9350.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
 (2, '02', 'aguacate grande x caja', 450.00, 1345.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
 (3, '03', 'aguacate mediano x caja', 400.00, 4166.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
 (4, '04', 'aguacate tercera x caja', 300.00, 21571.00, 0.00, 'CAJA', 1, '2026-04-30 20:48:13', NULL),
 (5, '07', 'agucate roña x caja', 600.00, 1500.00, 0.00, 'CAJA', 1, '2026-07-16 20:16:55', NULL),
-(6, '06', 'aguacate x kilo', 35.00, 100.00, 0.00, 'kg', 1, '2026-07-16 18:30:23', NULL);
+(6, '06', 'aguacate x kilo', 35.00, 1000.00, 0.00, 'kg', 1, '2026-07-16 18:30:23', NULL);
 
 -- --------------------------------------------------------
 
@@ -484,11 +594,20 @@ INSERT INTO `ventas` (`id`, `cliente_id`, `usuario_id`, `total`, `tipo_pago`, `e
 (32, 3, 1, 4450.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-05-14 20:02:04'),
 (33, 1, 1, 16000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 4, '2026-07-16 12:49:58', '2026-07-16 18:49:40'),
 (34, 1, 1, 45000.00, 'CREDITO', 'PENDIENTE', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-07-16 18:50:26'),
-(35, 10, 1, 55000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-07-16 20:14:45');
+(35, 10, 1, 55000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 0, NULL, '2026-07-16 20:14:45'),
+(36, 3, 1, 4000.00, 'CONTADO', 'PAGADO', 'ACTIVA', NULL, NULL, NULL, 4, '2026-07-29 12:08:21', '2026-07-25 17:21:51');
 
 --
 -- Índices para tablas volcadas
 --
+
+--
+-- Indices de la tabla `aplicaciones_pago`
+--
+ALTER TABLE `aplicaciones_pago`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_aplicacion_pago_cuenta` (`pago_id`,`cuenta_id`),
+  ADD KEY `ix_aplicacion_cuenta` (`cuenta_id`);
 
 --
 -- Indices de la tabla `clientes`
@@ -520,12 +639,31 @@ ALTER TABLE `detalle_compra`
   ADD KEY `producto_id` (`producto_id`);
 
 --
+-- Indices de la tabla `detalle_orden_venta`
+--
+ALTER TABLE `detalle_orden_venta`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_detalle_orden_producto` (`orden_id`,`producto_id`),
+  ADD KEY `ix_detalle_orden_producto` (`producto_id`);
+
+--
 -- Indices de la tabla `detalle_venta`
 --
 ALTER TABLE `detalle_venta`
   ADD PRIMARY KEY (`id`),
   ADD KEY `venta_id` (`venta_id`),
   ADD KEY `producto_id` (`producto_id`);
+
+--
+-- Indices de la tabla `movimientos_cartera`
+--
+ALTER TABLE `movimientos_cartera`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_cartera_venta_concepto` (`venta_id`,`concepto`),
+  ADD UNIQUE KEY `ux_cartera_pago_cuenta` (`pago_id`,`cuenta_id`),
+  ADD KEY `ix_cartera_cliente_fecha` (`cliente_id`,`fecha`,`id`),
+  ADD KEY `ix_cartera_cuenta` (`cuenta_id`),
+  ADD KEY `ix_cartera_usuario` (`usuario_id`);
 
 --
 -- Indices de la tabla `movimientos_inventario`
@@ -537,11 +675,24 @@ ALTER TABLE `movimientos_inventario`
   ADD KEY `ix_movimientos_usuario` (`usuario_id`);
 
 --
+-- Indices de la tabla `ordenes_venta`
+--
+ALTER TABLE `ordenes_venta`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_ordenes_folio` (`folio`),
+  ADD UNIQUE KEY `ux_ordenes_venta` (`venta_id`),
+  ADD KEY `ix_ordenes_estado_fecha` (`estado`,`creada_at`),
+  ADD KEY `ix_ordenes_cliente_estado` (`cliente_id`,`estado`),
+  ADD KEY `ix_ordenes_usuario` (`usuario_id`);
+
+--
 -- Indices de la tabla `pagos`
 --
 ALTER TABLE `pagos`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `cuenta_id` (`cuenta_id`);
+  ADD KEY `cuenta_id` (`cuenta_id`),
+  ADD KEY `ix_pagos_cliente_fecha` (`cliente_id`,`fecha`),
+  ADD KEY `ix_pagos_usuario` (`usuario_id`);
 
 --
 -- Indices de la tabla `predicciones`
@@ -579,6 +730,12 @@ ALTER TABLE `ventas`
 --
 
 --
+-- AUTO_INCREMENT de la tabla `aplicaciones_pago`
+--
+ALTER TABLE `aplicaciones_pago`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `clientes`
 --
 ALTER TABLE `clientes`
@@ -603,16 +760,34 @@ ALTER TABLE `detalle_compra`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `detalle_orden_venta`
+--
+ALTER TABLE `detalle_orden_venta`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `detalle_venta`
 --
 ALTER TABLE `detalle_venta`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=93;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=95;
+
+--
+-- AUTO_INCREMENT de la tabla `movimientos_cartera`
+--
+ALTER TABLE `movimientos_cartera`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `movimientos_inventario`
 --
 ALTER TABLE `movimientos_inventario`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=93;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=96;
+
+--
+-- AUTO_INCREMENT de la tabla `ordenes_venta`
+--
+ALTER TABLE `ordenes_venta`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `pagos`
@@ -642,11 +817,18 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `ventas`
 --
 ALTER TABLE `ventas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- Restricciones para tablas volcadas
 --
+
+--
+-- Filtros para la tabla `aplicaciones_pago`
+--
+ALTER TABLE `aplicaciones_pago`
+  ADD CONSTRAINT `fk_aplicacion_cuenta` FOREIGN KEY (`cuenta_id`) REFERENCES `cuentas_por_cobrar` (`id`),
+  ADD CONSTRAINT `fk_aplicacion_pago` FOREIGN KEY (`pago_id`) REFERENCES `pagos` (`id`);
 
 --
 -- Filtros para la tabla `cuentas_por_cobrar`
@@ -663,11 +845,28 @@ ALTER TABLE `detalle_compra`
   ADD CONSTRAINT `detalle_compra_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
 
 --
+-- Filtros para la tabla `detalle_orden_venta`
+--
+ALTER TABLE `detalle_orden_venta`
+  ADD CONSTRAINT `fk_detalle_orden` FOREIGN KEY (`orden_id`) REFERENCES `ordenes_venta` (`id`),
+  ADD CONSTRAINT `fk_detalle_orden_producto` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
+
+--
 -- Filtros para la tabla `detalle_venta`
 --
 ALTER TABLE `detalle_venta`
   ADD CONSTRAINT `detalle_venta_ibfk_1` FOREIGN KEY (`venta_id`) REFERENCES `ventas` (`id`),
   ADD CONSTRAINT `detalle_venta_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
+
+--
+-- Filtros para la tabla `movimientos_cartera`
+--
+ALTER TABLE `movimientos_cartera`
+  ADD CONSTRAINT `fk_cartera_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`),
+  ADD CONSTRAINT `fk_cartera_cuenta` FOREIGN KEY (`cuenta_id`) REFERENCES `cuentas_por_cobrar` (`id`),
+  ADD CONSTRAINT `fk_cartera_pago` FOREIGN KEY (`pago_id`) REFERENCES `pagos` (`id`),
+  ADD CONSTRAINT `fk_cartera_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
+  ADD CONSTRAINT `fk_cartera_venta` FOREIGN KEY (`venta_id`) REFERENCES `ventas` (`id`);
 
 --
 -- Filtros para la tabla `movimientos_inventario`
@@ -677,9 +876,19 @@ ALTER TABLE `movimientos_inventario`
   ADD CONSTRAINT `movimientos_inventario_ibfk_1` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
 
 --
+-- Filtros para la tabla `ordenes_venta`
+--
+ALTER TABLE `ordenes_venta`
+  ADD CONSTRAINT `fk_ordenes_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`),
+  ADD CONSTRAINT `fk_ordenes_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
+  ADD CONSTRAINT `fk_ordenes_venta` FOREIGN KEY (`venta_id`) REFERENCES `ventas` (`id`);
+
+--
 -- Filtros para la tabla `pagos`
 --
 ALTER TABLE `pagos`
+  ADD CONSTRAINT `fk_pagos_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`),
+  ADD CONSTRAINT `fk_pagos_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
   ADD CONSTRAINT `pagos_ibfk_1` FOREIGN KEY (`cuenta_id`) REFERENCES `cuentas_por_cobrar` (`id`);
 
 --

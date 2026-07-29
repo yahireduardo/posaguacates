@@ -422,3 +422,15 @@
   display: block;
   margin-top: 5px;
 }
+
+.input-ancho{width:100%;padding:11px;border:1px solid #c6d2cb;border-radius:8px;margin:8px 0}
+.indice-alfabetico{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.indice-alfabetico button{min-width:34px;padding:7px;background:#e6f2eb;color:#185d3d}
+.grupo-clientes{scroll-margin-top:16px;margin:18px 0;outline:none}
+.grupo-clientes:focus h3{color:#168b52;text-decoration:underline}
+#ordenes .tabla-contenedor,#tablaProductosCliente{overflow-x:auto;margin-top:16px}
+#resultadosClientePago{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+#resultadosClientePago button{text-align:left}
+#notasPago .row{align-items:center;justify-content:flex-start}
+#notasPago .aplicacion-manual{margin-left:auto;width:130px;padding:7px}
+#productoMasVendido{margin:14px 0}

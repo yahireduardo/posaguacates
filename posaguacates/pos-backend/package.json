@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test",
+    "service:install": "powershell -ExecutionPolicy Bypass -File scripts/install-service.ps1",
+    "service:remove": "powershell -ExecutionPolicy Bypass -File scripts/remove-service.ps1"
   },
   "keywords": [],
   "author": "",

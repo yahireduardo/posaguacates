@@ -1,11 +1,11 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-
 const db = require('../db/conexion');
 
 const {
   permitirRoles
 } = require('../middleware/auth');
+const { esCantidadValida, mensajeCantidad } = require('../lib/cantidades');
+const { passwordAdminValida } = require('../lib/cancelacion');
 
 const router = express.Router();
 
@@ -550,6 +550,12 @@ router.post('/crear', async (req, res) => {
       const stockDisponible =
         Number(producto.stock);
 
+      if (!esCantidadValida(cantidad, producto.unidad)) {
+        const error = new Error(mensajeCantidad(producto.unidad));
+        error.status = 400;
+        throw error;
+      }
+
       if (
         stockDisponible < cantidad
       ) {
@@ -757,7 +763,7 @@ router.post('/crear', async (req, res) => {
 
     if (tipoPago === 'CREDITO') {
 
-      await connection.query(
+      const [cuentaResult] = await connection.query(
         `
           INSERT INTO cuentas_por_cobrar
           (
@@ -783,6 +789,13 @@ router.post('/crear', async (req, res) => {
           total,
           total
         ]
+      );
+
+      await connection.query(
+        `INSERT INTO movimientos_cartera
+         (cliente_id,venta_id,cuenta_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
+         VALUES (?,?,?,NOW(),'VENTA_CREDITO',?,?,0,?,'Venta a crédito',?)`,
+        [clienteId, ventaId, cuentaResult.insertId, ventaId, total, total, req.usuario.id]
       );
 
     }
@@ -838,7 +851,7 @@ router.post('/crear', async (req, res) => {
 /* =========================================================
    CANCELAR VENTA
    Solo Administrador General
-   Solicita nuevamente la contraseña
+   Reautenticación obligatoria del Administrador General
 ========================================================= */
 
 router.post(
@@ -856,10 +869,7 @@ router.post(
         req.body.motivo || ''
       ).trim();
 
-    const password =
-      String(
-        req.body.password || ''
-      );
+    const password = String(req.body.password || '');
 
     if (
       !Number.isInteger(ventaId) ||
@@ -882,78 +892,25 @@ router.post(
     }
 
     if (!password) {
-
-      return res.status(400).json({
-        error:
-          'La contraseña del administrador es obligatoria'
-      });
-
+      return res.status(400).json({ error: 'La contraseña del administrador es obligatoria' });
     }
 
     let connection;
 
     try {
-
-      /* =========================
-         VALIDAR CONTRASEÑA ADMIN
-      ========================= */
-
-      const [administradores] =
-        await db.promise.query(
-          `
-            SELECT
-              id,
-              password_hash
-
-            FROM usuarios
-
-            WHERE id = ?
-              AND rol = 'ADMON_GRAL'
-              AND activo = 1
-
-            LIMIT 1
-          `,
-          [req.usuario.id]
-        );
-
-      if (
-        administradores.length === 0
-      ) {
-
-        return res.status(403).json({
-          error:
-            'Administrador no autorizado'
-        });
-
+      console.info('Cancelación solicitada', { ventaId, usuarioId: req.usuario.id, rol: req.usuario.rol });
+      const [administradores] = await db.promise.query(
+        `SELECT id,password_hash FROM usuarios
+         WHERE id=? AND rol='ADMON_GRAL' AND activo=1 LIMIT 1`,
+        [req.usuario.id]
+      );
+      if (!administradores.length || !administradores[0].password_hash) {
+        console.warn('Cancelación rechazada: administrador o hash no disponible', { ventaId, usuarioId: req.usuario.id });
+        return res.status(403).json({ error: 'Administrador no autorizado para cancelar' });
       }
-
-      const administrador =
-        administradores[0];
-
-      if (
-        !administrador.password_hash
-      ) {
-
-        return res.status(500).json({
-          error:
-            'El administrador no tiene contraseña segura configurada'
-        });
-
-      }
-
-      const passwordValido =
-        await bcrypt.compare(
-          password,
-          administrador.password_hash
-        );
-
-      if (!passwordValido) {
-
-        return res.status(401).json({
-          error:
-            'Contraseña de administrador incorrecta'
-        });
-
+      if (!await passwordAdminValida(password, administradores[0].password_hash)) {
+        console.warn('Cancelación rechazada: contraseña incorrecta', { ventaId, usuarioId: req.usuario.id });
+        return res.status(401).json({ error: 'Contraseña de administrador incorrecta' });
       }
 
       connection =
@@ -970,6 +927,8 @@ router.post(
           `
             SELECT
               id,
+              cliente_id,
+              total,
               tipo_pago,
               estado_venta
 
@@ -1042,17 +1001,15 @@ router.post(
         const [pagos] =
           await connection.query(
             `
-              SELECT
-                COALESCE(
-                  SUM(monto),
-                  0
-                ) AS total_abonado
-
-              FROM pagos
-
-              WHERE cuenta_id = ?
+              SELECT COALESCE(
+                (SELECT SUM(p.monto) FROM pagos p WHERE p.cuenta_id = ?),
+                0
+              ) + COALESCE(
+                (SELECT SUM(ap.monto_aplicado) FROM aplicaciones_pago ap WHERE ap.cuenta_id = ?),
+                0
+              ) AS total_abonado
             `,
-            [cuenta.id]
+            [cuenta.id, cuenta.id]
           );
 
         const totalAbonado =
@@ -1180,6 +1137,16 @@ router.post(
         `,
         [ventaId]
       );
+
+      if (cuentas.length) {
+        await connection.query(
+          `INSERT INTO movimientos_cartera
+           (cliente_id,venta_id,cuenta_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
+           VALUES (?,?,?,NOW(),'CANCELACION',?,0,?,0,?,?)`,
+          [venta.cliente_id, ventaId, cuentas[0].id, `V-${ventaId}`, venta.total,
+            `Cancelación: ${motivo}`, req.usuario.id]
+        );
+      }
 
       await connection.commit();
 

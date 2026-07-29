@@ -4,13 +4,49 @@ const { permitirRoles } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
+  const buscar = String(req.query.buscar || '').trim();
+  const pagina = Math.max(1, Number.parseInt(req.query.pagina, 10) || 1);
+  const limite = Math.min(500, Math.max(1, Number.parseInt(req.query.limite, 10) || 200));
+  const params = [];
+  let where = 'activo = 1';
+  if (buscar) {
+    where += ' AND (nombre_razon_social LIKE ? OR rfc LIKE ? OR telefono LIKE ?)';
+    params.push(`%${buscar}%`, `%${buscar}%`, `%${buscar}%`);
+  }
   try {
     const [rows] = await db.promise.query(
       `SELECT id, nombre_razon_social, rfc, telefono, correo_electronico
-       FROM clientes WHERE activo = 1 ORDER BY nombre_razon_social`
+       FROM clientes WHERE ${where}
+       ORDER BY nombre_razon_social COLLATE utf8mb4_spanish_ci, id LIMIT ? OFFSET ?`,
+      [...params, limite, (pagina - 1) * limite]
     );
-    res.json(rows);
+    const [[total]] = await db.promise.query(`SELECT COUNT(*) total FROM clientes WHERE ${where}`, params);
+    res.json(req.query.pagina || req.query.buscar ? { datos: rows, pagina, limite, total: total.total } : rows);
   } catch (error) { res.status(500).json({ error: 'No fue posible consultar clientes' }); }
+});
+
+router.get('/:id/resumen', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Cliente inválido' });
+  try {
+    const [[cliente], [cuentas], [movimientos], [ordenes], [ventas]] = await Promise.all([
+      db.promise.query(`SELECT id,nombre_razon_social,rfc,telefono,correo_electronico,activo FROM clientes WHERE id=?`, [id]),
+      db.promise.query(`SELECT id,venta_id,total_deuda,saldo_pendiente,estado,fecha
+        FROM cuentas_por_cobrar WHERE cliente_id=? ORDER BY fecha,id`, [id]),
+      db.promise.query(`SELECT mc.*,u.nombre usuario FROM movimientos_cartera mc
+        LEFT JOIN usuarios u ON u.id=mc.usuario_id WHERE mc.cliente_id=? ORDER BY mc.fecha,mc.id`, [id]),
+      db.promise.query(`SELECT id,folio,estado,total_estimado,creada_at FROM ordenes_venta
+        WHERE cliente_id=? AND estado='PENDIENTE' ORDER BY creada_at,id`, [id]),
+      db.promise.query(`SELECT id,total,tipo_pago,estado_pago,estado_venta,fecha FROM ventas
+        WHERE cliente_id=? ORDER BY fecha DESC,id DESC LIMIT 20`, [id])
+    ]);
+    if (!cliente[0]) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json({ cliente: cliente[0],
+      saldo_total: cuentas.filter(c => c.estado === 'PENDIENTE').reduce((s, c) => s + Number(c.saldo_pendiente), 0),
+      cuentas, movimientos, ordenes, ventas });
+  } catch (error) {
+    res.status(500).json({ error: 'No fue posible consultar el estado de cuenta; verifica la migración pendiente' });
+  }
 });
 
 function datosCliente(body) {

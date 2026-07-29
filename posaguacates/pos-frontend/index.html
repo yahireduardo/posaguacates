@@ -244,9 +244,22 @@
 
         </section>
 
-      <section id="clientes" class="seccion"><h2>Clientes</h2><form id="clienteForm" class="panel"><input type="hidden" id="clienteId"><div class="form-grid"><input id="nombreRazon" placeholder="Nombre o razón social" required><input id="rfc" placeholder="RFC" maxlength="13"><input id="telefono" placeholder="Teléfono"><input id="correo" type="email" placeholder="Correo electrónico"></div><div class="actions"><button class="primary" type="submit">Guardar cliente</button><button type="button" id="cancelarEdicion" class="hidden">Cancelar edición</button></div></form><div id="listaClientes" class="grid" style="margin-top:16px"></div></section>
+      <section id="ordenes" class="seccion">
+        <div class="ventas-titulo"><div><h2>Órdenes de venta</h2><p class="muted">Crea y modifica notas sin afectar inventario.</p></div><button id="ordenNueva" type="button">Nueva orden</button></div>
+        <form id="editorOrden" class="panel">
+          <input id="ordenEditandoId" type="hidden">
+          <div class="form-grid"><label>Cliente<select id="ordenEditorCliente" required></select></label></div>
+          <div class="captura-producto"><div><label>Producto</label><select id="ordenEditorProducto"></select></div><div><label>Cantidad</label><input id="ordenEditorCantidad" type="number" min="0.01" step="0.01" value="1"></div><div><label>Observación</label><input id="ordenEditorDetalleObs" maxlength="255"></div><button id="ordenAgregarProducto" type="button" class="primary">Agregar</button></div>
+          <div class="tabla-contenedor"><table><thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Unidad</th><th>Precio estimado</th><th>Subtotal</th><th>Observación</th><th></th></tr></thead><tbody id="ordenEditorDetalle"><tr><td colspan="8">Agrega productos a la orden</td></tr></tbody></table></div>
+          <div class="actions"><strong id="ordenEditorTotal" class="money">$0.00</strong><button id="ordenGuardar" type="submit" class="primary">Guardar orden pendiente</button><button id="ordenCerrarEditor" type="button">Limpiar</button></div>
+        </form>
+        <form id="filtrosOrdenes" class="panel form-grid"><input id="ordenFolio" placeholder="Folio"><input id="ordenCliente" placeholder="Cliente"><input id="ordenFecha" type="date"><select id="ordenEstado"><option value="">Todos</option><option>BORRADOR</option><option selected>PENDIENTE</option><option>CONVERTIDA</option><option>CANCELADA</option></select><button class="primary">Buscar</button></form>
+        <div class="panel tabla-contenedor"><table><thead><tr><th>Folio</th><th>Fecha</th><th>Cliente</th><th>Estado</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="listaOrdenes"></tbody></table></div>
+      </section>
 
-      <section id="cuentas" class="seccion"><h2>Cobros de cuentas por cobrar</h2><div id="listaCuentas" class="grid"></div><div id="detalleCuenta" class="panel hidden" style="margin-top:16px"></div></section>
+      <section id="clientes" class="seccion"><h2>Clientes</h2><form id="clienteForm" class="panel"><input type="hidden" id="clienteId"><div class="form-grid"><input id="nombreRazon" placeholder="Nombre o razón social" required><input id="rfc" placeholder="RFC" maxlength="13"><input id="telefono" placeholder="Teléfono"><input id="correo" type="email" placeholder="Correo electrónico"></div><div class="actions"><button class="primary" type="submit">Guardar cliente</button><button type="button" id="cancelarEdicion" class="hidden">Cancelar edición</button></div></form><div class="panel"><input id="buscarCliente" class="input-ancho" placeholder="Buscar por nombre, RFC o teléfono"><nav id="indiceClientes" class="indice-alfabetico" aria-label="Índice alfabético"></nav></div><div id="listaClientes"></div><div id="resumenCliente" class="panel hidden"></div></section>
+
+      <section id="cuentas" class="seccion"><h2>Cobros de cuentas por cobrar</h2><button id="abrirPago" class="primary admin">Aplicar pago</button><div id="listaCuentas" class="grid"></div><div id="detalleCuenta" class="panel hidden" style="margin-top:16px"></div></section>
 
       <section id="inventario" class="seccion"><h2>Inventario</h2><form id="movimientoForm" class="panel form-grid"><select id="productoMovimiento"></select><select id="tipoMovimiento"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida / merma</option></select><input id="cantidadMovimiento" type="number" min="0.01" step="0.01" placeholder="Cantidad" required><input id="motivoMovimiento" placeholder="Motivo" required><button class="primary">Registrar</button></form><div id="movimientos" style="margin-top:16px"></div></section>
 
@@ -482,7 +495,7 @@
 
 </section>
 
-      <section id="dashboard" class="seccion"><h2>Dashboard</h2><div id="metricas" class="grid"></div><div class="panel" style="margin-top:16px"><h3>Ventas de los últimos 7 días</h3><canvas id="graficaSemanal"></canvas></div><div class="actions"><button class="secondary" id="reporte">Abrir reporte PDF</button></div></section>
+      <section id="dashboard" class="seccion"><h2>Dashboard</h2><div id="metricas" class="grid"></div><div class="panel"><h3>Ventas de los últimos 7 días</h3><canvas id="graficaSemanal"></canvas></div><section class="panel admin"><h3>Productos vendidos por cliente</h3><form id="filtrosProductosCliente" class="form-grid"><input id="rpcInicio" type="date"><input id="rpcFin" type="date"><select id="rpcCliente"><option value="">Todos los clientes</option></select><select id="rpcProducto"><option value="">Todos los productos</option></select><select id="rpcPago"><option value="">Todos los pagos</option><option>CONTADO</option><option>CREDITO</option></select><select id="rpcOrden"><option value="cliente">Cliente</option><option value="producto">Producto</option><option value="cantidad">Cantidad</option><option value="ingresos">Ingresos</option></select><label><input id="rpcCanceladas" type="checkbox"> Incluir canceladas</label><button class="primary">Consultar</button></form><div id="productoMasVendido"></div><canvas id="graficaProductos"></canvas><div id="tablaProductosCliente"></div><button id="exportarProductosCsv">Exportar CSV</button></section><div class="actions"><button class="secondary" id="reporte">Abrir reporte PDF</button></div></section>
     </main>
   </div>
 
@@ -518,6 +531,8 @@
 
 </div>
 
+
+  <div id="modalPago" class="modal hidden"><div class="modal-contenido"><div class="modal-encabezado"><h2>Aplicar pago</h2><button id="cerrarPago" class="danger">×</button></div><input id="buscarClientePago" class="input-ancho" placeholder="Buscar cliente"><div id="resultadosClientePago"></div><form id="formPago" class="hidden"><input id="pagoClienteId" type="hidden"><h3 id="pagoClienteNombre"></h3><div id="notasPago"></div><div class="form-grid"><label>Método<select id="pagoMetodo"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option></select></label><label>Monto recibido<input id="pagoMonto" type="number" min="0.01" step="0.01" required></label><label>Fecha<input id="pagoFecha" type="date" required></label><label id="grupoPagoReferencia" class="hidden">Referencia<input id="pagoReferencia" maxlength="100"></label><label>Observaciones<input id="pagoObservaciones" maxlength="500"></label></div><div id="resumenPago"></div><button id="confirmarPago" class="primary">Confirmar pago</button></form></div></div>
 
   <script type="module" src="./js/app.js"></script>
 </body>

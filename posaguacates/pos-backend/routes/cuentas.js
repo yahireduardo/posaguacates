@@ -1,76 +1,142 @@
 const express = require('express');
 const db = require('../db/conexion');
+const { permitirRoles } = require('../middleware/auth');
+const { construirAplicaciones } = require('../lib/cartera');
 const router = express.Router();
+
+const idValido = value => Number.isInteger(Number(value)) && Number(value) > 0;
+const fallo = (message, status = 400) => Object.assign(new Error(message), { status });
 
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.promise.query(
-      `SELECT c.id AS cliente_id, c.nombre_razon_social,
-              SUM(cxc.saldo_pendiente) AS saldo_total
-       FROM cuentas_por_cobrar cxc JOIN clientes c ON c.id = cxc.cliente_id
-       WHERE cxc.estado = 'PENDIENTE'
-       GROUP BY c.id, c.nombre_razon_social ORDER BY saldo_total DESC`
+      `SELECT c.id cliente_id,c.nombre_razon_social,SUM(cxc.saldo_pendiente) saldo_total
+       FROM cuentas_por_cobrar cxc JOIN clientes c ON c.id=cxc.cliente_id
+       WHERE cxc.estado='PENDIENTE' GROUP BY c.id,c.nombre_razon_social ORDER BY saldo_total DESC`
     );
     res.json(rows);
-  } catch (error) { res.status(500).json({ error: 'No fue posible consultar cuentas' }); }
+  } catch (e) { res.status(500).json({ error: 'No fue posible consultar cuentas' }); }
 });
+
+router.get('/clientes/buscar', async (req, res) => {
+  const q = `%${String(req.query.q || '').trim()}%`;
+  try {
+    const [rows] = await db.promise.query(
+      `SELECT c.id,c.nombre_razon_social,c.rfc,c.telefono,
+              COALESCE(SUM(CASE WHEN cxc.estado='PENDIENTE' THEN cxc.saldo_pendiente ELSE 0 END),0) saldo_total
+       FROM clientes c LEFT JOIN cuentas_por_cobrar cxc ON cxc.cliente_id=c.id
+       WHERE c.activo=1 AND (c.nombre_razon_social LIKE ? OR c.rfc LIKE ? OR c.telefono LIKE ?)
+       GROUP BY c.id,c.nombre_razon_social,c.rfc,c.telefono ORDER BY c.nombre_razon_social LIMIT 50`, [q, q, q]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: 'No fue posible buscar clientes' }); }
+});
+
+router.get('/cliente/:id/pendientes', pendientes);
+async function pendientes(req, res) {
+  if (!idValido(req.params.id)) return res.status(400).json({ error: 'Cliente inválido' });
+  try {
+    const [rows] = await db.promise.query(
+      `SELECT cxc.id,cxc.venta_id,CONCAT('V-',LPAD(cxc.venta_id,8,'0')) folio,
+              cxc.total_deuda,cxc.saldo_pendiente,cxc.estado,cxc.fecha,NULL vencimiento
+       FROM cuentas_por_cobrar cxc WHERE cxc.cliente_id=? AND cxc.estado='PENDIENTE'
+       ORDER BY cxc.fecha,cxc.id`, [Number(req.params.id)]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: 'No fue posible consultar notas pendientes' }); }
+}
 
 router.get('/cliente/:id', async (req, res) => {
-  const clienteId = Number(req.params.id);
-  if (!Number.isInteger(clienteId) || clienteId <= 0) return res.status(400).json({ error: 'Cliente inválido' });
+  if (!idValido(req.params.id)) return res.status(400).json({ error: 'Cliente inválido' });
   try {
     const [cuentas] = await db.promise.query(
-      `SELECT cxc.id, cxc.venta_id, cxc.total_deuda, cxc.saldo_pendiente, cxc.estado, cxc.fecha
-       FROM cuentas_por_cobrar cxc WHERE cxc.cliente_id = ? ORDER BY cxc.id DESC`, [clienteId]
+      `SELECT cxc.id,cxc.venta_id,cxc.total_deuda,cxc.saldo_pendiente,cxc.estado,cxc.fecha
+       FROM cuentas_por_cobrar cxc WHERE cxc.cliente_id=? ORDER BY cxc.fecha,cxc.id`, [Number(req.params.id)]
     );
     const [pagos] = await db.promise.query(
-      `SELECT p.id, p.cuenta_id, p.monto, p.metodo_pago, p.fecha
-       FROM pagos p JOIN cuentas_por_cobrar cxc ON cxc.id = p.cuenta_id
-       WHERE cxc.cliente_id = ? ORDER BY p.id DESC`, [clienteId]
+      `SELECT p.id,ap.cuenta_id,ap.monto_aplicado monto,p.metodo_pago,p.fecha,p.referencia
+       FROM pagos p JOIN aplicaciones_pago ap ON ap.pago_id=p.id
+       WHERE p.cliente_id=? ORDER BY p.fecha,p.id,ap.id`, [Number(req.params.id)]
     );
     res.json({ cuentas, pagos });
-  } catch (error) { res.status(500).json({ error: 'No fue posible consultar el historial' }); }
+  } catch (e) { res.status(500).json({ error: 'No fue posible consultar el historial; verifica la migración pendiente' }); }
 });
 
-router.post('/abonar', async (req, res) => {
-  const cuentaId = Number(req.body.cuenta_id);
-  const monto = Number(req.body.monto);
-  const metodo = String(req.body.metodo_pago || 'EFECTIVO').trim().toUpperCase();
-  if (!Number.isInteger(cuentaId) || cuentaId <= 0 || !Number.isFinite(monto) || monto <= 0 || !metodo) {
-    return res.status(400).json({ error: 'Cuenta, monto y método de pago válidos son obligatorios' });
+router.post('/pagos', permitirRoles('ADMON_GRAL'), async (req, res) => {
+  const clienteId = Number(req.body.cliente_id);
+  const monto = Number(req.body.monto_recibido);
+  const metodo = String(req.body.metodo_pago || '').toUpperCase();
+  const referencia = String(req.body.referencia || '').trim() || null;
+  const fecha = req.body.fecha || null;
+  if (!idValido(clienteId) || !Number.isFinite(monto) || monto <= 0 || !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodo)) {
+    return res.status(400).json({ error: 'Cliente, monto y método válidos son obligatorios' });
   }
+  if (metodo !== 'EFECTIVO' && !referencia) return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
+  const ids = [...new Set((req.body.cuenta_ids || []).map(Number).filter(idValido))].sort((a, b) => a - b);
+  if (!ids.length) return res.status(400).json({ error: 'Selecciona al menos una nota' });
   const connection = await db.promise.getConnection();
   try {
     await connection.beginTransaction();
-    const [rows] = await connection.query(
-      'SELECT saldo_pendiente, estado FROM cuentas_por_cobrar WHERE id = ? FOR UPDATE', [cuentaId]
+    const [cuentas] = await connection.query(
+      `SELECT id,cliente_id,venta_id,total_deuda,saldo_pendiente,estado,fecha
+       FROM cuentas_por_cobrar WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY fecha,id FOR UPDATE`, ids
     );
-    if (!rows.length) throw Object.assign(new Error('Cuenta no encontrada'), { status: 404 });
-    if (rows[0].estado !== 'PENDIENTE') throw Object.assign(new Error('La cuenta no admite abonos'), { status: 409 });
-    const saldo = Number(rows[0].saldo_pendiente);
-    if (monto > saldo) throw Object.assign(new Error('El abono supera el saldo pendiente'), { status: 409 });
-    const nuevoSaldo = Number((saldo - monto).toFixed(2));
-    // El dump actual aún no contiene tipo_movimiento, saldo_restante ni usuario_id.
-    // Esas columnas se proponen en sql/migracion_pendiente.sql sin romper esta ruta.
-    await connection.query(
-      'INSERT INTO pagos (cuenta_id, monto, metodo_pago) VALUES (?, ?, ?)',
-      [cuentaId, monto, metodo]
+    if (cuentas.length !== ids.length || cuentas.some(c => Number(c.cliente_id) !== clienteId || c.estado !== 'PENDIENTE')) {
+      throw fallo('Una nota cambió, no pertenece al cliente o ya fue pagada', 409);
+    }
+    const aplicaciones = construirAplicaciones(cuentas, req.body, monto);
+    const [pago] = await connection.query(
+      `INSERT INTO pagos (cuenta_id,monto,metodo_pago,fecha,cliente_id,monto_total,referencia,observaciones,usuario_id)
+       VALUES (NULL,NULL,?,COALESCE(?,NOW()),?,?,?,?,?)`,
+      [metodo, fecha, clienteId, monto, referencia, String(req.body.observaciones || '').trim() || null, req.usuario.id]
     );
-    await connection.query(
-      'UPDATE cuentas_por_cobrar SET saldo_pendiente = ?, estado = ? WHERE id = ?',
-      [nuevoSaldo, nuevoSaldo === 0 ? 'PAGADO' : 'PENDIENTE', cuentaId]
-    );
-    await connection.query(
-      `UPDATE ventas v JOIN cuentas_por_cobrar cxc ON cxc.venta_id = v.id
-       SET v.estado_pago = ? WHERE cxc.id = ?`,
-      [nuevoSaldo === 0 ? 'PAGADO' : 'PENDIENTE', cuentaId]
-    );
+    const recibo = [];
+    for (const a of aplicaciones) {
+      const anterior = Number(a.cuenta.saldo_pendiente);
+      const nuevo = Number((anterior - a.monto).toFixed(2));
+      await connection.query(
+        `INSERT INTO aplicaciones_pago (pago_id,cuenta_id,monto_aplicado,saldo_anterior,saldo_resultante)
+         VALUES (?,?,?,?,?)`, [pago.insertId, a.cuenta.id, a.monto, anterior, nuevo]
+      );
+      await connection.query('UPDATE cuentas_por_cobrar SET saldo_pendiente=?,estado=? WHERE id=?',
+        [nuevo, nuevo === 0 ? 'PAGADO' : 'PENDIENTE', a.cuenta.id]);
+      await connection.query('UPDATE ventas SET estado_pago=? WHERE id=?',
+        [nuevo === 0 ? 'PAGADO' : 'PENDIENTE', a.cuenta.venta_id]);
+      const [[saldo]] = await connection.query(
+        "SELECT COALESCE(SUM(saldo_pendiente),0) total FROM cuentas_por_cobrar WHERE cliente_id=? AND estado='PENDIENTE'", [clienteId]
+      );
+      await connection.query(
+        `INSERT INTO movimientos_cartera
+         (cliente_id,venta_id,cuenta_id,pago_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
+         VALUES (?,?,?,?,COALESCE(?,NOW()),'COBRO',?,0,?,?,?,?)`,
+        [clienteId, a.cuenta.venta_id, a.cuenta.id, pago.insertId, fecha, `P-${pago.insertId}`,
+          a.monto, saldo.total, String(req.body.observaciones || '').trim() || 'Aplicación de pago', req.usuario.id]
+      );
+      recibo.push({ cuenta_id: a.cuenta.id, venta_id: a.cuenta.venta_id, monto_aplicado: a.monto, saldo_anterior: anterior, saldo_resultante: nuevo });
+    }
     await connection.commit();
-    res.status(201).json({ mensaje: 'Abono registrado', saldo_pendiente: nuevoSaldo });
-  } catch (error) {
+    res.status(201).json({ pago_id: pago.insertId, cliente_id: clienteId, monto_total: monto, metodo_pago: metodo, referencia, aplicaciones: recibo });
+  } catch (e) {
     await connection.rollback();
-    res.status(error.status || 500).json({ error: error.status ? error.message : 'No fue posible registrar el abono' });
+    res.status(e.status || 500).json({ error: e.status ? e.message : 'No fue posible aplicar el pago' });
   } finally { connection.release(); }
+});
+
+router.get('/pagos/:id/recibo', async (req, res) => {
+  if (!idValido(req.params.id)) return res.status(400).json({ error: 'Pago inválido' });
+  try {
+    const [[pago]] = await db.promise.query(
+      `SELECT p.id,p.fecha,p.monto_total,p.metodo_pago,p.referencia,p.observaciones,
+              c.id cliente_id,c.nombre_razon_social,u.nombre usuario
+       FROM pagos p JOIN clientes c ON c.id=p.cliente_id JOIN usuarios u ON u.id=p.usuario_id WHERE p.id=?`, [Number(req.params.id)]
+    );
+    if (!pago) return res.status(404).json({ error: 'Pago no encontrado' });
+    const [aplicaciones] = await db.promise.query(
+      `SELECT ap.*,cxc.venta_id,CONCAT('V-',LPAD(cxc.venta_id,8,'0')) folio
+       FROM aplicaciones_pago ap JOIN cuentas_por_cobrar cxc ON cxc.id=ap.cuenta_id WHERE ap.pago_id=? ORDER BY ap.id`, [pago.id]
+    );
+    res.json({ pago, aplicaciones });
+  } catch (e) { res.status(500).json({ error: 'No fue posible generar el recibo' }); }
 });
 
 module.exports = router;
