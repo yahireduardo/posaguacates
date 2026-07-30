@@ -6,6 +6,8 @@ const path = require('path');
 const fs = require('fs');
 const { autenticar } = require('./middleware/auth');
 const db = require('./db/conexion');
+const { instanceControl } = require('./services/backupRuntime');
+const { crearBloqueoEscrituras } = require('./middleware/instanceWritable');
 
 if (!process.env.JWT_SECRET) {
   console.error('Falta JWT_SECRET. Copia .env.example a .env y define una clave segura.');
@@ -73,6 +75,8 @@ app.use('/auth/login', (req, res, next) => {
 
 app.use('/auth', require('./routes/auth'));
 app.use('/tickets', require('./routes/tickets'));
+app.use('/backups', autenticar, require('./routes/backups'));
+app.use(crearBloqueoEscrituras(instanceControl));
 app.use('/productos', autenticar, require('./routes/productos'));
 app.use('/ventas', autenticar, require('./routes/ventas'));
 app.use('/ordenes', autenticar, require('./routes/ordenes'));

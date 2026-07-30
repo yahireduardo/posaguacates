@@ -1,4 +1,4 @@
-const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, detalleVentaActual=null, grafica=null, graficaProductos=null, graficaClientes=null, productoSeleccionado = null, indiceResultadoActivo = -1, ordenCargada=null, reporteProductosActual=[];
+const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, detalleVentaActual=null, grafica=null, graficaProductos=null, graficaClientes=null, productoSeleccionado = null, indiceResultadoActivo = -1, ordenCargada=null, reporteProductosActual=[], estadoInstanciaPOS=null, archivoRespaldoSeleccionado=null, analisisRespaldoActual=null, backupIdDescargado=null, reinicioRespaldoPendiente=false;
     const ultimaVentaGuardada=Number(localStorage.getItem('ultimaVentaPOS'));
     if(Number.isInteger(ultimaVentaGuardada)&&ultimaVentaGuardada>0)ultimaVenta={venta_id:ultimaVentaGuardada};
     const dinero=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2,maximumFractionDigits:2});
@@ -11,9 +11,10 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
 
     async function api(path, options = {}) {
 
+  const esFormData = options.body instanceof FormData;
   const headers = {
 
-    ...(options.body
+    ...(options.body && !esFormData
       ? {
           'Content-Type':
             'application/json'
@@ -62,6 +63,7 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
   }
 
   if (!response.ok) {
+    if (response.status === 423) aplicarEstadoInstancia({ estado: 'ENTREGADA', bloqueada: 1 });
 
     throw new Error(
       (typeof data === 'object' ? data.error : data) ||
@@ -73,7 +75,7 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
   return data;
 
 }
-    function mostrar(id){document.querySelectorAll('.seccion').forEach(x=>x.classList.toggle('activa',x.id===id));if(id==='cuentas')cargarCuentas();if(id==='ordenes')cargarOrdenes();if(id==='clientes')cargarClientes();if(id==='inventario')cargarInventario();if(id==='ventas')cargarVentas();if(id==='dashboard'){cargarDashboard();cargarReporteProductos().then(cargarGraficasHistoricas)}}
+    function mostrar(id){if(id==='respaldos'&&usuario?.rol!=='ADMON_GRAL')id='pos';document.querySelectorAll('.seccion').forEach(x=>x.classList.toggle('activa',x.id===id));if(id==='cuentas')cargarCuentas();if(id==='ordenes')cargarOrdenes();if(id==='clientes')cargarClientes();if(id==='inventario')cargarInventario();if(id==='ventas')cargarVentas();if(id==='respaldos'){cargarEstadoRespaldos();cargarHistorialRespaldos()}if(id==='dashboard'){cargarDashboard();cargarReporteProductos().then(cargarGraficasHistoricas)}}
     document.querySelectorAll('[data-section]').forEach(b => b.addEventListener('click', () => mostrar(b.dataset.section)));
 
     document
@@ -176,6 +178,7 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
 
   cargarProductos();
   cargarClientes();
+  cargarEstadoRespaldos({silencioso:true});
   const botonUltimoTicket=document.getElementById('imprimir');
   if(botonUltimoTicket)botonUltimoTicket.disabled=!ultimaVenta;
 
@@ -1769,5 +1772,251 @@ async function cargarGraficasHistoricas(){
 }
 document.getElementById('filtrosProductosCliente')?.addEventListener('submit',async e=>{e.preventDefault();const productoSeleccionadoReporte=rpcProducto.value;await cargarReporteProductos();rpcProducto.value=productoSeleccionadoReporte;await cargarGraficasHistoricas()});
 document.getElementById('exportarProductosCsv')?.addEventListener('click',()=>{const filas=[['Cliente','Código','Producto','Unidad','Cantidad vendida','Ingresos'],...reporteProductosActual.map(x=>[x.cliente,x.codigo,x.producto,x.unidad,x.cantidad_vendida,x.ingresos_generados])],csv=filas.map(f=>f.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\r\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='productos-por-cliente.csv';a.click();URL.revokeObjectURL(a.href)});
+
+// Respaldo y traslado de datos
+const formatoBytes=bytes=>{const n=Number(bytes);if(!Number.isFinite(n)||n<0)return '—';if(n<1024)return `${n} B`;const unidades=['KB','MB','GB'];let valor=n/1024,indice=0;while(valor>=1024&&indice<unidades.length-1){valor/=1024;indice++}return `${valor.toLocaleString('es-MX',{maximumFractionDigits:2})} ${unidades[indice]}`};
+const fechaLegible=valor=>valor?new Date(valor).toLocaleString('es-MX'):'—';
+const abreviarId=valor=>valor?`${String(valor).slice(0,8)}…${String(valor).slice(-4)}`:'—';
+
+function mensajeTecnicoAmigable(error){
+  const texto=String(error?.message||error||'No fue posible completar la operación');
+  if(/analysis|análisis.*(venció|expir)|token/i.test(texto))return 'El análisis expiró. Analice nuevamente el archivo antes de restaurar.';
+  if(/mariadb-dump|ENOENT|herramienta de respaldo/i.test(texto))return 'No se encontró la herramienta de respaldo de MariaDB.';
+  if(/mariadb|base de datos|ECONN|acceso denegado/i.test(texto))return 'No fue posible acceder a la base de datos.';
+  if(/hash|dañad|corrupt|ZIP|manifiesto|archivo.*válido/i.test(texto))return 'El archivo seleccionado no corresponde a un respaldo válido o está dañado.';
+  if(/tamaño|excede|LIMIT_FILE_SIZE/i.test(texto))return 'El archivo supera el tamaño máximo permitido.';
+  if(/conectar con el servidor|Failed to fetch|NetworkError/i.test(texto))return 'No fue posible conectar con el servidor.';
+  return texto.replace(/\b(spawn|ENOENT|ER_[A-Z_]+)\b[^\n]*/g,'No fue posible completar la operación').slice(0,300);
+}
+
+function mostrarMensajeRespaldo(texto,tipo='exito'){
+  const contenedor=document.getElementById('mensajeRespaldos');
+  if(!contenedor)return;
+  contenedor.textContent=texto;
+  contenedor.className=`mensaje-respaldo ${tipo}`;
+  contenedor.classList.remove('hidden');
+}
+function limpiarMensajeRespaldo(){document.getElementById('mensajeRespaldos')?.classList.add('hidden')}
+
+const selectorEscrituras=[
+  '#pos #agregarCaptura','#pos #vender','#pos .boton-eliminar-producto','#pos .cantidad-carrito',
+  '#editorOrden input','#editorOrden select','#editorOrden textarea','#editorOrden button:not(#ordenCerrarEditor)',
+  '#clienteForm input','#clienteForm textarea','#clienteForm button[type="submit"]',
+  '#cuentas #abrirPago','#modalPago #confirmarPago','#inventario #movimientoForm input',
+  '#inventario #movimientoForm select','#inventario #movimientoForm button',
+  '.editar-cliente','.eliminar-cliente','.orden-cancelar','.orden-pos','.cancelar-pago','.aplicar-pago-cliente'
+].join(',');
+const formulariosEscritura=new Set(['editorOrden','clienteForm','formPago','movimientoForm']);
+
+function aplicarBloqueoVisualEntregada(entregada){
+  document.body.classList.toggle('instancia-entregada',entregada);
+  document.getElementById('barraInstanciaEntregada')?.classList.toggle('hidden',!entregada);
+  document.querySelectorAll(selectorEscrituras).forEach(control=>{
+    if(entregada&&!control.disabled){control.disabled=true;control.dataset.disabledEntregada='1'}
+    else if(!entregada&&control.dataset.disabledEntregada==='1'){control.disabled=false;delete control.dataset.disabledEntregada}
+  });
+}
+
+function aplicarEstadoInstancia(instancia){
+  if(!instancia)return;
+  estadoInstanciaPOS=instancia;
+  const estado=instancia.restauracion_en_progreso?'RESTAURACION_EN_PROGRESO':instancia.estado||'ACTIVA';
+  const chip=document.getElementById('estadoInstancia');
+  if(chip){chip.textContent=estado.replaceAll('_',' ');chip.className=`estado-chip ${estado==='ACTIVA'?'ok':estado==='ENTREGADA'?'error':'warning'}`}
+  const asignar=(id,valor)=>{const nodo=document.getElementById(id);if(nodo)nodo.textContent=valor};
+  asignar('hostnameInstancia',instancia.hostname||'—');
+  asignar('instanceIdInstancia',abreviarId(instancia.instance_id));
+  asignar('ultimoGeneradoInstancia',fechaLegible(instancia.ultimo_respaldo_generado));
+  asignar('ultimoRestauradoInstancia',fechaLegible(instancia.ultimo_respaldo_restaurado));
+  const entregada=estado==='ENTREGADA'||Number(instancia.bloqueada)===1;
+  aplicarBloqueoVisualEntregada(entregada);
+  document.getElementById('panelReactivarInstancia')?.classList.toggle('hidden',!entregada);
+  const generar=document.getElementById('generarRespaldo');
+  if(generar)generar.disabled=estado==='RESTAURACION_EN_PROGRESO'||reinicioRespaldoPendiente;
+}
+
+async function cargarEstadoRespaldos({silencioso=false}={}){
+  if(!usuario)return;
+  try{const data=await api('/backups/status');aplicarEstadoInstancia(data.instance);return data.instance}
+  catch(error){if(!silencioso)mostrarMensajeRespaldo(mensajeTecnicoAmigable(error),'error');return null}
+}
+
+async function cargarHistorialRespaldos(){
+  if(usuario?.rol!=='ADMON_GRAL')return;
+  const cuerpo=document.getElementById('historialRespaldos');if(!cuerpo)return;
+  cuerpo.innerHTML='<tr><td colspan="6">Consultando historial…</td></tr>';
+  try{
+    const data=await api('/backups/history?limit=100');
+    cuerpo.innerHTML=data.history.length?data.history.map(item=>`<tr><td>${esc(fechaLegible(item.creado_en))}</td><td>${esc(item.accion||'—')}</td><td>${esc(item.nombre_archivo||'—')}</td><td>${esc(item.hostname||'—')}</td><td>${esc(item.username||'—')}</td><td><span class="resultado-chip ${item.resultado==='EXITOSO'?'ok':item.resultado==='RECUPERADO'?'warning':'error'}">${esc(item.resultado||'—')}</span></td></tr>`).join(''):'<tr><td colspan="6">Sin operaciones registradas.</td></tr>';
+  }catch(error){cuerpo.innerHTML=`<tr><td colspan="6">${esc(mensajeTecnicoAmigable(error))}</td></tr>`}
+}
+
+function nombreDescarga(contentDisposition){
+  if(!contentDisposition)return `POS_Aguacates_${new Date().toISOString().slice(0,19).replaceAll(':','-')}.zip`;
+  const utf=contentDisposition.match(/filename\*=UTF-8''([^;]+)/i),simple=contentDisposition.match(/filename="?([^";]+)"?/i);
+  try{return decodeURIComponent((utf?.[1]||simple?.[1]||'').trim())||'POS_Aguacates.zip'}catch{return simple?.[1]||'POS_Aguacates.zip'}
+}
+
+async function solicitarDescargaRespaldo(){
+  let response;
+  try{response=await fetch(`${API}/backups/export`,{method:'POST',headers:{Authorization:`Bearer ${token}`}})}
+  catch{throw new Error('No fue posible conectar con el servidor')}
+  if(response.status===401){cerrarSesion();throw new Error('Tu sesión expiró')}
+  if(!response.ok){
+    const tipo=response.headers.get('content-type')||'',data=tipo.includes('json')?await response.json().catch(()=>({})):await response.text();
+    throw new Error((typeof data==='object'?data.error:data)||'No fue posible generar el respaldo');
+  }
+  return {blob:await response.blob(),nombre:nombreDescarga(response.headers.get('content-disposition')),backupId:response.headers.get('x-backup-id')};
+}
+
+document.getElementById('generarRespaldo')?.addEventListener('click',async()=>{
+  limpiarMensajeRespaldo();
+  const boton=document.getElementById('generarRespaldo'),progreso=document.getElementById('progresoExportacion');
+  boton.disabled=true;progreso.classList.remove('hidden');
+  try{
+    const descarga=await solicitarDescargaRespaldo();
+    if(!descarga.backupId)throw new Error('El servidor no devolvió el identificador del respaldo');
+    const url=URL.createObjectURL(descarga.blob),enlace=document.createElement('a');
+    enlace.href=url;enlace.download=descarga.nombre;document.body.appendChild(enlace);enlace.click();enlace.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    backupIdDescargado=descarga.backupId;
+    document.getElementById('nombreExportacion').textContent=descarga.nombre;
+    document.getElementById('fechaExportacion').textContent=fechaLegible(new Date());
+    document.getElementById('tamanoExportacion').textContent=formatoBytes(descarga.blob.size);
+    document.getElementById('datosExportacion').classList.remove('hidden');
+    document.getElementById('abrirConfirmacionEntrega').classList.remove('hidden');
+    mostrarMensajeRespaldo('Respaldo generado. En la ventana de guardado elija la memoria USB. La computadora todavía sigue ACTIVA.','exito');
+    await Promise.all([cargarEstadoRespaldos({silencioso:true}),cargarHistorialRespaldos()]);
+  }catch(error){mostrarMensajeRespaldo(mensajeTecnicoAmigable(error),'error')}
+  finally{progreso.classList.add('hidden');boton.disabled=reinicioRespaldoPendiente}
+});
+
+const modalEntrega=document.getElementById('modalConfirmarEntrega');
+function cerrarModalEntrega(){modalEntrega?.classList.add('hidden');document.getElementById('passwordEntrega').value='';document.getElementById('confirmarEntrega').checked=false;document.getElementById('marcarEntregada').disabled=true}
+document.getElementById('abrirConfirmacionEntrega')?.addEventListener('click',()=>{if(!backupIdDescargado)return mostrarMensajeRespaldo('Primero genere y descargue un respaldo.','advertencia');modalEntrega.classList.remove('hidden');document.getElementById('passwordEntrega').focus()});
+document.getElementById('cerrarConfirmacionEntrega')?.addEventListener('click',cerrarModalEntrega);
+modalEntrega?.addEventListener('click',e=>{if(e.target===modalEntrega)cerrarModalEntrega()});
+function validarEntrega(){document.getElementById('marcarEntregada').disabled=!(document.getElementById('confirmarEntrega').checked&&document.getElementById('passwordEntrega').value)}
+document.getElementById('confirmarEntrega')?.addEventListener('change',validarEntrega);
+document.getElementById('passwordEntrega')?.addEventListener('input',validarEntrega);
+document.getElementById('marcarEntregada')?.addEventListener('click',async()=>{
+  const boton=document.getElementById('marcarEntregada');boton.disabled=true;
+  try{
+    await api('/backups/mark-transferred',{method:'POST',body:JSON.stringify({backupId:backupIdDescargado,password_admin:document.getElementById('passwordEntrega').value})});
+    cerrarModalEntrega();document.getElementById('abrirConfirmacionEntrega').classList.add('hidden');
+    mostrarMensajeRespaldo('La computadora quedó ENTREGADA. Ya no se pueden registrar cambios.','advertencia');
+    await Promise.all([cargarEstadoRespaldos(),cargarHistorialRespaldos()]);
+  }catch(error){mostrarMensajeRespaldo(mensajeTecnicoAmigable(error),'error');validarEntrega()}
+});
+
+function carritoImpideRestauracion(){
+  if(!carrito.length)return false;
+  mostrarMensajeRespaldo('Debe finalizar o vaciar la venta actual antes de restaurar un respaldo.','error');return true;
+}
+function reiniciarAnalisisRespaldo(){
+  analisisRespaldoActual=null;document.getElementById('resultadoAnalisis')?.classList.add('hidden');
+  document.getElementById('textoConfirmarRestauracion').value='';document.getElementById('passwordRestauracion').value='';
+  document.getElementById('confirmarRespaldoAntiguo').checked=false;document.getElementById('restaurarRespaldo').disabled=true;
+}
+function seleccionarArchivoRespaldo(file){
+  reiniciarAnalisisRespaldo();
+  if(!file){archivoRespaldoSeleccionado=null;document.getElementById('datosArchivoRespaldo').textContent='Ningún archivo seleccionado.';document.getElementById('analizarRespaldo').disabled=true;return}
+  const ext=file.name.toLowerCase().split('.').pop();
+  if(!['zip','sql'].includes(ext)){archivoRespaldoSeleccionado=null;document.getElementById('analizarRespaldo').disabled=true;return mostrarMensajeRespaldo('Seleccione un archivo ZIP o SQL generado para POS Aguacates.','error')}
+  archivoRespaldoSeleccionado=file;document.getElementById('datosArchivoRespaldo').textContent=`${file.name} · ${formatoBytes(file.size)}`;
+  document.getElementById('analizarRespaldo').disabled=false;limpiarMensajeRespaldo();
+}
+
+const zonaArchivo=document.getElementById('zonaArchivoRespaldo'),inputArchivo=document.getElementById('archivoRespaldo');
+zonaArchivo?.addEventListener('click',()=>inputArchivo.click());
+zonaArchivo?.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();inputArchivo.click()}});
+inputArchivo?.addEventListener('change',()=>seleccionarArchivoRespaldo(inputArchivo.files[0]));
+['dragenter','dragover'].forEach(tipo=>zonaArchivo?.addEventListener(tipo,e=>{e.preventDefault();zonaArchivo.classList.add('arrastrando')}));
+['dragleave','drop'].forEach(tipo=>zonaArchivo?.addEventListener(tipo,e=>{e.preventDefault();zonaArchivo.classList.remove('arrastrando');if(tipo==='drop')seleccionarArchivoRespaldo(e.dataTransfer.files[0])}));
+
+function dibujarAnalisis(data){
+  analisisRespaldoActual={token:data.analysisToken,comparison:data.comparison,backup:data.backup};
+  const backup=data.backup||{},comparison=data.comparison||{};
+  document.getElementById('analisisFecha').textContent=fechaLegible(backup.createdAt);
+  document.getElementById('analisisEquipo').textContent=backup.hostname||'Metadata no disponible';
+  document.getElementById('analisisVersion').textContent=backup.appVersion||backup.schemaVersion||'No verificada';
+  document.getElementById('analisisTamano').textContent=formatoBytes(backup.sqlSize);
+  document.getElementById('analisisUltimaVenta').textContent=backup.lastKnownSaleId?`Venta #${backup.lastKnownSaleId}${backup.lastKnownSaleAt?` · ${fechaLegible(backup.lastKnownSaleAt)}`:''}`:'No disponible';
+  const chip=document.getElementById('analisisComparacion');chip.textContent=comparison.label||comparison.status||'NO SE PUEDE DETERMINAR';chip.className=`estado-chip ${comparison.status==='NEWER'?'ok':comparison.status==='OLDER'?'error':'warning'}`;
+  document.getElementById('advertenciasAnalisis').innerHTML=(comparison.warnings||[]).map(x=>`<div class="mensaje-respaldo advertencia">${esc(x)}</div>`).join('');
+  document.getElementById('grupoConfirmarAntiguo').classList.toggle('hidden',comparison.status!=='OLDER');
+  document.getElementById('resultadoAnalisis').classList.remove('hidden');validarConfirmacionRestauracion();
+}
+
+document.getElementById('analizarRespaldo')?.addEventListener('click',async()=>{
+  if(carritoImpideRestauracion()||!archivoRespaldoSeleccionado)return;
+  const boton=document.getElementById('analizarRespaldo'),progreso=document.getElementById('progresoAnalisis');
+  boton.disabled=true;progreso.classList.remove('hidden');reiniciarAnalisisRespaldo();
+  try{
+    const form=new FormData();form.append('backup',archivoRespaldoSeleccionado);
+    const data=await api('/backups/analyze',{method:'POST',body:form});dibujarAnalisis(data);
+    mostrarMensajeRespaldo('El respaldo fue analizado. Revise cuidadosamente la comparación antes de continuar.','exito');
+    await cargarHistorialRespaldos();
+  }catch(error){mostrarMensajeRespaldo(mensajeTecnicoAmigable(error),'error')}
+  finally{progreso.classList.add('hidden');boton.disabled=!archivoRespaldoSeleccionado}
+});
+
+function validarConfirmacionRestauracion(){
+  const antigua=analisisRespaldoActual?.comparison?.status==='OLDER';
+  const valido=analisisRespaldoActual?.token&&document.getElementById('textoConfirmarRestauracion').value.trim()==='RESTAURAR'&&document.getElementById('passwordRestauracion').value&&(!antigua||document.getElementById('confirmarRespaldoAntiguo').checked)&&!reinicioRespaldoPendiente;
+  document.getElementById('restaurarRespaldo').disabled=!valido;
+}
+['textoConfirmarRestauracion','passwordRestauracion'].forEach(id=>document.getElementById(id)?.addEventListener('input',validarConfirmacionRestauracion));
+document.getElementById('confirmarRespaldoAntiguo')?.addEventListener('change',validarConfirmacionRestauracion);
+document.getElementById('restaurarRespaldo')?.addEventListener('click',async()=>{
+  if(carritoImpideRestauracion()||!analisisRespaldoActual?.token)return;
+  const boton=document.getElementById('restaurarRespaldo');boton.disabled=true;
+  mostrarMensajeRespaldo('Creando el respaldo de emergencia y restaurando. No cierre esta ventana.','proceso');
+  const tokenUsado=analisisRespaldoActual.token;analisisRespaldoActual.token=null;
+  try{
+    const data=await api('/backups/restore',{method:'POST',body:JSON.stringify({analysisToken:tokenUsado,confirmacion:document.getElementById('textoConfirmarRestauracion').value.trim(),password_admin:document.getElementById('passwordRestauracion').value,confirmarAntiguo:document.getElementById('confirmarRespaldoAntiguo').checked})});
+    reinicioRespaldoPendiente=Boolean(data.restartRequired);archivoRespaldoSeleccionado=null;inputArchivo.value='';reiniciarAnalisisRespaldo();
+    document.getElementById('datosArchivoRespaldo').textContent='Ningún archivo seleccionado.';document.getElementById('analizarRespaldo').disabled=true;
+    mostrarMensajeRespaldo('La restauración fue completada correctamente.','exito');
+    document.getElementById('avisoReinicioRespaldo').classList.toggle('hidden',!reinicioRespaldoPendiente);
+    document.getElementById('respaldos').classList.toggle('restauracion-bloqueada',reinicioRespaldoPendiente);
+    document.body.classList.toggle('reinicio-pendiente',reinicioRespaldoPendiente);
+    await cargarHistorialRespaldos();
+  }catch(error){
+    const mensaje=mensajeTecnicoAmigable(error);reiniciarAnalisisRespaldo();
+    mostrarMensajeRespaldo(`${mensaje} Por seguridad, analice nuevamente el archivo antes de reintentar.`,'error');
+  }finally{validarConfirmacionRestauracion()}
+});
+
+document.getElementById('comprobarSistemaRespaldo')?.addEventListener('click',async()=>{
+  const boton=document.getElementById('comprobarSistemaRespaldo');boton.disabled=true;
+  try{
+    const healthResponse=await fetch('/health',{cache:'no-store'}),health=await healthResponse.json().catch(()=>({}));
+    if(!healthResponse.ok||!health.ok)throw new Error('El sistema todavía no está disponible');
+    const instancia=await cargarEstadoRespaldos();if(!instancia)throw new Error('No fue posible comprobar el estado de esta computadora');
+    reinicioRespaldoPendiente=false;document.getElementById('avisoReinicioRespaldo').classList.add('hidden');document.getElementById('respaldos').classList.remove('restauracion-bloqueada');document.body.classList.remove('reinicio-pendiente');
+    aplicarEstadoInstancia(instancia);mostrarMensajeRespaldo('El sistema y la base de datos respondieron correctamente.','exito');
+  }catch(error){mostrarMensajeRespaldo(mensajeTecnicoAmigable(error),'advertencia')}
+  finally{boton.disabled=false}
+});
+
+function validarReactivacion(){document.getElementById('reactivarInstancia').disabled=!(document.getElementById('motivoReactivacion').value.trim().length>=10&&document.getElementById('passwordReactivacion').value)}
+document.getElementById('motivoReactivacion')?.addEventListener('input',validarReactivacion);
+document.getElementById('passwordReactivacion')?.addEventListener('input',validarReactivacion);
+document.getElementById('reactivarInstancia')?.addEventListener('click',async()=>{
+  const boton=document.getElementById('reactivarInstancia');boton.disabled=true;
+  try{
+    await api('/backups/reactivate',{method:'POST',body:JSON.stringify({motivo:document.getElementById('motivoReactivacion').value.trim(),password_admin:document.getElementById('passwordReactivacion').value})});
+    document.getElementById('motivoReactivacion').value='';document.getElementById('passwordReactivacion').value='';
+    mostrarMensajeRespaldo('La computadora fue reactivada. Verifique que ninguna otra computadora continúe trabajando con otra copia.','advertencia');
+    await Promise.all([cargarEstadoRespaldos(),cargarHistorialRespaldos()]);
+  }catch(error){mostrarMensajeRespaldo(mensajeTecnicoAmigable(error),'error');validarReactivacion()}
+});
+
+document.getElementById('actualizarEstadoRespaldos')?.addEventListener('click',()=>cargarEstadoRespaldos());
+document.getElementById('actualizarHistorialRespaldos')?.addEventListener('click',cargarHistorialRespaldos);
+document.querySelectorAll('.ir-respaldos').forEach(b=>b.addEventListener('click',()=>mostrar('respaldos')));
+document.addEventListener('submit',e=>{if((estadoInstanciaPOS?.estado!=='ENTREGADA'&&!reinicioRespaldoPendiente)||!formulariosEscritura.has(e.target.id))return;e.preventDefault();e.stopImmediatePropagation();mostrarMensajeRespaldo(reinicioRespaldoPendiente?'Debe volver a comprobar el sistema antes de registrar operaciones.':'Esta computadora está ENTREGADA y no puede registrar cambios.','error');mostrar('respaldos')},true);
+document.addEventListener('click',e=>{if((estadoInstanciaPOS?.estado!=='ENTREGADA'&&!reinicioRespaldoPendiente)||!e.target.closest(selectorEscrituras))return;e.preventDefault();e.stopImmediatePropagation();mostrarMensajeRespaldo(reinicioRespaldoPendiente?'Debe volver a comprobar el sistema antes de registrar operaciones.':'Esta computadora está ENTREGADA y no puede registrar cambios.','error');mostrar('respaldos')},true);
 
     try{usuario=JSON.parse(localStorage.getItem('usuarioPOS'))}catch{} if(token&&usuario)iniciarApp();
