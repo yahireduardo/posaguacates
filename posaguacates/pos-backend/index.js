@@ -1,10 +1,11 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { autenticar } = require('./middleware/auth');
+const db = require('./db/conexion');
 
 if (!process.env.JWT_SECRET) {
   console.error('Falta JWT_SECRET. Copia .env.example a .env y define una clave segura.');
@@ -19,6 +20,26 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'");
   next();
+});
+
+app.get('/health', async (req, res) => {
+  try {
+    await db.verificarConexion();
+    return res.json({
+      ok: true,
+      servicio: 'POS Aguacates',
+      base_datos: 'disponible',
+      uptime_segundos: Math.floor(process.uptime()),
+      fecha: new Date().toISOString()
+    });
+  } catch (error) {
+    return res.status(503).json({
+      ok: false,
+      servicio: 'POS Aguacates',
+      base_datos: 'no disponible',
+      fecha: new Date().toISOString()
+    });
+  }
 });
 
 const allowedOrigins = String(process.env.CORS_ORIGINS || '')
@@ -78,8 +99,28 @@ app.use((error, req, res, next) => {
   });
 });
 
-const port = Number(process.env.PORT || 3000);
-const host = process.env.HOST || '0.0.0.0';
-app.listen(port, host, () => {
-  console.log(`Servidor corriendo en http://${host}:${port}`);
-});
+async function iniciarServidor() {
+  const port = Number(process.env.PORT || 3000);
+  const host = process.env.HOST || '0.0.0.0';
+  console.log(`Iniciando POS Aguacates. Esperando MySQL en ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 3306}...`);
+  await db.esperarConexion();
+  const server = app.listen(port, host, () => {
+    console.log(`POS Aguacates disponible en http://${host}:${port}`);
+  });
+  const cerrar = señal => {
+    console.log(`Señal ${señal} recibida. Cerrando servidor...`);
+    server.close(() => db.end(() => process.exit(0)));
+  };
+  process.once('SIGTERM', () => cerrar('SIGTERM'));
+  process.once('SIGINT', () => cerrar('SIGINT'));
+  return server;
+}
+
+if (require.main === module) {
+  iniciarServidor().catch(error => {
+    console.error('No fue posible iniciar POS Aguacates:', error);
+    process.exit(1);
+  });
+}
+
+module.exports = { app, iniciarServidor };

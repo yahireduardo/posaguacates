@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$Archivo,
-  [string]$LocalBackupDestino
+  [string]$LocalBackupDestino,
+  [string]$AdminUser
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,6 +60,15 @@ if ($dbName -notmatch '^[A-Za-z0-9_]+$') { throw 'DB_NAME no es válido.' }
 Write-Host 'Creando respaldo previo obligatorio...'
 & (Join-Path $PSScriptRoot 'backup-db.ps1') -LocalDestino $LocalBackupDestino
 
+$usuarioSugerido = if ($AdminUser) { $AdminUser } else { 'root' }
+if (-not $AdminUser) {
+  $capturado = Read-Host "Usuario administrativo MySQL [$usuarioSugerido]"
+  $AdminUser = if ($capturado) { $capturado } else { $usuarioSugerido }
+}
+$passwordSeguro = Read-Host "Contraseña MySQL de $AdminUser (no se mostrará)" -AsSecureString
+$punteroPassword = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($passwordSeguro)
+$passwordAdmin = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($punteroPassword)
+
 $marcaMantenimiento = Join-Path $raizBackend '.maintenance'
 $mysql = Encontrar-MySql
 $errorTemporal = Join-Path $env:TEMP "restore_${PID}.stderr.log"
@@ -66,13 +76,13 @@ $salidaTemporal = Join-Path $env:TEMP "restore_${PID}.stdout.log"
 $passwordAnterior = $env:MYSQL_PWD
 try {
   New-Item -ItemType File -Path $marcaMantenimiento -Force | Out-Null
-  $env:MYSQL_PWD = $envLocal.DB_PASSWORD
+  $env:MYSQL_PWD = $passwordAdmin
   $rutaSql = $Archivo.Replace('\', '/')
   $consulta = "CREATE DATABASE IF NOT EXISTS ``$dbName`` CHARACTER SET utf8mb4; USE ``$dbName``; SOURCE $rutaSql;"
   $proceso = Start-Process -FilePath $mysql -ArgumentList @(
     "--host=$dbHost",
     "--port=$dbPort",
-    "--user=$dbUser",
+    "--user=$AdminUser",
     '--default-character-set=utf8mb4',
     "--execute=$consulta"
   ) -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $salidaTemporal `
@@ -83,11 +93,15 @@ try {
   }
 
   $validacion = "SELECT 'clientes' tabla,COUNT(*) total FROM ``$dbName``.clientes UNION ALL SELECT 'ventas',COUNT(*) FROM ``$dbName``.ventas UNION ALL SELECT 'productos',COUNT(*) FROM ``$dbName``.productos UNION ALL SELECT 'pagos',COUNT(*) FROM ``$dbName``.pagos; SELECT COALESCE(SUM(stock),0) stock_total FROM ``$dbName``.productos; SELECT COALESCE(SUM(saldo_pendiente),0) saldo_pendiente FROM ``$dbName``.cuentas_por_cobrar WHERE estado='PENDIENTE'; SELECT MAX(fecha) ultima_venta FROM ``$dbName``.ventas;"
-  & $mysql "--host=$dbHost" "--port=$dbPort" "--user=$dbUser" --table "--execute=$validacion"
+  & $mysql "--host=$dbHost" "--port=$dbPort" "--user=$AdminUser" --table "--execute=$validacion"
   if ($LASTEXITCODE -ne 0) { throw 'La importación terminó, pero falló la validación posterior.' }
   Write-Host 'RESTAURACIÓN Y VALIDACIÓN COMPLETADAS.'
 } finally {
   $env:MYSQL_PWD = $passwordAnterior
+  if ($punteroPassword -ne [IntPtr]::Zero) {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($punteroPassword)
+  }
+  $passwordAdmin = $null
   Remove-Item -LiteralPath $marcaMantenimiento -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $errorTemporal,$salidaTemporal -Force -ErrorAction SilentlyContinue
 }

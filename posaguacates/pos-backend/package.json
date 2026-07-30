@@ -9,6 +9,8 @@
     "test": "node --test",
     "service:install": "powershell -ExecutionPolicy Bypass -File scripts/install-service.ps1",
     "service:remove": "powershell -ExecutionPolicy Bypass -File scripts/remove-service.ps1",
+    "windows:firewall": "powershell -ExecutionPolicy Bypass -File scripts/configure-firewall.ps1",
+    "windows:shortcut": "powershell -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1",
     "usuario:crear": "node scripts/crearUsuario.js",
     "usuario:cambiar-password": "node scripts/cambiarPassword.js",
     "db:backup": "powershell -ExecutionPolicy Bypass -File scripts/backup/backup-db.ps1",
