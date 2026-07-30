@@ -24,7 +24,7 @@ No se necesita Visual Studio Code ni XAMPP para la operación diaria.
 Copie la carpeta de la aplicación, como administrador, a una ruta estable:
 
 ```text
-C:\POS-Aguacates\
+C:\posaguacates\
   pos-backend\
   pos-frontend\
   docs\
@@ -36,7 +36,7 @@ sin permisos permanentes.
 Abra PowerShell una sola vez:
 
 ```powershell
-cd C:\POS-Aguacates\pos-backend
+cd C:\posaguacates\pos-backend
 npm ci
 ```
 
@@ -92,7 +92,7 @@ migraciones deben aplicarse con una cuenta administrativa, no con `pos_app`.
 
 ## 4. Configuración de producción
 
-Desde `C:\POS-Aguacates\pos-backend`:
+Desde `C:\posaguacates\pos-backend`:
 
 ```powershell
 Copy-Item .env.production.example .env
@@ -165,8 +165,8 @@ C:\Tools\nssm\win64\nssm.exe
 Abra PowerShell **como administrador**:
 
 ```powershell
-cd C:\POS-Aguacates\pos-backend
-npm run service:install -- -NssmPath "C:\Tools\nssm\win64\nssm.exe" -MySqlServiceName "MariaDB"
+cd C:\posaguacates\pos-backend
+npm run service:install -- -NssmPath "C:\posaguacates\nssm\win64\nssm.exe" -MySqlServiceName "MariaDB"
 ```
 
 El script configura:
@@ -212,10 +212,10 @@ En el servidor, establezca la red de Windows como **Privada** y ejecute como
 administrador:
 
 ```powershell
-cd C:\POS-Aguacates\pos-backend
+cd C:\posaguacates\pos-backend
 npm run windows:firewall
 ```
-
+ 
 La regla abre TCP 3000 únicamente para redes privadas. No abra 3306 ni publique
 el POS directamente en Internet.
 
@@ -250,7 +250,7 @@ empresa use una VPN administrada.
 Como administrador, para todos los usuarios del equipo:
 
 ```powershell
-cd C:\POS-Aguacates\pos-backend
+cd C:\posaguacates\pos-backend
 npm run windows:shortcut
 ```
 
@@ -275,7 +275,7 @@ Comandos útiles:
 ```powershell
 Get-Service MariaDB,POSAguacates
 Invoke-RestMethod http://localhost:3000/health
-Get-Content C:\POS-Aguacates\pos-backend\logs\errores.log -Tail 100
+Get-Content C:\posaguacates\pos-backend\logs\errores.log -Tail 100
 Restart-Service POSAguacates
 ```
 
