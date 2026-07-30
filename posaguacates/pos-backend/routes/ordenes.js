@@ -15,18 +15,16 @@ function error(message, status = 400) {
 function detalleValido(items) {
   if (!Array.isArray(items) || !items.length) throw error('La orden debe incluir productos');
   const cantidades = new Map();
-  const observaciones = new Map();
   for (const item of items) {
     const id = numeroId(item.producto_id);
     const cantidad = Number(item.cantidad);
     if (!id || !Number.isFinite(cantidad) || cantidad <= 0) throw error('Producto o cantidad inválida');
     cantidades.set(id, (cantidades.get(id) || 0) + cantidad);
-    observaciones.set(id, String(item.observaciones || '').trim() || null);
   }
-  return { cantidades, observaciones };
+  return { cantidades };
 }
 async function catalogoOrden(connection, clienteId, items, bloquear = false) {
-  const { cantidades, observaciones } = detalleValido(items);
+  const { cantidades } = detalleValido(items);
   const [[cliente]] = await connection.query(
     'SELECT id, nombre_razon_social FROM clientes WHERE id = ? AND activo = 1', [clienteId]
   );
@@ -43,8 +41,7 @@ async function catalogoOrden(connection, clienteId, items, bloquear = false) {
     const cantidad = Number(cantidades.get(p.id));
     if (!esCantidadValida(cantidad, p.unidad)) throw error(mensajeCantidad(p.unidad));
     const precio = Number(p.precio_venta);
-    return { ...p, cantidad, precio, subtotal: Number((cantidad * precio).toFixed(2)),
-      observaciones: observaciones.get(p.id) };
+    return { ...p, cantidad, precio, subtotal: Number((cantidad * precio).toFixed(2)) };
   });
   return { cliente, detalle, total: Number(detalle.reduce((s, p) => s + p.subtotal, 0).toFixed(2)) };
 }
@@ -102,6 +99,10 @@ async function guardar(req, res) {
   const id = req.method === 'PUT' ? numeroId(req.params.id) : null;
   const clienteId = numeroId(req.body.cliente_id);
   const estado = String(req.body.estado || 'PENDIENTE').toUpperCase();
+  const observaciones = String(req.body.observaciones || '').trim() || null;
+  if (observaciones && observaciones.length > 500) {
+    return res.status(400).json({ error: 'Las observaciones no pueden exceder 500 caracteres' });
+  }
   if (!clienteId || !['BORRADOR', 'PENDIENTE'].includes(estado)) return res.status(400).json({ error: 'Datos de orden inválidos' });
   const connection = await db.promise.getConnection();
   try {
@@ -115,15 +116,15 @@ async function guardar(req, res) {
     let ordenId = id;
     if (id) {
       await connection.query(
-        'UPDATE ordenes_venta SET cliente_id=?, estado=?, total_estimado=? WHERE id=?',
-        [clienteId, estado, calculo.total, id]
+        'UPDATE ordenes_venta SET cliente_id=?, estado=?, observaciones=?, total_estimado=? WHERE id=?',
+        [clienteId, estado, observaciones, calculo.total, id]
       );
       await connection.query('DELETE FROM detalle_orden_venta WHERE orden_id=?', [id]);
     } else {
       const [result] = await connection.query(
-        `INSERT INTO ordenes_venta (folio,cliente_id,usuario_id,estado,total_estimado)
-         VALUES ('PENDIENTE',?,?,?,?)`,
-        [clienteId, req.usuario.id, estado, calculo.total]
+        `INSERT INTO ordenes_venta (folio,cliente_id,usuario_id,estado,observaciones,total_estimado)
+         VALUES ('PENDIENTE',?,?,?,?,?)`,
+        [clienteId, req.usuario.id, estado, observaciones, calculo.total]
       );
       ordenId = result.insertId;
       await connection.query("UPDATE ordenes_venta SET folio=CONCAT('OV-',LPAD(id,8,'0')) WHERE id=?", [ordenId]);
@@ -132,7 +133,7 @@ async function guardar(req, res) {
       await connection.query(
         `INSERT INTO detalle_orden_venta
          (orden_id,producto_id,cantidad,precio_estimado,subtotal_estimado,observaciones)
-         VALUES (?,?,?,?,?,?)`, [ordenId, p.id, p.cantidad, p.precio, p.subtotal, p.observaciones]
+         VALUES (?,?,?,?,?,NULL)`, [ordenId, p.id, p.cantidad, p.precio, p.subtotal]
       );
     }
     await connection.commit();
@@ -159,8 +160,12 @@ router.post('/:id/cancelar', permitirRoles('ADMON_GRAL'), async (req, res) => {
 router.post('/:id/convertir', async (req, res) => {
   const ordenId = numeroId(req.params.id);
   const tipoPago = String(req.body.tipo_pago || '').toUpperCase();
+  const metodoPago = String(req.body.metodo_pago || 'EFECTIVO').toUpperCase();
   const items = req.body.productos;
-  if (!ordenId || !['CONTADO', 'CREDITO'].includes(tipoPago)) return res.status(400).json({ error: 'Conversión inválida' });
+  if (!ordenId || !['CONTADO', 'CREDITO'].includes(tipoPago) ||
+      !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago)) {
+    return res.status(400).json({ error: 'Conversión inválida' });
+  }
   const connection = await db.promise.getConnection();
   try {
     await connection.beginTransaction();
@@ -172,9 +177,10 @@ router.post('/:id/convertir', async (req, res) => {
     const calculo = await catalogoOrden(connection, orden.cliente_id, productosEntrada, true);
     for (const p of calculo.detalle) if (Number(p.stock) < p.cantidad) throw error(`Stock insuficiente para ${p.nombre}`, 409);
     const [venta] = await connection.query(
-      `INSERT INTO ventas (cliente_id,usuario_id,total,tipo_pago,estado_pago,estado_venta,impresiones)
-       VALUES (?,?,?,?,?,'ACTIVA',0)`,
-      [orden.cliente_id, req.usuario.id, calculo.total, tipoPago, tipoPago === 'CONTADO' ? 'PAGADO' : 'PENDIENTE']
+      `INSERT INTO ventas (cliente_id,usuario_id,total,tipo_pago,metodo_pago,estado_pago,estado_venta,impresiones)
+       VALUES (?,?,?,?,?,?,'ACTIVA',0)`,
+      [orden.cliente_id, req.usuario.id, calculo.total, tipoPago, metodoPago,
+        tipoPago === 'CONTADO' ? 'PAGADO' : 'PENDIENTE']
     );
     for (const p of calculo.detalle) {
       await connection.query('INSERT INTO detalle_venta (venta_id,producto_id,cantidad,precio_unitario,subtotal) VALUES (?,?,?,?,?)',

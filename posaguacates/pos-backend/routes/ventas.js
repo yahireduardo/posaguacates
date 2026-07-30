@@ -5,7 +5,12 @@ const {
   permitirRoles
 } = require('../middleware/auth');
 const { esCantidadValida, mensajeCantidad } = require('../lib/cantidades');
-const { passwordAdminValida } = require('../lib/cancelacion');
+const {
+  resolverAutorizacionAdmin,
+  registrarAuditoriaSiExiste
+} = require('../lib/autorizacionAdmin');
+const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -179,6 +184,7 @@ router.get(
               v.fecha,
               v.total,
               v.tipo_pago,
+              v.metodo_pago,
               v.estado_pago,
               v.estado_venta,
               v.impresiones,
@@ -241,7 +247,6 @@ router.get(
 
 router.get(
   '/:ventaId/detalle',
-  permitirRoles('ADMON_GRAL'),
   async (req, res) => {
 
     try {
@@ -268,6 +273,7 @@ router.get(
               v.fecha,
               v.total,
               v.tipo_pago,
+              v.metodo_pago,
               v.estado_pago,
               v.estado_venta,
               v.impresiones,
@@ -369,6 +375,11 @@ router.post('/crear', async (req, res) => {
       req.body.tipo_pago || ''
     ).toUpperCase();
 
+  const metodoPago =
+    String(
+      req.body.metodo_pago || 'EFECTIVO'
+    ).toUpperCase();
+
   const productos =
     Array.isArray(req.body.productos)
       ? req.body.productos
@@ -398,6 +409,12 @@ router.post('/crear', async (req, res) => {
       error: 'Tipo de pago inválido'
     });
 
+  }
+
+  if (!['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago)) {
+    return res.status(400).json({
+      error: 'Método de pago inválido'
+    });
   }
 
   if (productos.length === 0) {
@@ -632,6 +649,7 @@ router.post('/crear', async (req, res) => {
             usuario_id,
             total,
             tipo_pago,
+            metodo_pago,
             estado_pago,
             estado_venta,
             impresiones
@@ -639,6 +657,7 @@ router.post('/crear', async (req, res) => {
 
           VALUES
           (
+            ?,
             ?,
             ?,
             ?,
@@ -653,6 +672,7 @@ router.post('/crear', async (req, res) => {
           req.usuario.id,
           total,
           tipoPago,
+          metodoPago,
           estadoPago
         ]
       );
@@ -854,10 +874,63 @@ router.post('/crear', async (req, res) => {
    Reautenticación obligatoria del Administrador General
 ========================================================= */
 
+router.get('/:ventaId/cancelacion-validacion', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) => {
+  const ventaId = Number(req.params.ventaId);
+  if (!Number.isInteger(ventaId) || ventaId <= 0) return res.status(400).json({ error: 'ID de venta inválido' });
+  try {
+    const [[venta]] = await db.promise.query(
+      `SELECT v.id,v.estado_venta,v.tipo_pago,cxc.id cuenta_id,
+              COALESCE((SELECT SUM(p.monto) FROM pagos p WHERE p.cuenta_id=cxc.id AND p.estado='ACTIVO'),0)
+              + COALESCE((SELECT SUM(ap.monto_aplicado)
+                          FROM aplicaciones_pago ap JOIN pagos p ON p.id=ap.pago_id
+                          WHERE ap.cuenta_id=cxc.id AND p.estado='ACTIVO'),0) total_abonado
+       FROM ventas v LEFT JOIN cuentas_por_cobrar cxc ON cxc.venta_id=v.id WHERE v.id=?`, [ventaId]
+    );
+    if (!venta) return res.status(404).json({ error: 'Venta no encontrada' });
+    if (venta.estado_venta === 'CANCELADA') return res.json({ puede_cancelar: false, motivo: 'La venta ya está cancelada' });
+    const totalAbonado = Number(venta.total_abonado);
+    if (totalAbonado > 0) {
+      return res.json({
+        puede_cancelar: false,
+        motivo: `La venta tiene ${totalAbonado.toFixed(2)} en pagos aplicados. Cancela primero el pago desde Cuentas`
+      });
+    }
+    return res.json({ puede_cancelar: true });
+  } catch (error) {
+    console.error('Error validando cancelación:', { ventaId, code: error.code, message: error.message });
+    return res.status(500).json({ error: 'No fue posible validar la cancelación' });
+  }
+});
+
+router.post('/:ventaId/ticket-url', async (req, res) => {
+  const ventaId = Number(req.params.ventaId);
+  if (!Number.isInteger(ventaId) || ventaId <= 0) {
+    return res.status(400).json({ error: 'ID de venta inválido' });
+  }
+  try {
+    const [[venta]] = await db.promise.query(
+      'SELECT id,estado_venta FROM ventas WHERE id=? LIMIT 1', [ventaId]
+    );
+    if (!venta) return res.status(404).json({ error: 'Venta no encontrada' });
+    if (venta.estado_venta === 'CANCELADA') {
+      return res.status(409).json({ error: 'No se puede imprimir una venta cancelada' });
+    }
+    const ticketToken = jwt.sign(
+      { proposito: 'TICKET', venta_id: ventaId, usuario_id: req.usuario.id },
+      jwtSecret(),
+      { algorithm: 'HS256', expiresIn: '2m' }
+    );
+    return res.json({ url: `/tickets/${ventaId}?token=${encodeURIComponent(ticketToken)}` });
+  } catch (error) {
+    console.error('Error generando URL de ticket:', { ventaId, code: error.code, message: error.message });
+    return res.status(500).json({ error: 'No fue posible preparar la impresión' });
+  }
+});
+
 router.post(
   '/:ventaId/cancelar',
 
-  permitirRoles('ADMON_GRAL'),
+  permitirRoles('ADMON_GRAL', 'CAJERO'),
 
   async (req, res) => {
 
@@ -868,8 +941,6 @@ router.post(
       String(
         req.body.motivo || ''
       ).trim();
-
-    const password = String(req.body.password || '');
 
     if (
       !Number.isInteger(ventaId) ||
@@ -891,27 +962,26 @@ router.post(
 
     }
 
-    if (!password) {
-      return res.status(400).json({ error: 'La contraseña del administrador es obligatoria' });
-    }
-
     let connection;
 
     try {
-      console.info('Cancelación solicitada', { ventaId, usuarioId: req.usuario.id, rol: req.usuario.rol });
-      const [administradores] = await db.promise.query(
-        `SELECT id,password_hash FROM usuarios
-         WHERE id=? AND rol='ADMON_GRAL' AND activo=1 LIMIT 1`,
-        [req.usuario.id]
-      );
-      if (!administradores.length || !administradores[0].password_hash) {
-        console.warn('Cancelación rechazada: administrador o hash no disponible', { ventaId, usuarioId: req.usuario.id });
-        return res.status(403).json({ error: 'Administrador no autorizado para cancelar' });
-      }
-      if (!await passwordAdminValida(password, administradores[0].password_hash)) {
-        console.warn('Cancelación rechazada: contraseña incorrecta', { ventaId, usuarioId: req.usuario.id });
-        return res.status(401).json({ error: 'Contraseña de administrador incorrecta' });
-      }
+      console.info('Cancelación de venta solicitada', {
+        ventaId,
+        usuarioId: req.usuario.id,
+        rol: req.usuario.rol
+      });
+      const autorizacion = await resolverAutorizacionAdmin({
+        usuario: req.usuario,
+        body: req.body,
+        buscarAdministrador: async username => {
+          const [[administrador]] = await db.promise.query(
+            `SELECT id,password_hash FROM usuarios
+             WHERE username=? AND rol='ADMON_GRAL' AND activo=1 LIMIT 1`,
+            [username]
+          );
+          return administrador;
+        }
+      });
 
       connection =
         await db.promise.getConnection();
@@ -954,6 +1024,11 @@ router.post(
 
       const venta =
         ventas[0];
+      console.info('Venta bloqueada para cancelación', {
+        ventaId,
+        estado: venta.estado_venta,
+        tipoPago: venta.tipo_pago
+      });
 
       if (
         venta.estado_venta ===
@@ -1002,32 +1077,25 @@ router.post(
           await connection.query(
             `
               SELECT COALESCE(
-                (SELECT SUM(p.monto) FROM pagos p WHERE p.cuenta_id = ?),
+                (SELECT SUM(p.monto) FROM pagos p WHERE p.cuenta_id = ? AND p.estado = 'ACTIVO'),
                 0
               ) + COALESCE(
-                (SELECT SUM(ap.monto_aplicado) FROM aplicaciones_pago ap WHERE ap.cuenta_id = ?),
+                (SELECT SUM(ap.monto_aplicado)
+                 FROM aplicaciones_pago ap JOIN pagos p ON p.id=ap.pago_id
+                 WHERE ap.cuenta_id = ? AND p.estado = 'ACTIVO'),
                 0
               ) AS total_abonado
             `,
             [cuenta.id, cuenta.id]
           );
 
-        const totalAbonado =
-          Number(
-            pagos[0].total_abonado
-          );
-
+        const totalAbonado = Number(pagos[0].total_abonado);
         if (totalAbonado > 0) {
-
-          const error =
-            new Error(
-              'No se puede cancelar una venta a crédito que ya tiene abonos registrados'
-            );
-
+          const error = new Error(
+            'No se puede cancelar una venta a crédito con pagos aplicados. Cancela primero el pago desde Cuentas'
+          );
           error.status = 409;
-
           throw error;
-
         }
 
       }
@@ -1092,11 +1160,15 @@ router.post(
             item.producto_id,
             item.cantidad,
             ventaId,
-            req.usuario.id
+            autorizacion.solicitadoPor
           ]
         );
 
       }
+      console.info('Inventario restaurado por cancelación', {
+        ventaId,
+        productosRestaurados: detalle.length
+      });
 
       /* =========================
          CANCELAR VENTA
@@ -1115,7 +1187,7 @@ router.post(
           WHERE id = ?
         `,
         [
-          req.usuario.id,
+          autorizacion.autorizadoPor,
           motivo,
           ventaId
         ]
@@ -1137,22 +1209,39 @@ router.post(
         `,
         [ventaId]
       );
+      console.info('Cuenta por cobrar actualizada por cancelación', {
+        ventaId,
+        cuentasActualizadas: cuentas.length
+      });
 
       if (cuentas.length) {
+        const [[saldoCliente]] = await connection.query(
+          "SELECT COALESCE(SUM(saldo_pendiente),0) total FROM cuentas_por_cobrar WHERE cliente_id=? AND estado='PENDIENTE'",
+          [venta.cliente_id]
+        );
         await connection.query(
           `INSERT INTO movimientos_cartera
            (cliente_id,venta_id,cuenta_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
-           VALUES (?,?,?,NOW(),'CANCELACION',?,0,?,0,?,?)`,
-          [venta.cliente_id, ventaId, cuentas[0].id, `V-${ventaId}`, venta.total,
-            `Cancelación: ${motivo}`, req.usuario.id]
+           VALUES (?,?,?,NOW(),'CANCELACION',?,0,?,?,?,?)`,
+          [venta.cliente_id, ventaId, cuentas[0].id, `V-${ventaId}`, cuentas[0].saldo_pendiente,
+            saldoCliente.total, `Cancelación: ${motivo}`, autorizacion.solicitadoPor]
         );
       }
 
+      const auditoriaRegistrada = await registrarAuditoriaSiExiste(connection, {
+        accion: 'CANCELAR_VENTA',
+        recursoTipo: 'VENTA',
+        recursoId: ventaId,
+        solicitadoPor: autorizacion.solicitadoPor,
+        autorizadoPor: autorizacion.autorizadoPor,
+        motivo
+      });
       await connection.commit();
+      console.info('Cancelación de venta confirmada', { ventaId, usuarioId: req.usuario.id });
 
       return res.json({
-        mensaje:
-          'Venta cancelada e inventario restaurado'
+        mensaje: 'Venta cancelada e inventario restaurado',
+        auditoria_registrada: auditoriaRegistrada
       });
 
     } catch (error) {

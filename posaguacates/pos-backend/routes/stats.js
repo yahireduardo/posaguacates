@@ -72,4 +72,44 @@ router.get('/producto-mas-vendido', permitirRoles('ADMON_GRAL'), async (req, res
   } catch (e) { res.status(500).json({ error: 'No fue posible calcular el producto más vendido' }); }
 });
 
+router.get('/productos-global', permitirRoles('ADMON_GRAL'), async (req, res) => {
+  const filtro = filtrosReporte(req.query);
+  try {
+    const [rows] = await db.promise.query(
+      `SELECT p.id producto_id,p.codigo,p.nombre producto,p.unidad,
+              SUM(dv.cantidad) cantidad_vendida,SUM(dv.subtotal) ingresos_generados,
+              COUNT(DISTINCT v.id) numero_ventas
+       FROM ventas v JOIN detalle_venta dv ON dv.venta_id=v.id
+       JOIN productos p ON p.id=dv.producto_id
+       ${filtro.sql}
+       GROUP BY p.id,p.codigo,p.nombre,p.unidad
+       ORDER BY cantidad_vendida DESC,p.nombre`, filtro.params
+    );
+    res.json({ datos: rows, periodo: { fecha_inicio: req.query.fecha_inicio || null, fecha_fin: req.query.fecha_fin || null } });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'No fue posible generar el histórico global de productos' });
+  }
+});
+
+router.get('/clientes-compras', permitirRoles('ADMON_GRAL'), async (req, res) => {
+  const filtro = filtrosReporte(req.query);
+  try {
+    const [rows] = await db.promise.query(
+      `SELECT c.id cliente_id,c.nombre_razon_social cliente,
+              COUNT(DISTINCT v.id) numero_ventas,SUM(dv.subtotal) total_comprado,
+              MIN(v.fecha) primera_compra,MAX(v.fecha) ultima_compra
+       FROM ventas v JOIN detalle_venta dv ON dv.venta_id=v.id
+       JOIN clientes c ON c.id=v.cliente_id
+       ${filtro.sql}
+       GROUP BY c.id,c.nombre_razon_social
+       ORDER BY total_comprado DESC,c.nombre_razon_social`, filtro.params
+    );
+    res.json({ datos: rows, periodo: { fecha_inicio: req.query.fecha_inicio || null, fecha_fin: req.query.fecha_fin || null } });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'No fue posible generar el histórico de compras por cliente' });
+  }
+});
+
 module.exports = router;

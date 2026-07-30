@@ -1,7 +1,70 @@
 const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
+const {
+  idValido,
+  eliminacionDestructivaHabilitada,
+  esPublicoGeneral,
+  validarSolicitudEliminacion
+} = require('../lib/eliminacionCliente');
+const { esCantidadValida, mensajeCantidad } = require('../lib/cantidades');
 const router = express.Router();
+
+async function diagnosticoEliminacion(query, clienteId, bloquear = false) {
+  const sufijoBloqueo = bloquear ? ' FOR UPDATE' : '';
+  const [[cliente]] = await query(
+    `SELECT id,nombre_razon_social,rfc,activo FROM clientes WHERE id=?${sufijoBloqueo}`,
+    [clienteId]
+  );
+  if (!cliente) return null;
+
+  const [resultadoConteos, resultadoProductos] = await Promise.all([
+    query(
+      `SELECT
+        (SELECT COUNT(*) FROM ventas WHERE cliente_id=?) ventas,
+        (SELECT COUNT(*) FROM ventas WHERE cliente_id=? AND estado_venta='ACTIVA') ventas_activas,
+        (SELECT COUNT(*) FROM ordenes_venta WHERE cliente_id=?) ordenes,
+        (SELECT COUNT(*) FROM cuentas_por_cobrar WHERE cliente_id=?) cuentas,
+        (SELECT COUNT(*) FROM cuentas_por_cobrar
+          WHERE cliente_id=? AND estado='PENDIENTE' AND saldo_pendiente>0) cuentas_pendientes,
+        (SELECT COUNT(DISTINCT p.id) FROM pagos p
+          LEFT JOIN aplicaciones_pago ap ON ap.pago_id=p.id
+          LEFT JOIN cuentas_por_cobrar cxc ON cxc.id=ap.cuenta_id
+          LEFT JOIN cuentas_por_cobrar pcxc ON pcxc.id=p.cuenta_id
+          WHERE p.cliente_id=? OR cxc.cliente_id=? OR pcxc.cliente_id=?) pagos`,
+      [clienteId, clienteId, clienteId, clienteId, clienteId, clienteId, clienteId, clienteId]
+    ),
+    query(
+      `SELECT p.id producto_id,p.codigo,p.nombre,p.unidad,
+              SUM(dv.cantidad) cantidad
+       FROM ventas v
+       JOIN detalle_venta dv ON dv.venta_id=v.id
+       JOIN productos p ON p.id=dv.producto_id
+       WHERE v.cliente_id=? AND v.estado_venta='ACTIVA'
+       GROUP BY p.id,p.codigo,p.nombre,p.unidad
+       ORDER BY p.nombre,p.id`,
+      [clienteId]
+    )
+  ]);
+
+  const conteos = resultadoConteos[0][0];
+  const productos = resultadoProductos[0];
+  return {
+    cliente,
+    protegido: esPublicoGeneral(cliente),
+    modo: eliminacionDestructivaHabilitada(process.env) ? 'DESTRUCTIVO_PRUEBAS' : 'BAJA_LOGICA',
+    ventas: Number(conteos.ventas),
+    ventas_activas: Number(conteos.ventas_activas),
+    ordenes: Number(conteos.ordenes),
+    cuentas: Number(conteos.cuentas),
+    cuentas_pendientes: Number(conteos.cuentas_pendientes),
+    pagos: Number(conteos.pagos),
+    productos_reintegrados: productos.map(p => ({
+      ...p,
+      cantidad: Number(p.cantidad)
+    }))
+  };
+}
 
 router.get('/', async (req, res) => {
   const buscar = String(req.query.buscar || '').trim();
@@ -90,6 +153,193 @@ router.put('/:id', permitirRoles('ADMON_GRAL'), async (req, res) => {
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El RFC ya está registrado' });
     res.status(500).json({ error: 'No fue posible actualizar el cliente' });
+  }
+});
+
+router.get('/:id/eliminacion-diagnostico', permitirRoles('ADMON_GRAL'), async (req, res) => {
+  const clienteId = Number(req.params.id);
+  if (!idValido(clienteId)) return res.status(400).json({ error: 'Cliente inválido' });
+  try {
+    const diagnostico = await diagnosticoEliminacion(
+      (...args) => db.promise.query(...args),
+      clienteId
+    );
+    if (!diagnostico) return res.status(404).json({ error: 'Cliente no encontrado' });
+    return res.json(diagnostico);
+  } catch (error) {
+    console.error('Error diagnosticando eliminación de cliente:', error);
+    return res.status(500).json({ error: 'No fue posible analizar los datos del cliente' });
+  }
+});
+
+router.delete('/:id', permitirRoles('ADMON_GRAL'), async (req, res) => {
+  const clienteId = Number(req.params.id);
+  const motivo = String(req.body.motivo || '').trim();
+  const confirmacion = String(req.body.confirmacion || '').trim().toUpperCase();
+  const errorValidacion = validarSolicitudEliminacion({ clienteId, motivo, confirmacion });
+  if (errorValidacion) return res.status(errorValidacion.status).json({ error: errorValidacion.error });
+
+  const connection = await db.promise.getConnection();
+  try {
+    await connection.beginTransaction();
+    const diagnostico = await diagnosticoEliminacion(
+      (...args) => connection.query(...args),
+      clienteId,
+      true
+    );
+    if (!diagnostico) {
+      const error = Object.assign(new Error('Cliente no encontrado'), { status: 404 });
+      throw error;
+    }
+    if (diagnostico.protegido) {
+      const error = Object.assign(new Error('El cliente Público General no se puede eliminar'), { status: 409 });
+      throw error;
+    }
+
+    if (!eliminacionDestructivaHabilitada(process.env)) {
+      await connection.query('UPDATE clientes SET activo=0 WHERE id=?', [clienteId]);
+      await connection.query(
+        `INSERT INTO autorizaciones_admin
+         (accion,recurso_tipo,recurso_id,solicitado_por,autorizado_por,motivo,resultado,fecha)
+         VALUES ('BAJA_CLIENTE','CLIENTE',?,?,?,?, 'AUTORIZADA',NOW())`,
+        [clienteId, req.usuario.id, req.usuario.id, motivo]
+      );
+      await connection.commit();
+      return res.json({
+        ok: true,
+        modo: 'BAJA_LOGICA',
+        mensaje: 'La eliminación destructiva está deshabilitada en producción. El cliente fue marcado como inactivo.',
+        resumen: diagnostico
+      });
+    }
+
+    const [[auditoria]] = await connection.query(
+      `SELECT COUNT(*) existe FROM information_schema.TABLES
+       WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='auditoria_eliminaciones'`
+    );
+    if (!Number(auditoria.existe)) {
+      const error = Object.assign(
+        new Error('Falta aplicar la migración de auditoría; no se eliminó ningún dato'),
+        { status: 503 }
+      );
+      throw error;
+    }
+
+    const [ventas] = await connection.query(
+      `SELECT id,estado_venta FROM ventas WHERE cliente_id=? ORDER BY id FOR UPDATE`,
+      [clienteId]
+    );
+    const ventaIds = ventas.map(v => Number(v.id));
+    const ventasActivas = ventas.filter(v => v.estado_venta === 'ACTIVA').map(v => Number(v.id));
+    const [cuentas] = await connection.query(
+      `SELECT id FROM cuentas_por_cobrar WHERE cliente_id=? ORDER BY id FOR UPDATE`,
+      [clienteId]
+    );
+    const cuentaIds = cuentas.map(c => Number(c.id));
+    const [ordenes] = await connection.query(
+      `SELECT id FROM ordenes_venta WHERE cliente_id=? ORDER BY id FOR UPDATE`,
+      [clienteId]
+    );
+    const ordenIds = ordenes.map(o => Number(o.id));
+    const [pagos] = await connection.query(
+      `SELECT DISTINCT p.id FROM pagos p
+       LEFT JOIN aplicaciones_pago ap ON ap.pago_id=p.id
+       LEFT JOIN cuentas_por_cobrar cxc ON cxc.id=ap.cuenta_id
+       LEFT JOIN cuentas_por_cobrar pcxc ON pcxc.id=p.cuenta_id
+       WHERE p.cliente_id=? OR cxc.cliente_id=? OR pcxc.cliente_id=?
+       ORDER BY p.id FOR UPDATE`,
+      [clienteId, clienteId, clienteId]
+    );
+    const pagoIds = pagos.map(p => Number(p.id));
+
+    if (ventasActivas.length) {
+      const marcadores = ventasActivas.map(() => '?').join(',');
+      const [detalleActivo] = await connection.query(
+        `SELECT dv.venta_id,dv.producto_id,dv.cantidad,p.unidad
+         FROM detalle_venta dv JOIN productos p ON p.id=dv.producto_id
+         WHERE dv.venta_id IN (${marcadores}) ORDER BY dv.producto_id,dv.id FOR UPDATE`,
+        ventasActivas
+      );
+      for (const item of detalleActivo) {
+        if (!esCantidadValida(item.cantidad, item.unidad)) {
+          const error = Object.assign(
+            new Error(`Cantidad inválida en la venta ${item.venta_id}: ${mensajeCantidad(item.unidad)}`),
+            { status: 409 }
+          );
+          throw error;
+        }
+        await connection.query('UPDATE productos SET stock=stock+? WHERE id=?', [
+          item.cantidad,
+          item.producto_id
+        ]);
+        await connection.query(
+          `INSERT INTO movimientos_inventario
+           (producto_id,tipo,cantidad,motivo,referencia_id,usuario_id)
+           VALUES (?,'ENTRADA',?,'ELIMINACION_CLIENTE_PRUEBAS',?,?)`,
+          [item.producto_id, item.cantidad, item.venta_id, req.usuario.id]
+        );
+      }
+    }
+
+    await connection.query('DELETE FROM movimientos_cartera WHERE cliente_id=?', [clienteId]);
+    if (pagoIds.length) {
+      const marcadores = pagoIds.map(() => '?').join(',');
+      await connection.query(`DELETE FROM aplicaciones_pago WHERE pago_id IN (${marcadores})`, pagoIds);
+      await connection.query(`DELETE FROM pagos WHERE id IN (${marcadores})`, pagoIds);
+    }
+    if (cuentaIds.length) {
+      const marcadores = cuentaIds.map(() => '?').join(',');
+      await connection.query(`DELETE FROM aplicaciones_pago WHERE cuenta_id IN (${marcadores})`, cuentaIds);
+    }
+    if (ordenIds.length) {
+      const marcadores = ordenIds.map(() => '?').join(',');
+      await connection.query(`DELETE FROM detalle_orden_venta WHERE orden_id IN (${marcadores})`, ordenIds);
+      await connection.query(`DELETE FROM ordenes_venta WHERE id IN (${marcadores})`, ordenIds);
+    }
+    await connection.query('DELETE FROM cuentas_por_cobrar WHERE cliente_id=?', [clienteId]);
+    if (ventaIds.length) {
+      const marcadores = ventaIds.map(() => '?').join(',');
+      await connection.query(`DELETE FROM detalle_venta WHERE venta_id IN (${marcadores})`, ventaIds);
+      await connection.query(`DELETE FROM ventas WHERE id IN (${marcadores})`, ventaIds);
+    }
+
+    const resumenAuditoria = {
+      cliente: diagnostico.cliente,
+      ventas: diagnostico.ventas,
+      pagos: diagnostico.pagos,
+      cuentas: diagnostico.cuentas,
+      ordenes: diagnostico.ordenes,
+      productos_reintegrados: diagnostico.productos_reintegrados,
+      folios_venta: ventaIds
+    };
+    await connection.query(
+      `INSERT INTO auditoria_eliminaciones
+       (entidad,entidad_id,descripcion,resumen_json,motivo,ejecutado_por,ejecutado_at)
+       VALUES ('CLIENTE',?,'Eliminación controlada de datos de prueba',?,?,?,NOW())`,
+      [clienteId, JSON.stringify(resumenAuditoria), motivo, req.usuario.id]
+    );
+    await connection.query('DELETE FROM clientes WHERE id=?', [clienteId]);
+    await connection.commit();
+    return res.json({
+      ok: true,
+      modo: 'DESTRUCTIVO_PRUEBAS',
+      mensaje: 'Cliente y datos de prueba eliminados correctamente',
+      resumen: {
+        ventas_eliminadas: diagnostico.ventas,
+        pagos_eliminados: diagnostico.pagos,
+        cuentas_eliminadas: diagnostico.cuentas,
+        ordenes_eliminadas: diagnostico.ordenes,
+        productos_reintegrados: diagnostico.productos_reintegrados
+      }
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error eliminando cliente:', { clienteId, code: error.code, message: error.message });
+    return res.status(error.status || 500).json({
+      error: error.status ? error.message : 'No fue posible eliminar el cliente; no se aplicaron cambios'
+    });
+  } finally {
+    connection.release();
   }
 });
 

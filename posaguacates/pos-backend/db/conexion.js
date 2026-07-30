@@ -11,7 +11,7 @@ const pool = mysql.createPool({
   decimalNumbers: true
 });
 
-pool.getConnection((error, connection) => {
+if (process.env.DB_SILENT !== '1') pool.getConnection((error, connection) => {
   if (error) {
     console.error('Error de conexión a MySQL:', error.message);
     return;

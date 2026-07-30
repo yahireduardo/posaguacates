@@ -429,8 +429,20 @@
 .grupo-clientes{scroll-margin-top:16px;margin:18px 0;outline:none}
 .grupo-clientes:focus h3{color:#168b52;text-decoration:underline}
 #ordenes .tabla-contenedor,#tablaProductosCliente{overflow-x:auto;margin-top:16px}
+#ordenes .orden-layout{display:grid;gap:20px;padding:20px}
+#ordenes .orden-seccion{padding:18px;margin:0;border:1px solid #dbe5df;border-radius:10px;background:#f8fbf9}
+#ordenes textarea{width:100%;resize:vertical}
+@media(max-width:700px){#ordenes .orden-layout{gap:14px;padding:14px}#ordenes .orden-seccion{padding:14px}}
 #resultadosClientePago{display:flex;flex-direction:column;gap:6px;margin:8px 0}
 #resultadosClientePago button{text-align:left}
+.busqueda-cuenta{display:flex;gap:10px;align-items:center}.busqueda-cuenta input{flex:1}
+#resultadosClienteCuenta{display:flex;flex-direction:column;gap:6px}
+#resultadosClienteCuenta button{text-align:left}
+@media(max-width:600px){.busqueda-cuenta{align-items:stretch;flex-direction:column}}
+#resultadosClienteVenta{display:flex;flex-direction:column;gap:6px;margin:6px 0 12px}
+#resultadosClienteVenta .cliente-venta-opcion{display:flex;flex-direction:column;align-items:flex-start;text-align:left;background:#f4f8f5;color:#173c2b;border:1px solid #c6d2cb}
+#resultadosClienteVenta .cliente-venta-opcion:hover{background:#e6f2eb}
+#resultadosClienteVenta small{margin-top:3px;color:#5d7066}
 #notasPago .row{align-items:center;justify-content:flex-start}
 #notasPago .aplicacion-manual{margin-left:auto;width:130px;padding:7px}
 #productoMasVendido{margin:14px 0}

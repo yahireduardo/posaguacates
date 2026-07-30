@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { autenticar } = require('./middleware/auth');
 
 if (!process.env.JWT_SECRET) {
@@ -29,6 +30,13 @@ app.use(cors({
   }
 }));
 app.use(express.json({ limit: '1mb' }));
+app.use((req, res, next) => {
+  const mantenimiento = path.join(__dirname, '.maintenance');
+  if (req.method !== 'GET' && req.method !== 'HEAD' && fs.existsSync(mantenimiento)) {
+    return res.status(503).json({ error: 'Sistema temporalmente en mantenimiento por restauración' });
+  }
+  return next();
+});
 
 const loginAttempts = new Map();
 app.use('/auth/login', (req, res, next) => {
@@ -43,6 +51,7 @@ app.use('/auth/login', (req, res, next) => {
 });
 
 app.use('/auth', require('./routes/auth'));
+app.use('/tickets', require('./routes/tickets'));
 app.use('/productos', autenticar, require('./routes/productos'));
 app.use('/ventas', autenticar, require('./routes/ventas'));
 app.use('/ordenes', autenticar, require('./routes/ordenes'));
