@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>POS HASS</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/vendor/chart.js"></script>
   <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
@@ -31,6 +31,13 @@
       <button class="tab" data-section="cuentas">Cuentas</button>
       <button class="tab admin" data-section="inventario">Inventario</button>
       <button class="tab admin" data-section="ventas">Ventas</button>
+      <button class="tab admin" data-section="productosAdmin">Productos</button>
+      <button class="tab admin" data-section="proveedores">Proveedores</button>
+      <button class="tab admin" data-section="compras">Compras</button>
+      <button class="tab admin" data-section="usuarios">Usuarios</button>
+      <button class="tab admin" data-section="reportesAdmin">Reportes</button>
+      <button class="tab admin" data-section="configuracion">Configuración</button>
+      <button class="tab" data-section="consultasLocales">Consultas</button>
       <button class="tab" data-section="dashboard">Dashboard</button>
       <button class="tab admin" data-section="respaldos">Respaldo y traslado</button>
     </nav>
@@ -214,6 +221,8 @@
                 <option value="TRANSFERENCIA">Transferencia</option>
                 <option value="CHEQUE">Cheque</option>
               </select>
+              <label id="grupoReferenciaVenta" class="hidden" for="referenciaPagoVenta">Referencia / número de cheque</label>
+              <input id="referenciaPagoVenta" class="hidden" maxlength="100" autocomplete="off">
 
               <div class="resumen-venta">
 
@@ -629,6 +638,14 @@
           <article class="panel"><h3>Computadora de destino</h3><ol><li>Inserte la USB.</li><li>Seleccione el ZIP.</li><li>Analice el respaldo.</li><li>Verifique que sea el más reciente.</li><li>Confirme la restauración.</li><li>Continúe trabajando.</li></ol></article>
         </div>
       </section>
+
+      <section id="productosAdmin" class="seccion"><h2>Productos</h2><form id="productoAdminForm" class="panel"><input id="productoAdminId" type="hidden"><div class="form-grid"><input id="productoCodigo" placeholder="Código" required><input id="productoNombre" placeholder="Nombre" required><input id="productoDescripcion" placeholder="Descripción"><input id="productoPrecio" type="number" min="0" step="0.01" placeholder="Precio" required><input id="productoCosto" type="number" min="0" step="0.01" placeholder="Costo" required><select id="productoUnidad"><option>KG</option><option>CAJA</option></select><input id="productoKilosCaja" type="number" min="0.01" step="0.01" placeholder="Kilos/caja"><input id="productoMinimo" type="number" min="0" step="0.01" placeholder="Stock mínimo"><select id="productoProveedor"><option value="">Sin proveedor</option></select></div><p class="muted">El stock solo cambia desde Inventario o Compras.</p><button class="primary">Guardar</button></form><div id="productosAdminLista" class="panel"></div></section>
+      <section id="proveedores" class="seccion"><h2>Proveedores</h2><form id="proveedorForm" class="panel"><input id="proveedorId" type="hidden"><div class="form-grid"><input id="proveedorNombre" placeholder="Nombre" required><input id="proveedorContacto" placeholder="Contacto"><input id="proveedorTelefono" placeholder="Teléfono"><input id="proveedorCorreo" type="email" placeholder="Correo"><input id="proveedorRfc" placeholder="RFC"><input id="proveedorDireccion" placeholder="Dirección"><input id="proveedorNotas" placeholder="Notas"></div><button class="primary">Guardar</button></form><div id="proveedoresLista" class="panel"></div></section>
+      <section id="compras" class="seccion"><h2>Compras</h2><form id="compraForm" class="panel"><div class="form-grid"><select id="compraProveedor" required><option value="">Proveedor</option></select><input id="compraFolio" placeholder="Folio"><input id="compraReferencia" placeholder="Referencia"><input id="compraObservaciones" placeholder="Observaciones"><select id="compraProducto"></select><input id="compraCantidad" type="number" min="0.01" step="0.01" placeholder="Cantidad"><input id="compraCosto" type="number" min="0" step="0.01" placeholder="Costo"></div><button id="agregarCompraProducto" type="button">Agregar producto</button><div id="compraDetalle"></div><button class="primary">Confirmar compra</button></form><div id="comprasLista" class="panel"></div></section>
+      <section id="usuarios" class="seccion"><h2>Usuarios</h2><form id="usuarioAdminForm" class="panel"><input id="usuarioAdminId" type="hidden"><div class="form-grid"><input id="usuarioNombre" placeholder="Nombre" required><input id="usuarioUsername" placeholder="Username" required><input id="usuarioPassword" type="password" placeholder="Contraseña"><select id="usuarioRol"><option>CAJERO</option><option>ADMON_GRAL</option></select></div><button class="primary">Guardar</button></form><div id="usuariosLista" class="panel"></div></section>
+      <section id="reportesAdmin" class="seccion"><h2>Reportes locales</h2><div class="panel grid" id="reportesDescargas"></div></section>
+      <section id="configuracion" class="seccion"><h2>Configuración</h2><form id="configuracionForm" class="panel"><div class="form-grid"><input id="configNombre" placeholder="Nombre comercial" required><input id="configRazon" placeholder="Razón social"><input id="configDireccion" placeholder="Dirección"><input id="configTelefono" placeholder="Teléfono"><input id="configRfc" placeholder="RFC"><input id="configMensaje" placeholder="Mensaje ticket"><select id="configPapel"><option value="80">80 mm</option><option value="58">58 mm</option></select><input id="configStockMinimo" type="number" min="0" step="0.01" placeholder="Stock mínimo"><input id="configVencimiento" type="number" min="0" placeholder="Días vencimiento"><input id="configPolitica" placeholder="Política crédito"></div><button class="primary">Guardar</button></form></section>
+      <section id="consultasLocales" class="seccion"><h2>Consultas locales</h2><form id="consultaLocalForm" class="panel"><input id="consultaLocalPregunta" class="input-ancho" placeholder="¿Cuánto vendí hoy?" required><button class="primary">Consultar</button><div id="consultaLocalRespuesta"></div></form><div class="panel"><button id="cargarPredicciones">Predecir próxima semana</button><div id="prediccionesLista"></div></div></section>
 
       <section id="dashboard" class="seccion"><h2>Dashboard</h2><div id="metricas" class="grid"></div><div class="panel"><h3>Ventas de los últimos 7 días</h3><canvas id="graficaSemanal"></canvas></div><section class="panel admin"><h3>Histórico global de productos y clientes</h3><form id="filtrosProductosCliente" class="form-grid"><label>Desde<input id="rpcInicio" type="date"></label><label>Hasta<input id="rpcFin" type="date"></label><select id="rpcCliente"><option value="">Todos los clientes</option></select><select id="rpcProducto"><option value="">Todos los productos</option></select><select id="rpcPago"><option value="">Todos los pagos</option><option>CONTADO</option><option>CREDITO</option></select><label><input id="rpcCanceladas" type="checkbox"> Incluir canceladas</label><button class="primary">Consultar</button></form><div id="productoMasVendido"></div><h3>Cantidad histórica vendida por producto</h3><canvas id="graficaProductos"></canvas><h3>Compras acumuladas por cliente</h3><canvas id="graficaClientes"></canvas><div id="tablaProductosCliente"></div><button id="exportarProductosCsv">Exportar CSV</button></section><div class="actions"><button class="secondary" id="reporte">Abrir reporte PDF</button></div></section>
     </main>

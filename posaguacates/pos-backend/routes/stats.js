@@ -5,16 +5,22 @@ const { permitirRoles } = require('../middleware/auth');
 
 router.get('/', async (req, res) => {
   try {
-    const [[hoy], [clientes], [deuda], [productos], [topClientes], [semanal]] = await Promise.all([
-      db.promise.query(`SELECT COUNT(*) AS ventas_hoy, COALESCE(SUM(total),0) AS ingresos_hoy FROM ventas WHERE DATE(fecha)=CURDATE() AND estado_venta='ACTIVA'`),
+    const [[hoy], [periodos], [clientes], [deuda], [pagos], [compras], [stockBajo], [productos], [topClientes], [deudores], [semanal]] = await Promise.all([
+      db.promise.query(`SELECT COUNT(*) ventas_hoy,COALESCE(SUM(total),0) ingresos_hoy,COALESCE(SUM(tipo_pago='CONTADO'),0) contado_hoy,COALESCE(SUM(tipo_pago='CREDITO'),0) credito_hoy FROM ventas WHERE DATE(fecha)=CURDATE() AND estado_venta='ACTIVA'`),
+      db.promise.query(`SELECT COALESCE(SUM(fecha>=DATE_SUB(CURDATE(),INTERVAL WEEKDAY(CURDATE()) DAY)),0) ventas_semana,COALESCE(SUM(CASE WHEN fecha>=DATE_SUB(CURDATE(),INTERVAL WEEKDAY(CURDATE()) DAY) THEN total ELSE 0 END),0) ingresos_semana,COALESCE(SUM(fecha>=DATE_FORMAT(CURDATE(),'%Y-%m-01')),0) ventas_mes,COALESCE(SUM(CASE WHEN fecha>=DATE_FORMAT(CURDATE(),'%Y-%m-01') THEN total ELSE 0 END),0) ingresos_mes FROM ventas WHERE estado_venta='ACTIVA'`),
       db.promise.query('SELECT COUNT(*) AS clientes FROM clientes WHERE activo=1'),
       db.promise.query("SELECT COALESCE(SUM(saldo_pendiente),0) AS deuda_total FROM cuentas_por_cobrar WHERE estado='PENDIENTE'"),
+      db.promise.query("SELECT COALESCE(SUM(monto_total),0) pagos_mes FROM pagos WHERE estado='ACTIVO' AND fecha>=DATE_FORMAT(CURDATE(),'%Y-%m-01')"),
+      db.promise.query("SELECT COALESCE(SUM(total),0) compras_mes FROM compras WHERE estado='ACTIVA' AND fecha>=DATE_FORMAT(CURDATE(),'%Y-%m-01')"),
+      db.promise.query('SELECT COUNT(*) stock_bajo FROM productos WHERE activo=1 AND stock<=stock_minimo'),
       db.promise.query(`SELECT p.nombre, SUM(dv.cantidad) AS total FROM detalle_venta dv JOIN ventas v ON v.id=dv.venta_id JOIN productos p ON p.id=dv.producto_id WHERE v.estado_venta='ACTIVA' GROUP BY p.id,p.nombre ORDER BY total DESC LIMIT 5`),
       db.promise.query(`SELECT c.nombre_razon_social, SUM(v.total) AS total FROM ventas v JOIN clientes c ON c.id=v.cliente_id WHERE v.estado_venta='ACTIVA' GROUP BY c.id,c.nombre_razon_social ORDER BY total DESC LIMIT 5`),
+      db.promise.query(`SELECT c.nombre_razon_social,SUM(x.saldo_pendiente) deuda FROM cuentas_por_cobrar x JOIN clientes c ON c.id=x.cliente_id WHERE x.estado='PENDIENTE' GROUP BY c.id,c.nombre_razon_social ORDER BY deuda DESC LIMIT 5`),
       db.promise.query(`SELECT DATE(fecha) AS dia, COUNT(*) AS ventas, COALESCE(SUM(total),0) AS total FROM ventas WHERE estado_venta='ACTIVA' AND fecha >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE(fecha) ORDER BY dia`)
     ]);
-    res.json({ ...hoy[0], clientes: clientes[0].clientes, deuda_total: deuda[0].deuda_total,
-      top_productos: productos, top_clientes: topClientes, semanal });
+    res.json({ ...hoy[0],...periodos[0],clientes:clientes[0].clientes,deuda_total:deuda[0].deuda_total,
+      pagos_mes:pagos[0].pagos_mes,compras_mes:compras[0].compras_mes,stock_bajo:stockBajo[0].stock_bajo,
+      top_productos:productos,top_clientes:topClientes,top_deudores:deudores,semanal,actualizado_en:new Date().toISOString() });
   } catch (error) { console.error(error); res.status(500).json({ error: 'No fue posible cargar el dashboard' }); }
 });
 

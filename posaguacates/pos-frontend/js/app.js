@@ -1,4 +1,4 @@
-const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, detalleVentaActual=null, grafica=null, graficaProductos=null, graficaClientes=null, productoSeleccionado = null, indiceResultadoActivo = -1, ordenCargada=null, reporteProductosActual=[], estadoInstanciaPOS=null, archivoRespaldoSeleccionado=null, analisisRespaldoActual=null, backupIdDescargado=null, reinicioRespaldoPendiente=false;
+const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, detalleVentaActual=null, grafica=null, graficaProductos=null, graficaClientes=null, productoSeleccionado = null, indiceResultadoActivo = -1, ordenCargada=null, reporteProductosActual=[], estadoInstanciaPOS=null, archivoRespaldoSeleccionado=null, analisisRespaldoActual=null, backupIdDescargado=null, reinicioRespaldoPendiente=false, idempotenciaVentaPendiente=null;
     const ultimaVentaGuardada=Number(localStorage.getItem('ultimaVentaPOS'));
     if(Number.isInteger(ultimaVentaGuardada)&&ultimaVentaGuardada>0)ultimaVenta={venta_id:ultimaVentaGuardada};
     const dinero=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2,maximumFractionDigits:2});
@@ -183,7 +183,7 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
   if(botonUltimoTicket)botonUltimoTicket.disabled=!ultimaVenta;
 
 }
-    function cerrarSesion(){localStorage.removeItem('tokenPOS');localStorage.removeItem('usuarioPOS');location.reload()}
+    function cerrarSesion(){if(token)fetch('/auth/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}}).catch(()=>{});localStorage.removeItem('tokenPOS');localStorage.removeItem('usuarioPOS');location.reload()}
     document.getElementById('logout')?.addEventListener('click', cerrarSesion);
 
         async function cargarProductos() {
@@ -887,15 +887,20 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
     const clienteVentaSelect = document.getElementById('clienteVenta');
     const tipoPagoSelect = document.getElementById('tipoPago');
     const metodoPagoVentaSelect = document.getElementById('metodoPagoVenta');
+    const referenciaPagoVenta = document.getElementById('referenciaPagoVenta');
+    metodoPagoVentaSelect?.addEventListener('change',()=>{const visible=metodoPagoVentaSelect.value!=='EFECTIVO';referenciaPagoVenta.classList.toggle('hidden',!visible);document.getElementById('grupoReferenciaVenta').classList.toggle('hidden',!visible);if(!visible)referenciaPagoVenta.value='';});
     venderBtn?.addEventListener('click', async () => {
       if (!carrito.length) return alert('Agrega productos');
       const clienteSeleccionado=clientes.find(c=>c.id===Number(clienteVentaSelect.value));
+      if(metodoPagoVentaSelect.value!=='EFECTIVO'&&!referenciaPagoVenta.value.trim())return alert('Captura la referencia de transferencia o el número de cheque');
+      idempotenciaVentaPendiente ||= (crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`);
       if(!clienteSeleccionado)return alert('Selecciona un cliente de los resultados de búsqueda');
       try {
         const endpoint=ordenCargada?`/ordenes/${ordenCargada.id}/convertir`:'/ventas/crear';
-        const data = await api(endpoint, { method: 'POST', body: JSON.stringify({
+        const data = await api(endpoint, { method: 'POST', headers:{'Idempotency-Key':idempotenciaVentaPendiente}, body: JSON.stringify({
           cliente_id: Number(clienteVentaSelect.value), tipo_pago: tipoPagoSelect.value,
           metodo_pago: metodoPagoVentaSelect.value,
+          referencia_pago: referenciaPagoVenta.value.trim(), idempotency_key: idempotenciaVentaPendiente,
           productos: carrito.map(({ producto_id, cantidad }) => ({ producto_id, cantidad }))
         }) });
         ultimaVenta = {
@@ -907,6 +912,8 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
         };
         localStorage.setItem('ultimaVentaPOS',String(data.venta_id));
         carrito = [];
+        idempotenciaVentaPendiente=null;
+        referenciaPagoVenta.value='';
         ordenCargada=null;
         dibujarCarrito();
         imprimirBtn.disabled = false;
@@ -1578,9 +1585,10 @@ function abrirModalCancelacion(tipo, id, clienteId = null) {
   document.getElementById('textoAutorizacionCancelacion').textContent = esCajero
     ? 'Esta operación requiere autorización de un Administrador General.'
     : `¿Seguro que deseas cancelar ${tipo === 'VENTA' ? 'esta venta' : 'este pago'}?`;
-  document.getElementById('camposAdministradorCancelacion').classList.toggle('hidden', !esCajero);
-  document.getElementById('usuarioAdminCancelacion').required = esCajero;
-  document.getElementById('passwordAdminCancelacion').required = esCajero;
+  document.getElementById('camposAdministradorCancelacion').classList.remove('hidden');
+  document.getElementById('usuarioAdminCancelacion').value = esCajero ? '' : usuario.username;
+  document.getElementById('usuarioAdminCancelacion').required = true;
+  document.getElementById('passwordAdminCancelacion').required = true;
   modalAutorizacionCancelacion.classList.remove('hidden');
   (esCajero
     ? document.getElementById('usuarioAdminCancelacion')
@@ -1597,10 +1605,8 @@ document.getElementById('formAutorizacionCancelacion')?.addEventListener('submit
   const boton = document.getElementById('confirmarAutorizacionCancelacion');
   const body = { motivo: document.getElementById('motivoAutorizacionCancelacion').value.trim() };
   if (!body.motivo) return;
-  if (usuario.rol === 'CAJERO') {
-    body.usuario_admin = document.getElementById('usuarioAdminCancelacion').value.trim();
-    body.password_admin = document.getElementById('passwordAdminCancelacion').value;
-  }
+  body.usuario_admin = document.getElementById('usuarioAdminCancelacion').value.trim();
+  body.password_admin = document.getElementById('passwordAdminCancelacion').value;
   boton.disabled = true;
   const pendiente = { ...cancelacionPendiente };
   try {
@@ -2019,4 +2025,30 @@ document.querySelectorAll('.ir-respaldos').forEach(b=>b.addEventListener('click'
 document.addEventListener('submit',e=>{if((estadoInstanciaPOS?.estado!=='ENTREGADA'&&!reinicioRespaldoPendiente)||!formulariosEscritura.has(e.target.id))return;e.preventDefault();e.stopImmediatePropagation();mostrarMensajeRespaldo(reinicioRespaldoPendiente?'Debe volver a comprobar el sistema antes de registrar operaciones.':'Esta computadora está ENTREGADA y no puede registrar cambios.','error');mostrar('respaldos')},true);
 document.addEventListener('click',e=>{if((estadoInstanciaPOS?.estado!=='ENTREGADA'&&!reinicioRespaldoPendiente)||!e.target.closest(selectorEscrituras))return;e.preventDefault();e.stopImmediatePropagation();mostrarMensajeRespaldo(reinicioRespaldoPendiente?'Debe volver a comprobar el sistema antes de registrar operaciones.':'Esta computadora está ENTREGADA y no puede registrar cambios.','error');mostrar('respaldos')},true);
 
-    try{usuario=JSON.parse(localStorage.getItem('usuarioPOS'))}catch{} if(token&&usuario)iniciarApp();
+    try{usuario=JSON.parse(localStorage.getItem('usuarioPOS'))}catch{} if(token&&usuario)api('/auth/me').then(r=>{usuario=r.usuario;localStorage.setItem('usuarioPOS',JSON.stringify(usuario));iniciarApp()}).catch(()=>cerrarSesion());
+
+// Pantallas administrativas agregadas; todas consumen APIs locales protegidas.
+let productosAdmin=[],proveedoresAdmin=[],compraNueva=[];
+const filas=(items,render,vacio='Sin registros.')=>items.length?items.map(render).join(''):`<p>${vacio}</p>`;
+async function adminProductos(){productosAdmin=await api('/productos?incluir_inactivos=1');productosAdminLista.innerHTML=filas(productosAdmin,p=>`<div class="row"><span>${esc(p.codigo)} · ${esc(p.nombre)} · ${dinero.format(p.precio_venta)} · stock ${cantidad(p.stock)} ${p.activo?'':'(INACTIVO)'}</span><span><button data-pe="${p.id}">Editar</button><button data-ps="${p.id}" data-on="${p.activo?0:1}">${p.activo?'Desactivar':'Activar'}</button></span></div>`);}
+async function adminProveedores(){proveedoresAdmin=await api('/proveedores?incluir_inactivos=1');const options=proveedoresAdmin.filter(p=>p.activo).map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('');productoProveedor.innerHTML='<option value="">Sin proveedor</option>'+options;compraProveedor.innerHTML='<option value="">Proveedor</option>'+options;proveedoresLista.innerHTML=filas(proveedoresAdmin,p=>`<div class="row"><span>${esc(p.nombre)} · ${esc(p.rfc||'Sin RFC')} ${p.activo?'':'(INACTIVO)'}</span><span><button data-re="${p.id}">Editar</button><button data-rs="${p.id}" data-on="${p.activo?0:1}">${p.activo?'Desactivar':'Activar'}</button></span></div>`);}
+async function adminCompras(){const d=await api('/compras');comprasLista.innerHTML=filas(d,c=>`<div class="row"><span>${esc(c.folio)} · ${esc(c.proveedor||'')} · ${dinero.format(c.total)} · ${esc(c.estado)}</span>${c.estado==='ACTIVA'?`<button data-cc="${c.id}" class="danger">Cancelar</button>`:''}</div>`);if(!productos.length)await cargarProductos();compraProducto.innerHTML=productos.map(p=>`<option value="${p.id}">${esc(p.codigo)} · ${esc(p.nombre)}</option>`).join('');}
+async function adminUsuarios(){const d=await api('/usuarios');usuariosLista._data=d;usuariosLista.innerHTML=filas(d,u=>`<div class="row"><span>${esc(u.nombre)} · ${esc(u.username)} · ${esc(u.rol)} ${u.activo?'':'(INACTIVO)'}</span><span><button data-ue="${u.id}">Editar</button><button data-us="${u.id}" data-on="${u.activo?0:1}">${u.activo?'Desactivar':'Activar'}</button><button data-up="${u.id}">Contraseña</button></span></div>`);}
+async function adminConfiguracion(){const c=await api('/configuracion');configNombre.value=c.nombre_comercial||'';configRazon.value=c.razon_social||'';configDireccion.value=c.direccion||'';configTelefono.value=c.telefono||'';configRfc.value=c.rfc||'';configMensaje.value=c.mensaje_ticket||'';configPapel.value=c.papel_mm||80;configStockMinimo.value=c.stock_minimo_default||0;configVencimiento.value=c.vencimiento_dias??30;configPolitica.value=c.politica_credito||'';}
+document.querySelectorAll('[data-section]').forEach(b=>b.addEventListener('click',async()=>{try{if(b.dataset.section==='productosAdmin')await Promise.all([adminProductos(),adminProveedores()]);if(b.dataset.section==='proveedores')await adminProveedores();if(b.dataset.section==='compras')await Promise.all([adminProveedores(),adminCompras()]);if(b.dataset.section==='usuarios')await adminUsuarios();if(b.dataset.section==='configuracion')await adminConfiguracion();if(b.dataset.section==='reportesAdmin')reportesDescargas.innerHTML=['ventas','pagos','cartera','inventario','productos','compras','cancelaciones'].map(t=>`<button data-csv="${t}">Descargar ${t}.csv</button>`).join('');}catch(x){alert(x.message);}}));
+productoAdminForm?.addEventListener('submit',async e=>{e.preventDefault();const id=productoAdminId.value,b={codigo:productoCodigo.value,nombre:productoNombre.value,descripcion:productoDescripcion.value,precio_venta:productoPrecio.value,costo:productoCosto.value,unidad:productoUnidad.value,kilos_por_caja:productoKilosCaja.value,stock_minimo:productoMinimo.value,proveedor_id:productoProveedor.value||null};try{await api(id?`/productos/${id}`:'/productos',{method:id?'PUT':'POST',body:JSON.stringify(b)});e.target.reset();productoAdminId.value='';await adminProductos();}catch(x){alert(x.message);}});
+productosAdminLista?.addEventListener('click',async e=>{const id=Number(e.target.dataset.pe||e.target.dataset.ps),p=productosAdmin.find(x=>x.id===id);try{if(e.target.dataset.pe){Object.assign(productoAdminId,{value:p.id});productoCodigo.value=p.codigo;productoNombre.value=p.nombre;productoDescripcion.value=p.descripcion||'';productoPrecio.value=p.precio_venta;productoCosto.value=p.costo;productoUnidad.value=String(p.unidad).toUpperCase();productoKilosCaja.value=p.kilos_por_caja||'';productoMinimo.value=p.stock_minimo;productoProveedor.value=p.proveedor_id||'';}if(e.target.dataset.ps){await api(`/productos/${id}/estado`,{method:'PATCH',body:JSON.stringify({activo:e.target.dataset.on==='1'})});await adminProductos();}}catch(x){alert(x.message);}});
+proveedorForm?.addEventListener('submit',async e=>{e.preventDefault();const id=proveedorId.value,b={nombre:proveedorNombre.value,contacto:proveedorContacto.value,telefono:proveedorTelefono.value,correo:proveedorCorreo.value,rfc:proveedorRfc.value,direccion:proveedorDireccion.value,notas:proveedorNotas.value};try{await api(id?`/proveedores/${id}`:'/proveedores',{method:id?'PUT':'POST',body:JSON.stringify(b)});e.target.reset();proveedorId.value='';await adminProveedores();}catch(x){alert(x.message);}});
+proveedoresLista?.addEventListener('click',async e=>{const id=Number(e.target.dataset.re||e.target.dataset.rs),p=proveedoresAdmin.find(x=>x.id===id);try{if(e.target.dataset.re){proveedorId.value=p.id;proveedorNombre.value=p.nombre;proveedorContacto.value=p.contacto||'';proveedorTelefono.value=p.telefono||'';proveedorCorreo.value=p.correo||'';proveedorRfc.value=p.rfc||'';proveedorDireccion.value=p.direccion||'';proveedorNotas.value=p.notas||'';}if(e.target.dataset.rs){await api(`/proveedores/${id}/estado`,{method:'PATCH',body:JSON.stringify({activo:e.target.dataset.on==='1'})});await adminProveedores();}}catch(x){alert(x.message);}});
+agregarCompraProducto?.addEventListener('click',()=>{const p=productos.find(x=>x.id===Number(compraProducto.value)),q=Number(compraCantidad.value),c=Number(compraCosto.value);if(!p||!esCantidadValida(q,p.unidad)||!Number.isFinite(c)||c<0)return alert('Datos de producto inválidos');compraNueva.push({producto_id:p.id,nombre:p.nombre,cantidad:q,costo:c});compraDetalle.innerHTML=filas(compraNueva,(x,i)=>`<div class="row"><span>${esc(x.nombre)} · ${cantidad(x.cantidad)} · ${dinero.format(x.costo)}</span><button type="button" data-cq="${i}">Quitar</button></div>`);});
+compraDetalle?.addEventListener('click',e=>{if(e.target.dataset.cq!==undefined){compraNueva.splice(Number(e.target.dataset.cq),1);e.target.closest('.row').remove();}});
+compraForm?.addEventListener('submit',async e=>{e.preventDefault();if(!compraNueva.length)return alert('Agrega productos');const k=crypto.randomUUID();try{await api('/compras',{method:'POST',headers:{'Idempotency-Key':k},body:JSON.stringify({proveedor_id:Number(compraProveedor.value),folio:compraFolio.value,referencia:compraReferencia.value,observaciones:compraObservaciones.value,idempotency_key:k,productos:compraNueva})});compraNueva=[];e.target.reset();compraDetalle.innerHTML='';await adminCompras();}catch(x){alert(x.message);}});
+comprasLista?.addEventListener('click',async e=>{if(!e.target.dataset.cc)return;const motivo=prompt('Motivo de cancelación (mínimo 5 caracteres)');if(motivo)try{await api(`/compras/${e.target.dataset.cc}/cancelar`,{method:'POST',body:JSON.stringify({motivo})});await adminCompras();}catch(x){alert(x.message);}});
+usuarioAdminForm?.addEventListener('submit',async e=>{e.preventDefault();const id=usuarioAdminId.value,b={nombre:usuarioNombre.value,username:usuarioUsername.value,rol:usuarioRol.value,password:usuarioPassword.value};try{await api(id?`/usuarios/${id}`:'/usuarios',{method:id?'PUT':'POST',body:JSON.stringify(b)});e.target.reset();usuarioAdminId.value='';await adminUsuarios();}catch(x){alert(x.message);}});
+usuariosLista?.addEventListener('click',async e=>{const id=Number(e.target.dataset.ue||e.target.dataset.us||e.target.dataset.up);try{if(e.target.dataset.ue){const u=usuariosLista._data.find(x=>x.id===id);usuarioAdminId.value=u.id;usuarioNombre.value=u.nombre;usuarioUsername.value=u.username;usuarioRol.value=u.rol;}if(e.target.dataset.us){const activo=e.target.dataset.on==='1',motivo=activo?'Reactivación':prompt('Motivo');if(motivo){await api(`/usuarios/${id}/estado`,{method:'PATCH',body:JSON.stringify({activo,motivo})});await adminUsuarios();}}if(e.target.dataset.up){const password=prompt('Nueva contraseña (mínimo 8 caracteres)');if(password)await api(`/usuarios/${id}/password`,{method:'PUT',body:JSON.stringify({password})});}}catch(x){alert(x.message);}});
+configuracionForm?.addEventListener('submit',async e=>{e.preventDefault();try{await api('/configuracion',{method:'PUT',body:JSON.stringify({nombre_comercial:configNombre.value,razon_social:configRazon.value,direccion:configDireccion.value,telefono:configTelefono.value,rfc:configRfc.value,mensaje_ticket:configMensaje.value,moneda:'MXN',papel_mm:Number(configPapel.value),stock_minimo_default:Number(configStockMinimo.value),vencimiento_dias:Number(configVencimiento.value),politica_credito:configPolitica.value})});alert('Configuración guardada');}catch(x){alert(x.message);}});
+reportesDescargas?.addEventListener('click',async e=>{if(!e.target.dataset.csv)return;try{const r=await fetch(`/reportes/${e.target.dataset.csv}.csv`,{headers:{Authorization:`Bearer ${token}`}});if(!r.ok)throw new Error((await r.json()).error);const a=document.createElement('a');a.href=URL.createObjectURL(await r.blob());a.download=`${e.target.dataset.csv}.csv`;a.click();URL.revokeObjectURL(a.href);}catch(x){alert(x.message);}});
+consultaLocalForm?.addEventListener('submit',async e=>{e.preventDefault();try{const r=await api('/chatbot',{method:'POST',body:JSON.stringify({pregunta:consultaLocalPregunta.value})});consultaLocalRespuesta.innerHTML=`<p>${esc(r.respuesta)}</p><pre>${esc(JSON.stringify(r.datos||r.ejemplos||'',null,2))}</pre>`;}catch(x){alert(x.message);}});
+cargarPredicciones?.addEventListener('click',async()=>{try{const r=await api('/prediccion');prediccionesLista.innerHTML=filas(r.predicciones,p=>`<div class="row"><span>${esc(p.nombre)} (${esc(p.unidad)})</span><strong>${cantidad(p.estimado_proxima_semana)} ± ${cantidad(p.incertidumbre)}</strong></div>`)+`<p class="muted">${esc(r.limitaciones)}</p>`;}catch(x){alert(x.message);}});
+
+cargarDashboard=async function(){try{const d=await api('/stats'),metricas=document.getElementById('metricas'),canvas=document.getElementById('graficaSemanal');const cards=[['Ventas hoy',d.ventas_hoy],['Ingresos hoy',dinero.format(d.ingresos_hoy)],['Ventas semana',d.ventas_semana],['Ingresos semana',dinero.format(d.ingresos_semana)],['Ventas mes',d.ventas_mes],['Ingresos mes',dinero.format(d.ingresos_mes)],['Contado hoy',d.contado_hoy],['Crédito hoy',d.credito_hoy],['Pagos mes',dinero.format(d.pagos_mes)],['Compras mes',dinero.format(d.compras_mes)],['Deuda',dinero.format(d.deuda_total)],['Stock bajo',d.stock_bajo]];metricas.innerHTML=cards.map(x=>`<div class="card"><h3>${esc(x[0])}</h3><h2>${esc(x[1])}</h2></div>`).join('')+`<div class="card"><small>Actualizado ${esc(new Date(d.actualizado_en).toLocaleString('es-MX'))}</small></div>`;const mapa=new Map(d.semanal.map(x=>[String(x.dia).slice(0,10),Number(x.total)])),labels=[],values=[];for(let i=6;i>=0;i--){const f=new Date();f.setHours(0,0,0,0);f.setDate(f.getDate()-i);const k=`${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`;labels.push(f.toLocaleDateString('es-MX',{weekday:'short',day:'2-digit'}));values.push(mapa.get(k)||0)}if(grafica)grafica.destroy();grafica=new Chart(canvas,{type:'bar',data:{labels,datasets:[{label:'Ventas',data:values,backgroundColor:'#168b52'}]},options:{scales:{y:{beginAtZero:true,ticks:{callback:v=>dinero.format(v)}}}}});}catch(e){alert(e.message)}};

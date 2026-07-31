@@ -380,6 +380,9 @@ router.post('/crear', async (req, res) => {
       req.body.metodo_pago || 'EFECTIVO'
     ).toUpperCase();
 
+  const referenciaPago = String(req.body.referencia_pago || '').trim() || null;
+  const idempotencyKey = String(req.get('Idempotency-Key') || req.body.idempotency_key || '').trim();
+
   const productos =
     Array.isArray(req.body.productos)
       ? req.body.productos
@@ -415,6 +418,13 @@ router.post('/crear', async (req, res) => {
     return res.status(400).json({
       error: 'Método de pago inválido'
     });
+  }
+
+  if (!/^[A-Za-z0-9._:-]{8,80}$/.test(idempotencyKey)) {
+    return res.status(400).json({ error: 'Idempotency-Key inválido o ausente' });
+  }
+  if (metodoPago !== 'EFECTIVO' && !referenciaPago) {
+    return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
   }
 
   if (productos.length === 0) {
@@ -473,6 +483,15 @@ router.post('/crear', async (req, res) => {
 
     await connection.beginTransaction();
 
+    const [[ventaRepetida]] = await connection.query(
+      'SELECT id,total FROM ventas WHERE idempotency_key=? FOR UPDATE', [idempotencyKey]
+    );
+    if (ventaRepetida) {
+      await connection.rollback();
+      return res.json({ mensaje: 'Venta ya registrada', venta_id: ventaRepetida.id,
+        folio: ventaRepetida.id, total: Number(ventaRepetida.total), repetida: true });
+    }
+
     /* =========================
        VALIDAR CLIENTE
     ========================= */
@@ -480,7 +499,7 @@ router.post('/crear', async (req, res) => {
     const [clientes] =
       await connection.query(
         `
-          SELECT id
+          SELECT id,nombre_razon_social,permite_credito
 
           FROM clientes
 
@@ -501,6 +520,12 @@ router.post('/crear', async (req, res) => {
 
       throw error;
 
+    }
+    if (tipoPago === 'CREDITO' && (!Number(clientes[0].permite_credito) ||
+        /p[uú]blico\s+general/i.test(clientes[0].nombre_razon_social))) {
+      const error = new Error('El cliente seleccionado no tiene crédito autorizado');
+      error.status = 409;
+      throw error;
     }
 
     /* =========================
@@ -650,6 +675,8 @@ router.post('/crear', async (req, res) => {
             total,
             tipo_pago,
             metodo_pago,
+            referencia_pago,
+            idempotency_key,
             estado_pago,
             estado_venta,
             impresiones
@@ -657,6 +684,8 @@ router.post('/crear', async (req, res) => {
 
           VALUES
           (
+            ?,
+            ?,
             ?,
             ?,
             ?,
@@ -673,6 +702,8 @@ router.post('/crear', async (req, res) => {
           total,
           tipoPago,
           metodoPago,
+          referenciaPago,
+          idempotencyKey,
           estadoPago
         ]
       );
@@ -752,7 +783,10 @@ router.post('/crear', async (req, res) => {
             producto_id,
             tipo,
             cantidad,
+            stock_anterior,
+            stock_final,
             motivo,
+            referencia_tipo,
             referencia_id,
             usuario_id
           )
@@ -762,6 +796,9 @@ router.post('/crear', async (req, res) => {
             ?,
             'SALIDA',
             ?,
+            ?,
+            ?,
+            'VENTA',
             'VENTA',
             ?,
             ?
@@ -770,6 +807,8 @@ router.post('/crear', async (req, res) => {
         [
           item.producto_id,
           item.cantidad,
+          Number(catalogo.find(p => p.id === item.producto_id).stock),
+          Number(catalogo.find(p => p.id === item.producto_id).stock) - item.cantidad,
           ventaId,
           req.usuario.id
         ]
@@ -818,6 +857,13 @@ router.post('/crear', async (req, res) => {
         [clienteId, ventaId, cuentaResult.insertId, ventaId, total, total, req.usuario.id]
       );
 
+    }
+    else {
+      await connection.query(
+        `INSERT INTO pagos (cliente_id,cuenta_id,monto,monto_total,metodo_pago,referencia,
+          observaciones,usuario_id,fecha,estado) VALUES (?,NULL,?,?,?,?,'Pago de venta de contado',?,NOW(),'ACTIVO')`,
+        [clienteId,total,total,metodoPago,referenciaPago,req.usuario.id]
+      );
     }
 
     await connection.commit();
