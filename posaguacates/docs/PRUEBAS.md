@@ -11,3 +11,4 @@ Recorrido manual: login/recarga/logout; alta y baja lógica; entrada/ajuste; com
 - Exportación ZIP, manifiesto, SHA-256, análisis y restauración real aprobados en prueba.
 - Fallo controlado con recuperación de emergencia, marcador preservado y auditoría `RECUPERADO`.
 - ENTREGADA devolvió 423 para escrituras, permitió consultas y la reactivación restableció operaciones.
+La cobertura de Inventario incluye normalización y validación de proveedores, duplicados, permisos de CAJERO, asociación proveedor–producto, último costo, proveedor inactivo, producto repetido, idempotencia de compras, incremento/cancelación de stock y rollback transaccional.

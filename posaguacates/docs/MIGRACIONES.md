@@ -6,6 +6,8 @@ En una base vacía importe primero `pos-backend/sql/posaguacates.sql`, que conti
 
 La migración `002_autorizaciones_admin.sql` incorpora al proceso automático la tabla de auditoría que anteriormente se entregaba como SQL manual. Es idempotente y no elimina datos.
 
+La migración `003_proveedores_productos.sql` agrega razón social y la relación idempotente `producto_proveedores`. Migra los proveedores principales existentes sin borrar ni duplicar información. El rollback operativo es restaurar el respaldo lógico verificado previo a la migración.
+
 Procedimiento: respaldo verificado, conteos previos, cuenta DDL temporal, `npm run db:migrate`, `SELECT * FROM schema_migrations`, conteos posteriores y pruebas. La migración 001 es aditiva y no elimina históricos.
 
 Rollback: detenga el POS, conserve el SQL fallido y restaure el respaldo lógico previo mediante el flujo documentado. No improvise eliminaciones de columnas; el rollback seguro es restaurar el respaldo completo.
