@@ -95,6 +95,7 @@ app.use('/reportes', ...sesion, require('./routes/reportes'));
 app.use('/ia', ...sesion, require('./routes/ia'));
 
 const frontendPath = path.join(__dirname, '..', 'pos-frontend');
+app.get('/vendor/chart.js', (req, res) => res.sendFile(path.join(__dirname, 'node_modules', 'chart.js', 'dist', 'chart.umd.js')));
 app.use(express.static(frontendPath));
 app.get('/', (req, res) => res.sendFile(path.join(frontendPath, 'index.html')));
 
