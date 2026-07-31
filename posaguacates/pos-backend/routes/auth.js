@@ -16,7 +16,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const [usuarios] = await db.promise.query(
-      `SELECT id, username, nombre, password, password_hash, rol
+      `SELECT id, username, nombre, password_hash, rol
        FROM usuarios
        WHERE username = ? AND activo = 1
        LIMIT 1`,
@@ -28,19 +28,12 @@ router.post('/login', async (req, res) => {
     }
 
     const usuario = usuarios[0];
-    let passwordValido = false;
-
-    if (usuario.password_hash) {
-      passwordValido = await bcrypt.compare(password, usuario.password_hash);
-    } else if (usuario.password && password === usuario.password) {
-      // Migración segura en el primer login de cuentas heredadas.
-      const hash = await bcrypt.hash(password, 12);
-      await db.promise.query(
-        'UPDATE usuarios SET password_hash = ?, password = NULL WHERE id = ?',
-        [hash, usuario.id]
-      );
-      passwordValido = true;
+    if (!['ADMON_GRAL', 'CAJERO'].includes(usuario.rol)) {
+      return res.status(403).json({ error: 'El rol del usuario no está autorizado' });
     }
+
+    const passwordValido = usuario.password_hash
+      && await bcrypt.compare(password, usuario.password_hash);
 
     if (!passwordValido) {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });

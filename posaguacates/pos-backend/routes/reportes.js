@@ -9,7 +9,7 @@ router.use(permitirRoles('ADMON_GRAL'));
 router.get('/ventas-pdf', async (req, res) => {
   try {
     const [ventas] = await db.promise.query(
-      `SELECT v.id, v.fecha, v.total, v.tipo_pago, v.estado_venta,
+      `SELECT v.id, v.fecha, v.total, v.tipo_pago, v.metodo_pago, v.estado_venta,
               c.nombre_razon_social AS cliente
        FROM ventas v LEFT JOIN clientes c ON c.id = v.cliente_id
        ORDER BY v.id DESC`
@@ -33,7 +33,7 @@ router.get('/ventas-pdf', async (req, res) => {
       doc.fontSize(11).text(
         `Venta #${venta.id} · ${venta.estado_venta}\n` +
         `Cliente: ${venta.cliente || 'Sin cliente'}\n` +
-        `Pago: ${venta.tipo_pago} · Total: ${total}\n` +
+        `Pago: ${venta.tipo_pago} · Método: ${venta.metodo_pago || 'EFECTIVO'} · Total: ${total}\n` +
         `Fecha: ${new Date(venta.fecha).toLocaleString('es-MX')}\n` +
         '------------------------------------------\n'
       );

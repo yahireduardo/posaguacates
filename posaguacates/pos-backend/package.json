@@ -4,7 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test",
+    "service:install": "powershell -ExecutionPolicy Bypass -File scripts/install-service.ps1",
+    "service:remove": "powershell -ExecutionPolicy Bypass -File scripts/remove-service.ps1",
+    "windows:firewall": "powershell -ExecutionPolicy Bypass -File scripts/configure-firewall.ps1",
+    "windows:shortcut": "powershell -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1",
+    "usuario:crear": "node scripts/crearUsuario.js",
+    "usuario:cambiar-password": "node scripts/cambiarPassword.js",
+    "db:backup": "powershell -ExecutionPolicy Bypass -File scripts/backup/backup-db.ps1",
+    "db:restore": "powershell -ExecutionPolicy Bypass -File scripts/backup/restore-db.ps1",
+    "db:backup:auto": "powershell -ExecutionPolicy Bypass -File scripts/backup/backup-automatico.ps1",
+    "backup:test": "node --test test/backup.test.js test/restore.test.js test/instanceWritable.test.js"
   },
   "keywords": [],
   "author": "",
@@ -12,12 +24,15 @@
   "type": "commonjs",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "archiver": "^8.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
     "mysql2": "^3.22.3",
-    "pdfkit": "^0.18.0"
+    "pdfkit": "^0.18.0",
+    "yauzl": "^3.4.0"
   }
 }

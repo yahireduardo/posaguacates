@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
+const { esCantidadValida, mensajeCantidad } = require('../lib/cantidades');
 const router = express.Router();
 
 router.use(permitirRoles('ADMON_GRAL'));
@@ -9,7 +10,7 @@ router.get('/', async (req, res) => {
   try {
     const [rows] = await db.promise.query(
       `SELECT mi.id, mi.producto_id, mi.tipo, mi.cantidad, mi.motivo, mi.referencia_id,
-              mi.usuario_id, mi.fecha, p.nombre AS producto
+              mi.usuario_id, mi.fecha, p.nombre AS producto, p.unidad
        FROM movimientos_inventario mi JOIN productos p ON p.id = mi.producto_id
        ORDER BY mi.id DESC LIMIT 500`
     );
@@ -30,8 +31,11 @@ router.post('/movimiento', async (req, res) => {
   const connection = await db.promise.getConnection();
   try {
     await connection.beginTransaction();
-    const [productos] = await connection.query('SELECT stock FROM productos WHERE id = ? FOR UPDATE', [productoId]);
+    const [productos] = await connection.query('SELECT stock, unidad FROM productos WHERE id = ? AND activo = 1 FOR UPDATE', [productoId]);
     if (!productos.length) throw Object.assign(new Error('Producto no encontrado'), { status: 404 });
+    if (!esCantidadValida(cantidad, productos[0].unidad)) {
+      throw Object.assign(new Error(mensajeCantidad(productos[0].unidad)), { status: 400 });
+    }
     const nuevoStock = Number(productos[0].stock) + (tipo === 'ENTRADA' ? cantidad : -cantidad);
     if (nuevoStock < 0) throw Object.assign(new Error('Stock insuficiente'), { status: 409 });
     await connection.query('UPDATE productos SET stock = ? WHERE id = ?', [nuevoStock, productoId]);

@@ -422,3 +422,68 @@
   display: block;
   margin-top: 5px;
 }
+
+.input-ancho{width:100%;padding:11px;border:1px solid #c6d2cb;border-radius:8px;margin:8px 0}
+.indice-alfabetico{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.indice-alfabetico button{min-width:34px;padding:7px;background:#e6f2eb;color:#185d3d}
+.grupo-clientes{scroll-margin-top:16px;margin:18px 0;outline:none}
+.grupo-clientes:focus h3{color:#168b52;text-decoration:underline}
+#ordenes .tabla-contenedor,#tablaProductosCliente{overflow-x:auto;margin-top:16px}
+#ordenes .orden-layout{display:grid;gap:20px;padding:20px}
+#ordenes .orden-seccion{padding:18px;margin:0;border:1px solid #dbe5df;border-radius:10px;background:#f8fbf9}
+#ordenes textarea{width:100%;resize:vertical}
+@media(max-width:700px){#ordenes .orden-layout{gap:14px;padding:14px}#ordenes .orden-seccion{padding:14px}}
+#resultadosClientePago{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+#resultadosClientePago button{text-align:left}
+.busqueda-cuenta{display:flex;gap:10px;align-items:center}.busqueda-cuenta input{flex:1}
+#resultadosClienteCuenta{display:flex;flex-direction:column;gap:6px}
+#resultadosClienteCuenta button{text-align:left}
+@media(max-width:600px){.busqueda-cuenta{align-items:stretch;flex-direction:column}}
+#resultadosClienteVenta{display:flex;flex-direction:column;gap:6px;margin:6px 0 12px}
+#resultadosClienteVenta .cliente-venta-opcion{display:flex;flex-direction:column;align-items:flex-start;text-align:left;background:#f4f8f5;color:#173c2b;border:1px solid #c6d2cb}
+#resultadosClienteVenta .cliente-venta-opcion:hover{background:#e6f2eb}
+#resultadosClienteVenta small{margin-top:3px;color:#5d7066}
+#notasPago .row{align-items:center;justify-content:flex-start}
+#notasPago .aplicacion-manual{margin-left:auto;width:130px;padding:7px}
+#productoMasVendido{margin:14px 0}
+
+/* Respaldo y traslado */
+.barra-entregada{position:sticky;top:0;z-index:900;display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 20px;background:#fff0d5;color:#7a4310;border-bottom:2px solid #e7a23b;font-weight:700}
+.barra-entregada button{background:#7a4310;color:#fff}
+.respaldo-encabezado{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.respaldo-encabezado h2,.respaldo-encabezado h3{margin-bottom:4px}
+.respaldo-grid,.guia-traslado{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.respaldo-tarjeta{margin-bottom:16px}
+.respaldo-tarjeta h3{margin-top:0}
+.estado-instancia{display:grid;gap:0;margin:12px 0}
+.estado-instancia div{display:grid;grid-template-columns:minmax(150px,1fr) minmax(140px,1.3fr);gap:12px;padding:9px 0;border-bottom:1px solid #e4ebe7}
+.estado-instancia dt{color:#62746a}.estado-instancia dd{margin:0;font-weight:700;overflow-wrap:anywhere}
+.estado-chip,.resultado-chip{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;font-size:.78rem;font-weight:800}
+.estado-chip.ok,.resultado-chip.ok{background:#d9f2e3;color:#14723f}
+.estado-chip.warning,.resultado-chip.warning{background:#fff0d5;color:#8a4c0d}
+.estado-chip.error,.resultado-chip.error{background:#fde1df;color:#a93226}
+.mensaje-respaldo{margin:12px 0;padding:13px 15px;border:1px solid #b9ddc9;border-radius:10px;background:#e8f6ee;color:#14663b}
+.mensaje-respaldo.exito{background:#e8f6ee;color:#14663b;border-color:#b9ddc9}
+.mensaje-respaldo.advertencia{background:#fff5df;color:#7a4310;border-color:#efc777}
+.mensaje-respaldo.error{background:#fde9e7;color:#962d22;border-color:#e8aaa4}
+.mensaje-respaldo.proceso{background:#e8f1fa;color:#205b88;border-color:#accbe3}
+.progreso-respaldo{display:flex;align-items:center;gap:9px;margin:12px 0;color:#315b47}
+.spinner{width:18px;height:18px;border:3px solid #bfd8ca;border-top-color:#168b52;border-radius:50%;animation:girar .8s linear infinite}
+@keyframes girar{to{transform:rotate(360deg)}}
+.zona-archivo{display:grid;place-items:center;gap:5px;min-height:145px;margin:14px 0;padding:20px;text-align:center;background:#f8fbf9;border:2px dashed #8bb9a0;border-radius:12px;color:#315b47;cursor:pointer}
+.zona-archivo:hover,.zona-archivo:focus,.zona-archivo.arrastrando{outline:none;background:#eaf6ef;border-color:#168b52}
+.resultado-analisis{margin-top:18px;padding-top:8px;border-top:1px solid #dce7e0}
+.confirmacion-restauracion{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:12px;align-items:end;margin-top:16px}
+.confirmacion-restauracion label,.respaldo-tarjeta label,.modal-respaldo label{display:grid;gap:6px;font-weight:700}
+.confirmacion-restauracion input,.respaldo-tarjeta input,.respaldo-tarjeta textarea,.modal-respaldo input{width:100%;padding:10px;border:1px solid #bfcfc6;border-radius:8px;background:#fff}
+.confirmacion-riesgo{grid-column:1/-1!important;display:flex!important;align-items:flex-start;gap:9px!important;padding:12px;background:#fff3df;border:1px solid #edc57b;border-radius:9px;color:#75420f}
+.confirmacion-riesgo input{width:auto!important;margin-top:3px}
+.riesgo{border:2px solid #e5a94e;background:#fffaf0}
+.modal-respaldo{width:min(620px,96vw)}
+.modal-respaldo>label{margin-top:14px}
+.guia-traslado ol{padding-left:23px;line-height:1.8}
+.restauracion-bloqueada .respaldo-tarjeta button:not(#comprobarSistemaRespaldo),.restauracion-bloqueada .respaldo-tarjeta input,.restauracion-bloqueada .respaldo-tarjeta textarea{pointer-events:none;opacity:.55}
+.reinicio-pendiente .tabs .tab:not([data-section="respaldos"]){pointer-events:none;opacity:.45}
+.instancia-entregada .boton-eliminar-producto,.instancia-entregada .cantidad-carrito,.instancia-entregada .editar-cliente,.instancia-entregada .eliminar-cliente,.instancia-entregada .orden-cancelar,.instancia-entregada .orden-pos,.instancia-entregada .cancelar-pago,.instancia-entregada .aplicar-pago-cliente{pointer-events:none;opacity:.5}
+button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:not-allowed;opacity:.58}
+@media(max-width:800px){.respaldo-grid,.guia-traslado{grid-template-columns:1fr}.respaldo-encabezado{align-items:flex-start;flex-direction:column}.confirmacion-restauracion{grid-template-columns:1fr}.estado-instancia div{grid-template-columns:1fr}.barra-entregada{align-items:flex-start;flex-direction:column}}

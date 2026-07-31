@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>POS Aguacates</title>
+  <title>POS HASS</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
   <div id="login">
     <form class="login-card" id="loginForm">
-      <h1>POS Aguacates 🥑</h1>
-      <input id="username" autocomplete="username" placeholder="Username" required>
+      <h1> INICIAR SESION 🥑</h1>
+      <input id="username" autocomplete="username" placeholder="Usuario" required>
       <input id="password" type="password" autocomplete="current-password" placeholder="Contraseña" required>
       <button class="primary" type="submit">Iniciar sesión</button>
       <p id="loginError" class="muted"></p>
@@ -19,11 +19,20 @@
   </div>
 
   <div id="sistema" class="hidden">
-    <header><strong>POS Aguacates 🥑</strong><span><span id="sesion"></span> <button id="logout">Cerrar sesión</button></span></header>
+    <header><strong> PUNTO DE VENTA 🥑</strong><span><span id="sesion"></span> <button id="logout">Cerrar sesión</button></span></header>
+    <div id="barraInstanciaEntregada" class="barra-entregada hidden" role="alert">
+      Esta computadora entregó la base de datos y no puede registrar cambios.
+      <button type="button" class="ir-respaldos">Abrir respaldo y traslado</button>
+    </div>
     <nav class="tabs">
-      <button class="tab" data-section="pos">POS</button><button class="tab" data-section="clientes">Clientes</button>
-      <button class="tab" data-section="cuentas">Cuentas</button><button class="tab admin" data-section="inventario">Inventario</button>
-      <button class="tab admin" data-section="ventas">Ventas</button><button class="tab" data-section="dashboard">Dashboard</button>
+      <button class="tab" data-section="pos">Punto de Venta</button>
+      <button class="tab" data-section="ordenes">Ordenes de Venta</button>
+      <button class="tab" data-section="clientes">Clientes</button>
+      <button class="tab" data-section="cuentas">Cuentas</button>
+      <button class="tab admin" data-section="inventario">Inventario</button>
+      <button class="tab admin" data-section="ventas">Ventas</button>
+      <button class="tab" data-section="dashboard">Dashboard</button>
+      <button class="tab admin" data-section="respaldos">Respaldo y traslado</button>
     </nav>
 
     <main>
@@ -67,7 +76,7 @@
                     id="buscarProducto"
                     type="text"
                     autocomplete="off"
-                    placeholder="Ej. 10277 o Aguacate Hass"
+                    placeholder="Ej. 01 o Aguacate"
                   >
 
                   <div
@@ -171,11 +180,14 @@
 
               <h2>Cobro</h2>
 
-              <label for="clienteVenta">
+              <label for="clienteVentaBuscar">
                 Cliente
               </label>
 
-              <select id="clienteVenta"></select>
+              <input id="clienteVenta" type="hidden">
+              <input id="clienteVentaBuscar" type="text" autocomplete="off"
+                placeholder="Escribe nombre, RFC o teléfono">
+              <div id="resultadosClienteVenta" class="resultados-busqueda"></div>
 
               <label for="tipoPago">
                 Tipo de pago
@@ -191,6 +203,16 @@
                   Crédito
                 </option>
 
+              </select>
+
+              <label for="metodoPagoVenta">
+                Método de pago
+              </label>
+
+              <select id="metodoPagoVenta">
+                <option value="EFECTIVO">Efectivo</option>
+                <option value="TRANSFERENCIA">Transferencia</option>
+                <option value="CHEQUE">Cheque</option>
               </select>
 
               <div class="resumen-venta">
@@ -240,9 +262,22 @@
 
         </section>
 
-      <section id="clientes" class="seccion"><h2>Clientes</h2><form id="clienteForm" class="panel"><input type="hidden" id="clienteId"><div class="form-grid"><input id="nombreRazon" placeholder="Nombre o razón social" required><input id="rfc" placeholder="RFC" maxlength="13"><input id="telefono" placeholder="Teléfono"><input id="correo" type="email" placeholder="Correo electrónico"></div><div class="actions"><button class="primary" type="submit">Guardar cliente</button><button type="button" id="cancelarEdicion" class="hidden">Cancelar edición</button></div></form><div id="listaClientes" class="grid" style="margin-top:16px"></div></section>
+      <section id="ordenes" class="seccion">
+        <div class="ventas-titulo"><div><h2>Órdenes de venta</h2><p class="muted">Crea y modifica notas sin afectar inventario.</p></div><button id="ordenNueva" type="button">Nueva orden</button></div>
+        <form id="editorOrden" class="panel orden-layout">
+          <input id="ordenEditandoId" type="hidden">
+          <div class="form-grid orden-seccion"><label>Cliente<select id="ordenEditorCliente" required></select></label><label>Observación<textarea id="ordenEditorObservaciones" maxlength="500" rows="3" placeholder="Indicaciones de la orden"></textarea></label></div>
+          <div class="captura-producto orden-seccion"><div><label>Producto</label><select id="ordenEditorProducto"></select></div><div><label>Cantidad</label><input id="ordenEditorCantidad" type="number" min="0.01" step="0.01" value="1"></div><button id="ordenAgregarProducto" type="button" class="primary">Agregar</button></div>
+          <div class="tabla-contenedor"><table><thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Unidad</th><th>Precio estimado</th><th>Subtotal</th><th></th></tr></thead><tbody id="ordenEditorDetalle"><tr><td colspan="7">Agrega productos a la orden</td></tr></tbody></table></div>
+          <div class="actions"><strong id="ordenEditorTotal" class="money">$0.00</strong><button id="ordenGuardar" type="submit" class="primary">Guardar orden pendiente</button><button id="ordenCerrarEditor" type="button">Limpiar</button></div>
+        </form>
+        <form id="filtrosOrdenes" class="panel form-grid"><input id="ordenFolio" placeholder="Folio"><input id="ordenCliente" placeholder="Cliente"><input id="ordenFecha" type="date"><select id="ordenEstado"><option value="">Todos</option><option>BORRADOR</option><option selected>PENDIENTE</option><option>CONVERTIDA</option><option>CANCELADA</option></select><button class="primary">Buscar</button></form>
+        <div class="panel tabla-contenedor"><table><thead><tr><th>Folio</th><th>Fecha</th><th>Cliente</th><th>Observaciones</th><th>Estado</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="listaOrdenes"></tbody></table></div>
+      </section>
 
-      <section id="cuentas" class="seccion"><h2>Cuentas por cobrar</h2><div id="listaCuentas" class="grid"></div><div id="detalleCuenta" class="panel hidden" style="margin-top:16px"></div></section>
+      <section id="clientes" class="seccion"><h2>Clientes</h2><form id="clienteForm" class="panel"><input type="hidden" id="clienteId"><div class="form-grid"><input id="nombreRazon" placeholder="Nombre o razón social" required><input id="rfc" placeholder="RFC" maxlength="13"><input id="telefono" placeholder="Teléfono"><input id="correo" type="email" placeholder="Correo electrónico"></div><div class="actions"><button class="primary" type="submit">Guardar cliente</button><button type="button" id="cancelarEdicion" class="hidden">Cancelar edición</button></div></form><div class="panel"><input id="buscarCliente" class="input-ancho" placeholder="Buscar por nombre, RFC o teléfono"><nav id="indiceClientes" class="indice-alfabetico" aria-label="Índice alfabético"></nav></div><div id="listaClientes"></div><div id="resumenCliente" class="panel hidden"></div></section>
+
+      <section id="cuentas" class="seccion"><h2>Cobros de cuentas por cobrar</h2><div class="panel"><label for="buscarClienteCuenta">Buscar cliente</label><div class="busqueda-cuenta"><input id="buscarClienteCuenta" class="input-ancho" placeholder="Nombre, RFC, teléfono o correo"><button id="ejecutarBusquedaCuenta" type="button">Buscar</button></div><div id="resultadosClienteCuenta"></div></div><button id="abrirPago" class="primary admin">Aplicar pago</button><div id="listaCuentas" class="grid"></div><div id="detalleCuenta" class="panel hidden" style="margin-top:16px"></div></section>
 
       <section id="inventario" class="seccion"><h2>Inventario</h2><form id="movimientoForm" class="panel form-grid"><select id="productoMovimiento"></select><select id="tipoMovimiento"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida / merma</option></select><input id="cantidadMovimiento" type="number" min="0.01" step="0.01" placeholder="Cantidad" required><input id="motivoMovimiento" placeholder="Motivo" required><button class="primary">Registrar</button></form><div id="movimientos" style="margin-top:16px"></div></section>
 
@@ -478,7 +513,124 @@
 
 </section>
 
-      <section id="dashboard" class="seccion"><h2>Dashboard</h2><div id="metricas" class="grid"></div><div class="panel" style="margin-top:16px"><h3>Ventas de los últimos 7 días</h3><canvas id="graficaSemanal"></canvas></div><div class="actions"><button class="secondary" id="reporte">Abrir reporte PDF</button></div></section>
+      <section id="respaldos" class="seccion admin" aria-labelledby="tituloRespaldos">
+        <div class="respaldo-encabezado">
+          <div>
+            <h2 id="tituloRespaldos">Respaldo y traslado de datos</h2>
+            <p class="muted">Mueva la información completa entre computadoras usando un solo archivo ZIP.</p>
+          </div>
+          <button id="actualizarEstadoRespaldos" type="button">Actualizar estado</button>
+        </div>
+
+        <div id="mensajeRespaldos" class="mensaje-respaldo hidden" role="status" aria-live="polite"></div>
+        <div id="avisoReinicioRespaldo" class="mensaje-respaldo advertencia hidden" role="alert">
+          <strong>La restauración terminó y la aplicación necesita volver a comprobar el sistema.</strong>
+          <p>No cierre el equipo ni intente registrar operaciones hasta completar la comprobación.</p>
+          <button id="comprobarSistemaRespaldo" type="button" class="primary">Volver a comprobar el sistema</button>
+        </div>
+
+        <div class="respaldo-grid">
+          <article class="panel respaldo-tarjeta">
+            <h3>Estado de esta computadora</h3>
+            <dl class="estado-instancia">
+              <div><dt>Estado</dt><dd><span id="estadoInstancia" class="estado-chip">Consultando…</span></dd></div>
+              <div><dt>Equipo</dt><dd id="hostnameInstancia">—</dd></div>
+              <div><dt>Instalación</dt><dd id="instanceIdInstancia">—</dd></div>
+              <div><dt>Último respaldo generado</dt><dd id="ultimoGeneradoInstancia">—</dd></div>
+              <div><dt>Último respaldo restaurado</dt><dd id="ultimoRestauradoInstancia">—</dd></div>
+            </dl>
+          </article>
+
+          <article class="panel respaldo-tarjeta">
+            <h3>Exportar respaldo</h3>
+            <p>Descargue el ZIP y elija la memoria USB en la ventana de guardado del navegador.</p>
+            <button id="generarRespaldo" type="button" class="primary">Generar respaldo</button>
+            <div id="progresoExportacion" class="progreso-respaldo hidden"><span class="spinner"></span> Generando el respaldo…</div>
+            <dl id="datosExportacion" class="estado-instancia hidden">
+              <div><dt>Archivo</dt><dd id="nombreExportacion">—</dd></div>
+              <div><dt>Fecha</dt><dd id="fechaExportacion">—</dd></div>
+              <div><dt>Tamaño</dt><dd id="tamanoExportacion">—</dd></div>
+            </dl>
+            <button id="abrirConfirmacionEntrega" type="button" class="danger hidden">Marcar esta computadora como entregada</button>
+          </article>
+        </div>
+
+        <article class="panel respaldo-tarjeta">
+          <h3>Restaurar respaldo</h3>
+          <p>Seleccionar o analizar un archivo no modifica la base de datos.</p>
+          <div id="zonaArchivoRespaldo" class="zona-archivo" tabindex="0" role="button" aria-controls="archivoRespaldo">
+            <strong>Arrastre aquí el ZIP o SQL</strong>
+            <span>o haga clic para seleccionar el archivo</span>
+            <input id="archivoRespaldo" type="file" accept=".zip,.sql,application/zip,application/sql" class="hidden">
+          </div>
+          <p id="datosArchivoRespaldo" class="muted">Ningún archivo seleccionado.</p>
+          <div class="actions">
+            <button id="analizarRespaldo" type="button" class="primary" disabled>Analizar respaldo</button>
+          </div>
+          <div id="progresoAnalisis" class="progreso-respaldo hidden"><span class="spinner"></span> Revisando el archivo…</div>
+
+          <div id="resultadoAnalisis" class="resultado-analisis hidden">
+            <h4>Resultado del análisis</h4>
+            <dl class="estado-instancia">
+              <div><dt>Fecha del respaldo</dt><dd id="analisisFecha">—</dd></div>
+              <div><dt>Equipo de origen</dt><dd id="analisisEquipo">—</dd></div>
+              <div><dt>Versión</dt><dd id="analisisVersion">—</dd></div>
+              <div><dt>Tamaño SQL</dt><dd id="analisisTamano">—</dd></div>
+              <div><dt>Última venta</dt><dd id="analisisUltimaVenta">—</dd></div>
+              <div><dt>Comparación</dt><dd><span id="analisisComparacion" class="estado-chip">—</span></dd></div>
+            </dl>
+            <div id="advertenciasAnalisis"></div>
+
+            <div class="confirmacion-restauracion">
+              <label>Escriba <strong>RESTAURAR</strong>
+                <input id="textoConfirmarRestauracion" autocomplete="off">
+              </label>
+              <label>Contraseña del administrador
+                <input id="passwordRestauracion" type="password" autocomplete="current-password">
+              </label>
+              <label id="grupoConfirmarAntiguo" class="confirmacion-riesgo hidden">
+                <input id="confirmarRespaldoAntiguo" type="checkbox">
+                Entiendo que este respaldo es más antiguo y que se perderán cambios locales posteriores.
+              </label>
+              <button id="restaurarRespaldo" type="button" class="danger" disabled>Restaurar respaldo</button>
+            </div>
+          </div>
+        </article>
+
+        <article id="panelReactivarInstancia" class="panel respaldo-tarjeta riesgo hidden">
+          <h3>Reactivación de emergencia</h3>
+          <p><strong>Riesgo:</strong> use esta opción solo si no puede recuperar el respaldo de la otra computadora. Podrían quedar dos bases diferentes.</p>
+          <div class="form-grid">
+            <label>Motivo de reactivación
+              <textarea id="motivoReactivacion" maxlength="500" rows="3"></textarea>
+            </label>
+            <label>Contraseña del administrador
+              <input id="passwordReactivacion" type="password" autocomplete="current-password">
+            </label>
+          </div>
+          <button id="reactivarInstancia" type="button" class="danger" disabled>Reactivar bajo mi responsabilidad</button>
+        </article>
+
+        <article class="panel respaldo-tarjeta">
+          <div class="respaldo-encabezado">
+            <div><h3>Historial</h3><p class="muted">Generaciones, análisis, restauraciones y reactivaciones.</p></div>
+            <button id="actualizarHistorialRespaldos" type="button">Actualizar historial</button>
+          </div>
+          <div class="tabla-contenedor">
+            <table>
+              <thead><tr><th>Fecha</th><th>Acción</th><th>Archivo</th><th>Equipo</th><th>Usuario</th><th>Resultado</th></tr></thead>
+              <tbody id="historialRespaldos"><tr><td colspan="6">Sin operaciones registradas.</td></tr></tbody>
+            </table>
+          </div>
+        </article>
+
+        <div class="guia-traslado">
+          <article class="panel"><h3>Computadora de origen</h3><ol><li>Finalice las ventas.</li><li>Genere el respaldo.</li><li>Guarde el ZIP en la USB.</li><li>Marque la computadora como entregada.</li><li>Expulse la USB.</li></ol></article>
+          <article class="panel"><h3>Computadora de destino</h3><ol><li>Inserte la USB.</li><li>Seleccione el ZIP.</li><li>Analice el respaldo.</li><li>Verifique que sea el más reciente.</li><li>Confirme la restauración.</li><li>Continúe trabajando.</li></ol></article>
+        </div>
+      </section>
+
+      <section id="dashboard" class="seccion"><h2>Dashboard</h2><div id="metricas" class="grid"></div><div class="panel"><h3>Ventas de los últimos 7 días</h3><canvas id="graficaSemanal"></canvas></div><section class="panel admin"><h3>Histórico global de productos y clientes</h3><form id="filtrosProductosCliente" class="form-grid"><label>Desde<input id="rpcInicio" type="date"></label><label>Hasta<input id="rpcFin" type="date"></label><select id="rpcCliente"><option value="">Todos los clientes</option></select><select id="rpcProducto"><option value="">Todos los productos</option></select><select id="rpcPago"><option value="">Todos los pagos</option><option>CONTADO</option><option>CREDITO</option></select><label><input id="rpcCanceladas" type="checkbox"> Incluir canceladas</label><button class="primary">Consultar</button></form><div id="productoMasVendido"></div><h3>Cantidad histórica vendida por producto</h3><canvas id="graficaProductos"></canvas><h3>Compras acumuladas por cliente</h3><canvas id="graficaClientes"></canvas><div id="tablaProductosCliente"></div><button id="exportarProductosCsv">Exportar CSV</button></section><div class="actions"><button class="secondary" id="reporte">Abrir reporte PDF</button></div></section>
     </main>
   </div>
 
@@ -514,6 +666,79 @@
 
 </div>
 
+
+  <div id="modalPago" class="modal hidden"><div class="modal-contenido"><div class="modal-encabezado"><h2>Aplicar pago</h2><button id="cerrarPago" class="danger">×</button></div><input id="buscarClientePago" class="input-ancho" placeholder="Buscar cliente"><div id="resultadosClientePago"></div><form id="formPago" class="hidden"><input id="pagoClienteId" type="hidden"><h3 id="pagoClienteNombre"></h3><div id="notasPago"></div><div class="form-grid"><label>Método<select id="pagoMetodo"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option></select></label><label>Monto recibido<input id="pagoMonto" type="number" min="0.01" step="0.01" required></label><label>Fecha<input id="pagoFecha" type="date" required></label><label id="grupoPagoReferencia" class="hidden">Referencia<input id="pagoReferencia" maxlength="100"></label><label>Observaciones<input id="pagoObservaciones" maxlength="500"></label></div><div id="resumenPago"></div><button id="confirmarPago" class="primary">Confirmar pago</button></form></div></div>
+
+  <div id="modalEliminarCliente" class="modal hidden">
+    <div class="modal-contenido">
+      <div class="modal-encabezado">
+        <h2>Eliminar cliente de prueba</h2>
+        <button id="cerrarEliminarCliente" type="button" class="danger">×</button>
+      </div>
+      <div id="resumenEliminarCliente"></div>
+      <form id="formEliminarCliente">
+        <input id="eliminarClienteId" type="hidden">
+        <label>Motivo
+          <textarea id="motivoEliminarCliente" maxlength="255" required></textarea>
+        </label>
+        <label>Escribe <strong>ELIMINAR CLIENTE</strong> para confirmar
+          <input id="confirmacionEliminarCliente" autocomplete="off" required>
+        </label>
+        <div class="actions">
+          <button id="confirmarEliminarCliente" type="submit" class="danger">Eliminar cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalAutorizacionCancelacion" class="modal hidden">
+    <div class="modal-contenido">
+      <div class="modal-encabezado">
+        <h2 id="tituloAutorizacionCancelacion">Confirmar cancelación</h2>
+        <button id="cerrarAutorizacionCancelacion" type="button" class="danger">×</button>
+      </div>
+      <form id="formAutorizacionCancelacion">
+        <p id="textoAutorizacionCancelacion"></p>
+        <div id="camposAdministradorCancelacion" class="form-grid hidden">
+          <label>Usuario administrador
+            <input id="usuarioAdminCancelacion" autocomplete="username">
+          </label>
+          <label>Contraseña
+            <input id="passwordAdminCancelacion" type="password" autocomplete="current-password">
+          </label>
+        </div>
+        <label>Motivo de cancelación
+          <textarea id="motivoAutorizacionCancelacion" maxlength="255" required></textarea>
+        </label>
+        <div class="actions">
+          <button id="confirmarAutorizacionCancelacion" type="submit" class="danger">Confirmar cancelación</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalConfirmarEntrega" class="modal hidden">
+    <div class="modal-contenido modal-respaldo">
+      <div class="modal-encabezado">
+        <h2>Marcar computadora como entregada</h2>
+        <button id="cerrarConfirmacionEntrega" type="button" class="danger">×</button>
+      </div>
+      <div class="mensaje-respaldo advertencia">
+        Después de confirmar se bloquearán ventas, pagos, órdenes, clientes, inventario y cualquier otro cambio.
+        Las consultas y el módulo de respaldos seguirán disponibles.
+      </div>
+      <label>Contraseña del administrador
+        <input id="passwordEntrega" type="password" autocomplete="current-password">
+      </label>
+      <label class="confirmacion-riesgo">
+        <input id="confirmarEntrega" type="checkbox">
+        Confirmo que el ZIP fue guardado correctamente y que esta computadora dejará de trabajar.
+      </label>
+      <div class="actions">
+        <button id="marcarEntregada" type="button" class="danger" disabled>Marcar como entregada</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="./js/app.js"></script>
 </body>

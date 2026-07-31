@@ -1,0 +1,18 @@
+<service>
+  <id>POSAguacates</id>
+  <name>POS Aguacates</name>
+  <description>Backend y frontend del sistema POS Aguacates</description>
+  <executable>C:\Program Files\nodejs\node.exe</executable>
+  <arguments>index.js</arguments>
+  <workingdirectory>C:\POS-Aguacates\pos-backend</workingdirectory>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="5 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>15 sec</stoptimeout>
+  <logpath>C:\POS-Aguacates\pos-backend\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

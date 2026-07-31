@@ -1,5 +1,8 @@
 node_modules/
 .env
 *.log
+backups/
+pos-backend/data/
+pos-backend/temp/
+.maintenance
 .DS_Store
-
