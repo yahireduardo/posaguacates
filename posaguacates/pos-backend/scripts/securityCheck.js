@@ -33,6 +33,12 @@ for (const file of tracked) {
   if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(content)) {
     failures.push({ file, reason: 'clave privada incluida' });
   }
+  if (/\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}/.test(content)) {
+    failures.push({ file, reason: 'hash bcrypt incluido' });
+  }
+  if (/\bAIza[0-9A-Za-z_-]{30,}\b|\bgh[opusr]_[0-9A-Za-z]{30,}\b|\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/.test(content)) {
+    failures.push({ file, reason: 'token o clave API con formato real' });
+  }
 
   if (allowedEnv.test(file)) {
     for (const key of ['DB_PASSWORD', 'JWT_SECRET', 'GEMINI_API_KEY']) {
@@ -44,8 +50,9 @@ for (const file of tracked) {
     }
   }
 
-  if (/sql\/posaguacates\.sql$/i.test(file) && /^\s*(?:INSERT|REPLACE|UPDATE|DELETE|LOAD\s+DATA)\b/im.test(content)) {
-    failures.push({ file, reason: 'el esquema sanitizado contiene datos' });
+  if (/\.sql$/i.test(file) && !/sql\/migrations\//i.test(file)
+      && /^\s*(?:INSERT|REPLACE|LOAD\s+DATA)\b/im.test(content)) {
+    failures.push({ file, reason: 'SQL no migratorio contiene datos insertados' });
   }
 }
 
