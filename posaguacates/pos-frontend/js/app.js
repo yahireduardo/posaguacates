@@ -1585,9 +1585,10 @@ function abrirModalCancelacion(tipo, id, clienteId = null) {
   document.getElementById('textoAutorizacionCancelacion').textContent = esCajero
     ? 'Esta operación requiere autorización de un Administrador General.'
     : `¿Seguro que deseas cancelar ${tipo === 'VENTA' ? 'esta venta' : 'este pago'}?`;
-  document.getElementById('camposAdministradorCancelacion').classList.toggle('hidden', !esCajero);
-  document.getElementById('usuarioAdminCancelacion').required = esCajero;
-  document.getElementById('passwordAdminCancelacion').required = esCajero;
+  document.getElementById('camposAdministradorCancelacion').classList.remove('hidden');
+  document.getElementById('usuarioAdminCancelacion').value = esCajero ? '' : usuario.username;
+  document.getElementById('usuarioAdminCancelacion').required = true;
+  document.getElementById('passwordAdminCancelacion').required = true;
   modalAutorizacionCancelacion.classList.remove('hidden');
   (esCajero
     ? document.getElementById('usuarioAdminCancelacion')
@@ -1604,10 +1605,8 @@ document.getElementById('formAutorizacionCancelacion')?.addEventListener('submit
   const boton = document.getElementById('confirmarAutorizacionCancelacion');
   const body = { motivo: document.getElementById('motivoAutorizacionCancelacion').value.trim() };
   if (!body.motivo) return;
-  if (usuario.rol === 'CAJERO') {
-    body.usuario_admin = document.getElementById('usuarioAdminCancelacion').value.trim();
-    body.password_admin = document.getElementById('passwordAdminCancelacion').value;
-  }
+  body.usuario_admin = document.getElementById('usuarioAdminCancelacion').value.trim();
+  body.password_admin = document.getElementById('passwordAdminCancelacion').value;
   boton.disabled = true;
   const pendiente = { ...cancelacionPendiente };
   try {

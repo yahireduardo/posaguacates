@@ -11,6 +11,10 @@ async function resolverAutorizacionAdmin({ usuario, body, buscarAdministrador })
     if (!administrador || Number(administrador.id) !== Number(usuario.id)) {
       throw errorHttp('La sesión administrativa ya no está autorizada', 403);
     }
+    const password = String(body.password_admin || '');
+    const autorizado = administrador.password_hash && password
+      && await bcrypt.compare(password, administrador.password_hash);
+    if (!autorizado) throw errorHttp('Se requiere volver a escribir la contraseña administrativa', 401);
     return { solicitadoPor: Number(usuario.id), autorizadoPor: Number(usuario.id), delegada: false };
   }
 
