@@ -4,11 +4,12 @@ const { permitirRoles } = require('../middleware/auth');
 const router = express.Router();
 
 function datos(body) {
+  const kilosCaja = Number(body.kilos_por_caja);
   return {
     codigo: String(body.codigo || '').trim().toUpperCase(), nombre: String(body.nombre || '').trim(),
     descripcion: String(body.descripcion || '').trim() || null, precio: Number(body.precio_venta),
     costo: Number(body.costo || 0), unidad: String(body.unidad || '').toUpperCase(),
-    kilosCaja: body.kilos_por_caja === null || body.kilos_por_caja === '' ? null : Number(body.kilos_por_caja),
+    kilosCaja: body.kilos_por_caja === null || body.kilos_por_caja === '' || body.kilos_por_caja === undefined || !Number.isFinite(kilosCaja) ? null : kilosCaja,
     minimo: Number(body.stock_minimo || 0), proveedor: body.proveedor_id ? Number(body.proveedor_id) : null
   };
 }
@@ -72,3 +73,4 @@ router.put('/:id/precio', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
   try{const[r]=await db.promise.query('UPDATE productos SET precio_venta=? WHERE id=?',[precio,id]);if(!r.affectedRows)return res.status(404).json({error:'Producto no encontrado'});res.json({mensaje:'Precio actualizado'});}catch(e){next(e);}
 });
 module.exports=router;
+module.exports.datosProducto=datos;
