@@ -8,6 +8,7 @@ router.use(permitirRoles('ADMON_GRAL'));
 
 const usernameValido = value => /^[a-zA-Z0-9._-]{3,50}$/.test(value);
 const passwordValido = value => typeof value === 'string' && value.length >= 8 && value.length <= 128;
+const fallo = (mensaje, status) => Object.assign(new Error(mensaje), { status });
 
 async function auditar(connection, usuarioId, accion, entidadId, motivo, datos = null) {
   await connection.query(
@@ -61,10 +62,10 @@ router.put('/:id', async (req, res, next) => {
   try {
     await connection.beginTransaction();
     const [[actual]] = await connection.query('SELECT id,rol,activo FROM usuarios WHERE id=? FOR UPDATE', [id]);
-    if (!actual) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (!actual) throw fallo('Usuario no encontrado', 404);
     if (actual.rol === 'ADMON_GRAL' && actual.activo && rol !== 'ADMON_GRAL') {
       const [[admins]] = await connection.query("SELECT COUNT(*) total FROM usuarios WHERE rol='ADMON_GRAL' AND activo=1 FOR UPDATE");
-      if (Number(admins.total) <= 1) return res.status(409).json({ error: 'No se puede quitar el rol al último administrador activo' });
+      if (Number(admins.total) <= 1) throw fallo('No se puede quitar el rol al último administrador activo', 409);
     }
     await connection.query('UPDATE usuarios SET nombre=?,username=?,rol=? WHERE id=?', [nombre, username, rol, id]);
     await auditar(connection, req.usuario.id, 'EDITAR_USUARIO', id, null, { username, rol });
@@ -87,10 +88,10 @@ router.patch('/:id/estado', async (req, res, next) => {
   try {
     await connection.beginTransaction();
     const [[actual]] = await connection.query('SELECT rol,activo FROM usuarios WHERE id=? FOR UPDATE', [id]);
-    if (!actual) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (!actual) throw fallo('Usuario no encontrado', 404);
     if (!activo && actual.rol === 'ADMON_GRAL' && actual.activo) {
       const [[admins]] = await connection.query("SELECT COUNT(*) total FROM usuarios WHERE rol='ADMON_GRAL' AND activo=1 FOR UPDATE");
-      if (Number(admins.total) <= 1) return res.status(409).json({ error: 'No se puede desactivar al último administrador activo' });
+      if (Number(admins.total) <= 1) throw fallo('No se puede desactivar al último administrador activo', 409);
     }
     await connection.query('UPDATE usuarios SET activo=? WHERE id=?', [activo ? 1 : 0, id]);
     await auditar(connection, req.usuario.id, activo ? 'ACTIVAR_USUARIO' : 'DESACTIVAR_USUARIO', id, motivo);

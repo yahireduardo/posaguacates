@@ -111,7 +111,7 @@ app.use((error, req, res, next) => {
 
 async function iniciarServidor() {
   const port = Number(process.env.PORT || 3000);
-  const host = process.env.HOST || '127.0.0.1';
+  const host = '127.0.0.1';
   console.log(`Iniciando POS Aguacates. Esperando MySQL en ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 3306}...`);
   await db.esperarConexion();
   const server = app.listen(port, host, () => {

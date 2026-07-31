@@ -7,6 +7,7 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "test": "node --test",
+    "test:integration": "node scripts/testIntegration.js",
     "db:migrate": "node scripts/migrate.js",
     "service:install": "powershell -ExecutionPolicy Bypass -File scripts/install-service.ps1",
     "service:remove": "powershell -ExecutionPolicy Bypass -File scripts/remove-service.ps1",
