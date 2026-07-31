@@ -78,7 +78,7 @@ router.get('/', async (req, res) => {
   }
   try {
     const [rows] = await db.promise.query(
-      `SELECT id, nombre_razon_social, rfc, telefono, correo_electronico
+      `SELECT id,nombre_razon_social,rfc,telefono,direccion,correo_electronico,notas,permite_credito,activo
        FROM clientes WHERE ${where}
        ORDER BY nombre_razon_social COLLATE utf8mb4_spanish_ci, id LIMIT ? OFFSET ?`,
       [...params, limite, (pagina - 1) * limite]
@@ -93,7 +93,7 @@ router.get('/:id/resumen', async (req, res) => {
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Cliente inválido' });
   try {
     const [[cliente], [cuentas], [movimientos], [ordenes], [ventas]] = await Promise.all([
-      db.promise.query(`SELECT id,nombre_razon_social,rfc,telefono,correo_electronico,activo FROM clientes WHERE id=?`, [id]),
+      db.promise.query(`SELECT id,nombre_razon_social,rfc,telefono,direccion,correo_electronico,notas,permite_credito,activo FROM clientes WHERE id=?`, [id]),
       db.promise.query(`SELECT id,venta_id,total_deuda,saldo_pendiente,estado,fecha
         FROM cuentas_por_cobrar WHERE cliente_id=? ORDER BY fecha,id`, [id]),
       db.promise.query(`SELECT mc.*,u.nombre usuario FROM movimientos_cartera mc
@@ -117,7 +117,10 @@ function datosCliente(body) {
     nombre: String(body.nombre_razon_social || '').trim(),
     rfc: String(body.rfc || '').trim().toUpperCase() || null,
     telefono: String(body.telefono || '').trim() || null,
-    correo: String(body.correo_electronico || '').trim().toLowerCase() || null
+    correo: String(body.correo_electronico || '').trim().toLowerCase() || null,
+    direccion: String(body.direccion || '').trim() || null,
+    notas: String(body.notas || '').trim() || null,
+    permiteCredito: body.permite_credito === false || body.permite_credito === 0 ? 0 : 1
   };
 }
 
@@ -126,8 +129,8 @@ async function crearCliente(req, res) {
   if (!c.nombre) return res.status(400).json({ error: 'Nombre o razón social obligatorio' });
   try {
     const [result] = await db.promise.query(
-      `INSERT INTO clientes (nombre_razon_social, rfc, telefono, correo_electronico)
-       VALUES (?, ?, ?, ?)`, [c.nombre, c.rfc, c.telefono, c.correo]
+      `INSERT INTO clientes (nombre_razon_social,rfc,telefono,direccion,correo_electronico,notas,permite_credito)
+       VALUES (?,?,?,?,?,?,?)`, [c.nombre,c.rfc,c.telefono,c.direccion,c.correo,c.notas,c.permiteCredito]
     );
     res.status(201).json({ mensaje: 'Cliente creado', cliente_id: result.insertId });
   } catch (error) {
@@ -145,8 +148,8 @@ router.put('/:id', permitirRoles('ADMON_GRAL'), async (req, res) => {
   if (!Number.isInteger(id) || id <= 0 || !c.nombre) return res.status(400).json({ error: 'Datos inválidos' });
   try {
     const [result] = await db.promise.query(
-      `UPDATE clientes SET nombre_razon_social = ?, rfc = ?, telefono = ?, correo_electronico = ?
-       WHERE id = ? AND activo = 1`, [c.nombre, c.rfc, c.telefono, c.correo, id]
+      `UPDATE clientes SET nombre_razon_social=?,rfc=?,telefono=?,direccion=?,correo_electronico=?,notas=?,permite_credito=?
+       WHERE id=?`, [c.nombre,c.rfc,c.telefono,c.direccion,c.correo,c.notas,c.permiteCredito,id]
     );
     if (!result.affectedRows) return res.status(404).json({ error: 'Cliente no encontrado' });
     res.json({ mensaje: 'Cliente actualizado' });
@@ -154,6 +157,12 @@ router.put('/:id', permitirRoles('ADMON_GRAL'), async (req, res) => {
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El RFC ya está registrado' });
     res.status(500).json({ error: 'No fue posible actualizar el cliente' });
   }
+});
+
+router.patch('/:id/estado', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
+  const id=Number(req.params.id),activo=req.body.activo===true||req.body.activo===1;
+  if(!Number.isInteger(id)||id<=0)return res.status(400).json({error:'Cliente inválido'});
+  try{const[[c]]=await db.promise.query('SELECT nombre_razon_social FROM clientes WHERE id=?',[id]);if(!c)return res.status(404).json({error:'Cliente no encontrado'});if(!activo&&esPublicoGeneral({id,nombre:c.nombre_razon_social}))return res.status(409).json({error:'Público General no se puede desactivar'});await db.promise.query('UPDATE clientes SET activo=? WHERE id=?',[activo?1:0,id]);res.json({mensaje:activo?'Cliente activado':'Cliente desactivado'});}catch(e){next(e);}
 });
 
 router.get('/:id/eliminacion-diagnostico', permitirRoles('ADMON_GRAL'), async (req, res) => {

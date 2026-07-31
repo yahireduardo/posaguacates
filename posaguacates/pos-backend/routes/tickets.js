@@ -29,11 +29,13 @@ router.get('/:ventaId', async (req, res) => {
   try {
     await connection.beginTransaction();
     const [[venta]] = await connection.query(
-      `SELECT v.id,v.fecha,v.total,v.tipo_pago,v.metodo_pago,v.estado_venta,v.impresiones,
+      `SELECT v.id,v.fecha,v.total,v.tipo_pago,v.metodo_pago,v.referencia_pago,v.estado_venta,v.impresiones,
+              x.saldo_pendiente,
               c.nombre_razon_social cliente,u.username cajero
        FROM ventas v
        LEFT JOIN clientes c ON c.id=v.cliente_id
        LEFT JOIN usuarios u ON u.id=v.usuario_id
+       LEFT JOIN cuentas_por_cobrar x ON x.venta_id=v.id
        WHERE v.id=? FOR UPDATE`, [ventaId]
     );
     if (!venta) {
@@ -49,6 +51,7 @@ router.get('/:ventaId', async (req, res) => {
        FROM detalle_venta dv JOIN productos p ON p.id=dv.producto_id
        WHERE dv.venta_id=? ORDER BY dv.id`, [ventaId]
     );
+    const [[configuracion]] = await connection.query('SELECT * FROM configuracion_negocio WHERE id=1');
     const numeroImpresion = Number(venta.impresiones) + 1;
     const leyenda = numeroImpresion === 1 ? 'ORIGINAL' : 'COPIA';
     await connection.query(
@@ -67,8 +70,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:2px;text-align:left;vert
 th:last-child,td:last-child{text-align:right}.total{text-align:right;font-size:18px}.meta{font-size:11px}
 @media print{body{padding:0}}
 </style></head><body>
-<img src="/assets/logo-ticket.png" class="logo-ticket" alt="Logo Aguacates Hass">
-<header><h1>AGUACATES HASS</h1><h2>100% CALIDAD SUPREMA</h2><h2>${leyenda}</h2></header>
+<img src="${esc(configuracion?.logo?.startsWith('/')?configuracion.logo:'/assets/logo-ticket.png')}" class="logo-ticket" alt="Logo">
+<header><h1>${esc(configuracion?.nombre_comercial||'AGUACATES HASS')}</h1><h2>${esc(configuracion?.razon_social||'')}</h2><h2>${leyenda}</h2></header>
 <p class="meta">Folio: ${esc(venta.id)}<br>Cliente: ${esc(venta.cliente || 'Público general')}
 <br>Cajero: ${esc(venta.cajero || 'Sin cajero')}<br>Fecha: ${esc(new Date(venta.fecha).toLocaleString('es-MX'))}
 <br>Tipo de pago: ${esc(venta.tipo_pago)}<br>Método: ${esc(venta.metodo_pago || 'EFECTIVO')}</p>
@@ -77,6 +80,9 @@ th:last-child,td:last-child{text-align:right}.total{text-align:right;font-size:1
 <td>${esc(p.cantidad)}</td><td>${dinero.format(Number(p.precio_unitario))}</td>
 <td>${dinero.format(Number(p.subtotal))}</td></tr>`).join('')}</tbody></table>
 <hr><h2 class="total">Total ${dinero.format(Number(venta.total))}</h2>
+${venta.referencia_pago?`<p>Referencia: ${esc(venta.referencia_pago)}</p>`:''}
+${venta.tipo_pago==='CREDITO'?`<p>Saldo pendiente: ${dinero.format(Number(venta.saldo_pendiente||0))}</p>`:''}
+<p>${esc(configuracion?.mensaje_ticket||'Gracias por su compra')}</p>
 <script src="/js/ticket.js" defer></script></body></html>`);
   } catch (error) {
     await connection.rollback();
