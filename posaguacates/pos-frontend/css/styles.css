@@ -446,6 +446,18 @@
 #notasPago .row{align-items:center;justify-content:flex-start}
 #notasPago .aplicacion-manual{margin-left:auto;width:130px;padding:7px}
 #productoMasVendido{margin:14px 0}
+.inventario-encabezado{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}
+.inventario-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;padding:8px;background:#edf5f0;border:1px solid #d4e3da;border-radius:10px}
+.inventario-tabs button{background:transparent;color:#285a40;border:1px solid transparent}
+.inventario-tabs button:hover,.inventario-tabs button.activo{background:#168b52;color:#fff}
+.proveedor-filtros{display:grid;grid-template-columns:minmax(240px,1fr) 180px;gap:12px;align-items:center}
+#proveedorForm label{display:grid;gap:6px;font-weight:700;color:#315b47}
+#proveedorForm input,#proveedorForm textarea,.proveedor-filtros select{width:100%;padding:10px;border:1px solid #bfcfc6;border-radius:8px;background:#fff}
+.mensaje-form{margin:12px 0;padding:10px;border-radius:8px;background:#fde9e7;color:#962d22}
+#proveedoresLista table{width:100%;border-collapse:collapse}
+#proveedoresLista th,#proveedoresLista td{padding:10px;border-bottom:1px solid #e1e8e4;text-align:left;vertical-align:top}
+#proveedorDetalle{margin-top:16px;scroll-margin-top:16px}
+@media(max-width:700px){.inventario-encabezado{flex-direction:column}.proveedor-filtros{grid-template-columns:1fr}.inventario-tabs{display:grid;grid-template-columns:1fr 1fr}}
 
 /* Respaldo y traslado */
 .barra-entregada{position:sticky;top:0;z-index:900;display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 20px;background:#fff0d5;color:#7a4310;border-bottom:2px solid #e7a23b;font-weight:700}

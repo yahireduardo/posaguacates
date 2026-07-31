@@ -17,6 +17,15 @@ function resolveListenHost(value) {
   return host;
 }
 
+function resolveCorsOrigins(value, port = process.env.PORT || 3000) {
+  const origins = String(value || '').split(',').map(origin => origin.trim()).filter(Boolean);
+  const listenPort = Number(port || 3000);
+  if (Number.isInteger(listenPort) && listenPort > 0 && listenPort <= 65535) {
+    origins.push(`http://127.0.0.1:${listenPort}`, `http://localhost:${listenPort}`);
+  }
+  return [...new Set(origins)];
+}
+
 if (!process.env.JWT_SECRET) {
   console.error('Falta JWT_SECRET. Copia .env.example a .env y define una clave segura.');
   process.exit(1);
@@ -52,8 +61,7 @@ app.get('/health', async (req, res) => {
   }
 });
 
-const allowedOrigins = String(process.env.CORS_ORIGINS || '')
-  .split(',').map(origin => origin.trim()).filter(Boolean);
+const allowedOrigins = resolveCorsOrigins(process.env.CORS_ORIGINS);
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
@@ -141,4 +149,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, iniciarServidor, resolveListenHost };
+module.exports = { app, iniciarServidor, resolveListenHost, resolveCorsOrigins };

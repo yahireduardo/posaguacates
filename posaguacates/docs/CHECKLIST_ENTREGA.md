@@ -10,3 +10,5 @@
 - [ ] `.env`, dumps, ZIP, logs y `node_modules` ausentes de Git.
 - [ ] Rama revisada y Pull Request sin fusionar.
 - [ ] No se incorporó Electron ni empaquetado ejecutable.
+- [ ] Validar Inventario → Proveedores → Nuevo proveedor → Producto → Compra → Entrada de stock.
+- [ ] Confirmar que CAJERO consulta la lista operativa pero no administra proveedores ni compras.
