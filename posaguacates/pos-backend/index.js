@@ -9,6 +9,14 @@ const db = require('./db/conexion');
 const { instanceControl } = require('./services/backupRuntime');
 const { crearBloqueoEscrituras } = require('./middleware/instanceWritable');
 
+function resolveListenHost(value) {
+  const host = String(value || '127.0.0.1').trim();
+  if (!/^(?:localhost|(?:\d{1,3}\.){3}\d{1,3}|\[[0-9a-f:]+\])$/i.test(host)) {
+    throw new Error('HOST inválido');
+  }
+  return host;
+}
+
 if (!process.env.JWT_SECRET) {
   console.error('Falta JWT_SECRET. Copia .env.example a .env y define una clave segura.');
   process.exit(1);
@@ -111,7 +119,7 @@ app.use((error, req, res, next) => {
 
 async function iniciarServidor() {
   const port = Number(process.env.PORT || 3000);
-  const host = '127.0.0.1';
+  const host = resolveListenHost(process.env.HOST);
   console.log(`Iniciando POS Aguacates. Esperando MySQL en ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 3306}...`);
   await db.esperarConexion();
   const server = app.listen(port, host, () => {
@@ -133,4 +141,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, iniciarServidor };
+module.exports = { app, iniciarServidor, resolveListenHost };
