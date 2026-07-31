@@ -1,5 +1,6 @@
 const test=require('node:test');const assert=require('node:assert/strict');const bcrypt=require('bcryptjs');
-if(process.env.NODE_ENV!=='test'||process.env.TEST_DATABASE!=='true'||!/_test$/i.test(process.env.DB_NAME||''))throw new Error('Entorno de integración inseguro');
+const { esBasePruebasAislada } = require('../lib/testDatabase');
+if(process.env.NODE_ENV!=='test'||process.env.TEST_DATABASE!=='true'||!esBasePruebasAislada(process.env.DB_NAME))throw new Error('Entorno de integración inseguro');
 const db=require('../db/conexion');const{app}=require('../index');
 const password='AdminTest-123';let server,base,token,clienteId,productoId;
 async function request(path,{method='GET',body,headers={}}={}){const r=await fetch(base+path,{method,headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:`Bearer ${token}`}:{}) ,...headers},body:body?JSON.stringify(body):undefined});const type=r.headers.get('content-type')||'',data=type.includes('json')?await r.json():await r.text();return{status:r.status,data,headers:r.headers};}
