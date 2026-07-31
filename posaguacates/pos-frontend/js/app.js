@@ -1,4 +1,4 @@
-const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, detalleVentaActual=null, grafica=null, graficaProductos=null, graficaClientes=null, productoSeleccionado = null, indiceResultadoActivo = -1, ordenCargada=null, reporteProductosActual=[], estadoInstanciaPOS=null, archivoRespaldoSeleccionado=null, analisisRespaldoActual=null, backupIdDescargado=null, reinicioRespaldoPendiente=false;
+const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, detalleVentaActual=null, grafica=null, graficaProductos=null, graficaClientes=null, productoSeleccionado = null, indiceResultadoActivo = -1, ordenCargada=null, reporteProductosActual=[], estadoInstanciaPOS=null, archivoRespaldoSeleccionado=null, analisisRespaldoActual=null, backupIdDescargado=null, reinicioRespaldoPendiente=false, idempotenciaVentaPendiente=null;
     const ultimaVentaGuardada=Number(localStorage.getItem('ultimaVentaPOS'));
     if(Number.isInteger(ultimaVentaGuardada)&&ultimaVentaGuardada>0)ultimaVenta={venta_id:ultimaVentaGuardada};
     const dinero=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2,maximumFractionDigits:2});
@@ -887,15 +887,20 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
     const clienteVentaSelect = document.getElementById('clienteVenta');
     const tipoPagoSelect = document.getElementById('tipoPago');
     const metodoPagoVentaSelect = document.getElementById('metodoPagoVenta');
+    const referenciaPagoVenta = document.getElementById('referenciaPagoVenta');
+    metodoPagoVentaSelect?.addEventListener('change',()=>{const visible=metodoPagoVentaSelect.value!=='EFECTIVO';referenciaPagoVenta.classList.toggle('hidden',!visible);document.getElementById('grupoReferenciaVenta').classList.toggle('hidden',!visible);if(!visible)referenciaPagoVenta.value='';});
     venderBtn?.addEventListener('click', async () => {
       if (!carrito.length) return alert('Agrega productos');
       const clienteSeleccionado=clientes.find(c=>c.id===Number(clienteVentaSelect.value));
+      if(metodoPagoVentaSelect.value!=='EFECTIVO'&&!referenciaPagoVenta.value.trim())return alert('Captura la referencia de transferencia o el número de cheque');
+      idempotenciaVentaPendiente ||= (crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`);
       if(!clienteSeleccionado)return alert('Selecciona un cliente de los resultados de búsqueda');
       try {
         const endpoint=ordenCargada?`/ordenes/${ordenCargada.id}/convertir`:'/ventas/crear';
-        const data = await api(endpoint, { method: 'POST', body: JSON.stringify({
+        const data = await api(endpoint, { method: 'POST', headers:{'Idempotency-Key':idempotenciaVentaPendiente}, body: JSON.stringify({
           cliente_id: Number(clienteVentaSelect.value), tipo_pago: tipoPagoSelect.value,
           metodo_pago: metodoPagoVentaSelect.value,
+          referencia_pago: referenciaPagoVenta.value.trim(), idempotency_key: idempotenciaVentaPendiente,
           productos: carrito.map(({ producto_id, cantidad }) => ({ producto_id, cantidad }))
         }) });
         ultimaVenta = {
@@ -907,6 +912,8 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
         };
         localStorage.setItem('ultimaVentaPOS',String(data.venta_id));
         carrito = [];
+        idempotenciaVentaPendiente=null;
+        referenciaPagoVenta.value='';
         ordenCargada=null;
         dibujarCarrito();
         imprimirBtn.disabled = false;
