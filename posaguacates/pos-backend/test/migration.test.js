@@ -2,12 +2,18 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { splitStatements, preflight } = require('../scripts/migrate');
+const { splitStatements, migrationChecksum, preflight } = require('../scripts/migrate');
 
 test('la migración funcional es aditiva y no contiene operaciones destructivas', () => {
   const sql = fs.readFileSync(path.join(__dirname, '..', 'sql', 'migrations', '001_reconciliacion_funcional.sql'), 'utf8');
   assert.doesNotMatch(sql, /\b(?:DROP|TRUNCATE|DELETE)\b/i);
   assert.ok(splitStatements(sql).length > 10);
+});
+
+test('el checksum de migración es estable entre LF y CRLF', () => {
+  const lf = 'CREATE TABLE ejemplo (id INT);\nINSERT INTO ejemplo VALUES (1);\n';
+  const crlf = lf.replace(/\n/g, '\r\n');
+  assert.equal(migrationChecksum(lf), migrationChecksum(crlf));
 });
 
 test('preflight rechaza una conexión a una base distinta', async () => {

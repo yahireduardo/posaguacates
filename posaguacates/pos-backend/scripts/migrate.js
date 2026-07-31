@@ -13,6 +13,13 @@ function splitStatements(sql) {
     .filter(Boolean);
 }
 
+function migrationChecksum(sql) {
+  // Git puede materializar el mismo archivo con LF o CRLF según el sistema.
+  // La identidad de una migración no debe cambiar solo por ese detalle local.
+  const normalizedSql = sql.replace(/\r\n/g, '\n');
+  return crypto.createHash('sha256').update(normalizedSql).digest('hex');
+}
+
 async function preflight(connection) {
   const name = String(process.env.DB_NAME || '');
   if (!/^[A-Za-z0-9_]+$/.test(name)) throw new Error('DB_NAME inválido');
@@ -37,7 +44,7 @@ async function migrate() {
     const files = (await fs.readdir(MIGRATIONS_DIR)).filter(name => /^\d+.*\.sql$/.test(name)).sort();
     for (const file of files) {
       const sql = await fs.readFile(path.join(MIGRATIONS_DIR, file), 'utf8');
-      const checksum = crypto.createHash('sha256').update(sql).digest('hex');
+      const checksum = migrationChecksum(sql);
       const [existing] = await connection.query(
         'SELECT checksum_sha256 FROM schema_migrations WHERE version=?', [file]
       );
@@ -64,5 +71,4 @@ if (require.main === module) migrate().catch(error => {
   process.exitCode = 1;
 });
 
-module.exports = { splitStatements, preflight, migrate };
-
+module.exports = { splitStatements, migrationChecksum, preflight, migrate };
