@@ -118,6 +118,8 @@ CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ALLOW_DESTRUCTIVE_TEST_DELETES=false
 ```
 
+El backend usa `127.0.0.1` si `HOST` no está definido. Configure `HOST=0.0.0.0` solamente cuando se requiera acceso desde la red local y después limite el puerto 3000 a redes privadas mediante Firewall. Nunca publique ese puerto directamente en Internet.
+
 Genere el secreto JWT en PowerShell y péguelo únicamente en `.env`:
 
 ```powershell
