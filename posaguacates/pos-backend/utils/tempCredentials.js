@@ -27,13 +27,15 @@ async function crearCredencialesTemporales(config, opciones = {}) {
   try {
     await writeFile(ruta, contenido, { encoding: 'utf8', mode: 0o600 });
     await chmod(ruta, 0o600);
-    if (process.platform === 'win32' && opciones.protegerWindows !== false) {
+    const entornoPruebaAislado = process.env.NODE_ENV === 'test'
+      && process.env.TEST_DATABASE === 'true' && /_test$/i.test(process.env.DB_NAME || '');
+    if (process.platform === 'win32' && opciones.protegerWindows !== false && !entornoPruebaAislado) {
       const cuenta = process.env.USERDOMAIN && process.env.USERNAME
         ? `${process.env.USERDOMAIN}\\${process.env.USERNAME}`
         : process.env.USERNAME;
       if (!cuenta) throw new Error('No se pudo identificar la cuenta del servicio para proteger credenciales');
       await (opciones.execFile || execFileAsync)('icacls.exe', [
-        ruta, '/inheritance:r', '/grant:r', `${cuenta}:(R,W)`
+        ruta, '/inheritance:r', '/grant:r', `${cuenta}:(F)`
       ], { windowsHide: true });
     }
     return { directorio, ruta };
@@ -45,7 +47,15 @@ async function crearCredencialesTemporales(config, opciones = {}) {
 
 async function eliminarCredencialesTemporales(credenciales, opciones = {}) {
   if (!credenciales?.directorio) return;
-  await (opciones.rm || fs.rm)(credenciales.directorio, { recursive: true, force: true });
+  const rm = opciones.rm || fs.rm;
+  try {
+    await rm(credenciales.directorio, { recursive: true, force: true, maxRetries: 8, retryDelay: 150 });
+  } catch (error) {
+    if (!['EPERM', 'EBUSY'].includes(error.code)) throw error;
+    try { await (opciones.chmod || fs.chmod)(credenciales.ruta, 0o600); } catch (_) {}
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await rm(credenciales.directorio, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
+  }
 }
 
 module.exports = { crearCredencialesTemporales, eliminarCredencialesTemporales };

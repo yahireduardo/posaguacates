@@ -73,8 +73,8 @@ class BackupService {
         [backupId, nombreZip, os.hostname(), usuarioId, createdAt, local.lastKnownSaleId]
       );
       const args = [
-        `--defaults-extra-file=${credentials.ruta}`, '--single-transaction', '--quick',
-        '--routines', '--events', '--triggers', '--hex-blob',
+        `--defaults-extra-file=${credentials.ruta}`, '--ssl=0', '--single-transaction', '--quick',
+        '--routines', '--events', '--triggers', '--hex-blob', '--no-create-db',
         '--default-character-set=utf8mb4', '--databases', dbConfig.database
       ];
       await this.runner(executable, args, { stdoutPath: rawPath });

@@ -189,7 +189,7 @@ class RestoreService {
       const executable = path.join(path.resolve(this.env.MARIADB_BIN_DIR || 'C:\\Program Files\\MariaDB 12.3\\bin'), 'mariadb.exe');
       await fs.access(executable);
       restoreAttempted = true;
-      await this.runner(executable, [`--defaults-extra-file=${credentials.ruta}`, dbConfig.database], {
+      await this.runner(executable, [`--defaults-extra-file=${credentials.ruta}`, '--ssl=0', dbConfig.database], {
         stdinPath: analisis.sqlPath
       });
       for (const tabla of ['clientes', 'productos', 'ventas']) {
@@ -241,7 +241,7 @@ class RestoreService {
       const { sqlPath } = await this.unzip(emergency.zipPath, temp, this.maxBytes());
       const config = configDb(this.env);
       const executable = path.join(path.resolve(this.env.MARIADB_BIN_DIR || 'C:\\Program Files\\MariaDB 12.3\\bin'), 'mariadb.exe');
-      await this.runner(executable, [`--defaults-extra-file=${credentials.ruta}`, config.database], { stdinPath: sqlPath });
+      await this.runner(executable, [`--defaults-extra-file=${credentials.ruta}`, '--ssl=0', config.database], { stdinPath: sqlPath });
     } finally {
       await fs.rm(temp, { recursive: true, force: true });
     }
