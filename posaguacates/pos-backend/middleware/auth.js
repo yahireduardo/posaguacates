@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const db = require('../db/conexion');
 
 function jwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -39,4 +40,24 @@ function permitirRoles(...roles) {
   };
 }
 
-module.exports = { autenticar, permitirRoles, jwtSecret };
+async function validarSesion(req, res, next) {
+  try {
+    const [rows] = await db.promise.query(
+      'SELECT id,username,nombre,rol,activo FROM usuarios WHERE id=? LIMIT 1',
+      [req.usuario?.id]
+    );
+    const usuario = rows[0];
+    if (!usuario || !Number(usuario.activo)) {
+      return res.status(401).json({ error: 'La sesión ya no está activa' });
+    }
+    if (!['ADMON_GRAL', 'CAJERO'].includes(usuario.rol)) {
+      return res.status(403).json({ error: 'El rol actual no está autorizado' });
+    }
+    req.usuario = { id: usuario.id, username: usuario.username, nombre: usuario.nombre, rol: usuario.rol };
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { autenticar, validarSesion, permitirRoles, jwtSecret };

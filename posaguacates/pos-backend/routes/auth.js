@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db/conexion');
-const { jwtSecret } = require('../middleware/auth');
+const { autenticar, validarSesion, jwtSecret } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -58,5 +58,8 @@ router.post('/login', async (req, res) => {
     return res.status(500).json({ error: 'No fue posible iniciar sesión' });
   }
 });
+
+router.get('/me', autenticar, validarSesion, (req, res) => res.json({ usuario: req.usuario }));
+router.post('/logout', autenticar, (req, res) => res.json({ ok: true, mensaje: 'Sesión cerrada' }));
 
 module.exports = router;
