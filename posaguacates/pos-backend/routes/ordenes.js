@@ -161,10 +161,14 @@ router.post('/:id/convertir', async (req, res) => {
   const ordenId = numeroId(req.params.id);
   const tipoPago = String(req.body.tipo_pago || '').toUpperCase();
   const metodoPago = String(req.body.metodo_pago || 'EFECTIVO').toUpperCase();
+  const referenciaPago = String(req.body.referencia_pago || '').trim() || null;
   const items = req.body.productos;
   if (!ordenId || !['CONTADO', 'CREDITO'].includes(tipoPago) ||
       !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago)) {
     return res.status(400).json({ error: 'Conversión inválida' });
+  }
+  if (metodoPago !== 'EFECTIVO' && !referenciaPago) {
+    return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
   }
   const connection = await db.promise.getConnection();
   try {
@@ -172,14 +176,21 @@ router.post('/:id/convertir', async (req, res) => {
     const [[orden]] = await connection.query('SELECT * FROM ordenes_venta WHERE id=? FOR UPDATE', [ordenId]);
     if (!orden) throw error('Orden no encontrada', 404);
     if (orden.estado !== 'PENDIENTE' || orden.venta_id) throw error('La orden ya no está disponible', 409);
+    const [[clienteCredito]] = await connection.query(
+      'SELECT nombre_razon_social,permite_credito FROM clientes WHERE id=? FOR UPDATE', [orden.cliente_id]
+    );
+    if (tipoPago === 'CREDITO' && (!Number(clienteCredito?.permite_credito) ||
+        /p[uú]blico\s+general/i.test(clienteCredito?.nombre_razon_social || ''))) {
+      throw error('El cliente seleccionado no tiene crédito autorizado', 409);
+    }
     const productosEntrada = Array.isArray(items) && items.length ? items :
       (await connection.query('SELECT producto_id,cantidad FROM detalle_orden_venta WHERE orden_id=?', [ordenId]))[0];
     const calculo = await catalogoOrden(connection, orden.cliente_id, productosEntrada, true);
     for (const p of calculo.detalle) if (Number(p.stock) < p.cantidad) throw error(`Stock insuficiente para ${p.nombre}`, 409);
     const [venta] = await connection.query(
-      `INSERT INTO ventas (cliente_id,usuario_id,total,tipo_pago,metodo_pago,estado_pago,estado_venta,impresiones)
-       VALUES (?,?,?,?,?,?,'ACTIVA',0)`,
-      [orden.cliente_id, req.usuario.id, calculo.total, tipoPago, metodoPago,
+      `INSERT INTO ventas (cliente_id,usuario_id,total,tipo_pago,metodo_pago,referencia_pago,estado_pago,estado_venta,impresiones)
+       VALUES (?,?,?,?,?,?,?,'ACTIVA',0)`,
+      [orden.cliente_id, req.usuario.id, calculo.total, tipoPago, metodoPago,referenciaPago,
         tipoPago === 'CONTADO' ? 'PAGADO' : 'PENDIENTE']
     );
     for (const p of calculo.detalle) {
@@ -188,8 +199,10 @@ router.post('/:id/convertir', async (req, res) => {
       const [stock] = await connection.query('UPDATE productos SET stock=stock-? WHERE id=? AND stock>=?', [p.cantidad, p.id, p.cantidad]);
       if (!stock.affectedRows) throw error(`Stock insuficiente para ${p.nombre}`, 409);
       await connection.query(
-        `INSERT INTO movimientos_inventario (producto_id,tipo,cantidad,motivo,referencia_id,usuario_id)
-         VALUES (?,'SALIDA',?,'VENTA',?,?)`, [p.id, p.cantidad, venta.insertId, req.usuario.id]
+        `INSERT INTO movimientos_inventario
+         (producto_id,tipo,cantidad,stock_anterior,stock_final,motivo,referencia_tipo,referencia_id,usuario_id)
+         VALUES (?,'SALIDA',?,?,?,'VENTA','VENTA',?,?)`,
+        [p.id,p.cantidad,p.stock,Number(p.stock)-p.cantidad,venta.insertId,req.usuario.id]
       );
     }
     if (tipoPago === 'CREDITO') {
@@ -202,6 +215,13 @@ router.post('/:id/convertir', async (req, res) => {
          (cliente_id,venta_id,cuenta_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
          VALUES (?,?,?,NOW(),'VENTA_CREDITO',?,?,0,?,'Venta a crédito',?)`,
         [orden.cliente_id, venta.insertId, cuenta.insertId, venta.insertId, calculo.total, calculo.total, req.usuario.id]
+      );
+    }
+    if (tipoPago === 'CONTADO') {
+      await connection.query(
+        `INSERT INTO pagos(cliente_id,cuenta_id,monto,monto_total,metodo_pago,referencia,observaciones,usuario_id,fecha,estado)
+         VALUES (?,NULL,?,?,?,?,'Pago de orden convertida',?,NOW(),'ACTIVO')`,
+        [orden.cliente_id,calculo.total,calculo.total,metodoPago,referenciaPago,req.usuario.id]
       );
     }
     await connection.query(

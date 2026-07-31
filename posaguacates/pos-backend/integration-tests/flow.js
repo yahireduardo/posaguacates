@@ -28,7 +28,13 @@ test('recorrido transaccional HTTP completo',async()=>{
   r=await request('/stats');assert.equal(r.status,200);assert.ok('ingresos_mes'in r.data);
   r=await request('/chatbot',{method:'POST',body:{pregunta:'cuánto vendí hoy'}});assert.equal(r.status,200);assert.equal(r.data.soportada,true);
   r=await request('/prediccion');assert.equal(r.status,200);assert.ok(Array.isArray(r.data.predicciones));
-  const[[stock]]=await db.promise.query('SELECT stock FROM productos WHERE id=?',[productoId]);assert.equal(Number(stock.stock),8);
+  r=await request('/ordenes',{method:'POST',body:{cliente_id:clienteId,estado:'PENDIENTE',observaciones:'Orden integración',productos:[{producto_id:productoId,cantidad:1}]}});assert.equal(r.status,201);const ordenId=r.data.orden_id;
+  r=await request(`/ordenes/${ordenId}/convertir`,{method:'POST',body:{tipo_pago:'CONTADO',metodo_pago:'CHEQUE',referencia_pago:'CHK-TEST'}});assert.equal(r.status,201);
+  r=await request(`/ordenes/${ordenId}/convertir`,{method:'POST',body:{tipo_pago:'CONTADO',metodo_pago:'CHEQUE',referencia_pago:'CHK-TEST'}});assert.equal(r.status,409);
+  r=await request('/configuracion',{method:'PUT',body:{nombre_comercial:'POS Integración',moneda:'MXN',papel_mm:80,stock_minimo_default:1,vencimiento_dias:30}});assert.equal(r.status,200);
+  r=await request('/reportes/ventas.csv');assert.equal(r.status,200);assert.match(r.data,/folio/);
+  const[[onlyAdmin]]=await db.promise.query("SELECT id FROM usuarios WHERE username='admin_test'");r=await request(`/usuarios/${onlyAdmin.id}`,{method:'PUT',body:{nombre:'Administrador Prueba',username:'admin_test',rol:'CAJERO'}});assert.equal(r.status,409);
+  const[[stock]]=await db.promise.query('SELECT stock FROM productos WHERE id=?',[productoId]);assert.equal(Number(stock.stock),7);
   const[[duplicadas]]=await db.promise.query('SELECT COUNT(*) total FROM ventas WHERE idempotency_key=?',[ventaKey]);assert.equal(Number(duplicadas.total),1);
   const backupId='11111111-2222-4333-8444-555555555555';const[[admin]]=await db.promise.query("SELECT id FROM usuarios WHERE username='admin_test'");await db.promise.query("INSERT INTO historial_traslados(backup_id,equipo_origen,generado_por,estado) VALUES(?,?,?,'GENERADO')",[backupId,require('os').hostname(),admin.id]);
   r=await request('/backups/mark-transferred',{method:'POST',body:{backupId,password_admin:password}});assert.equal(r.status,200);
