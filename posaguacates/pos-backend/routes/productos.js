@@ -26,7 +26,9 @@ router.get('/', async (req, res, next) => {
   try {
     const [rows] = await db.promise.query(
       `SELECT p.id,p.codigo,p.nombre,p.descripcion,p.precio_venta,p.costo,p.stock,p.stock_minimo,
-              p.unidad,p.kilos_por_caja,p.proveedor_id,p.activo,pr.nombre proveedor
+              p.unidad,p.kilos_por_caja,p.proveedor_id,p.activo,pr.nombre proveedor,
+              (SELECT COUNT(*) FROM producto_proveedores pp WHERE pp.producto_id=p.id AND pp.activo=1) proveedores_asociados,
+              (SELECT MAX(pp.ultima_compra_at) FROM producto_proveedores pp WHERE pp.producto_id=p.id AND pp.activo=1) ultima_compra
        FROM productos p LEFT JOIN proveedores pr ON pr.id=p.proveedor_id
        WHERE (?=1 OR p.activo=1) AND (?='' OR p.codigo LIKE ? OR p.nombre LIKE ?)
        ORDER BY p.activo DESC,p.nombre`,
@@ -44,28 +46,92 @@ router.get('/stock-bajo', async (req, res, next) => {
 router.post('/', permitirRoles('ADMON_GRAL'), async (req, res, next) => {
   const p = datos(req.body); const errorValidacion = validar(p);
   if (errorValidacion) return res.status(400).json({ error: errorValidacion });
+  const connection = await db.promise.getConnection();
   try {
-    const [result] = await db.promise.query(
+    await connection.beginTransaction();
+    if (p.proveedor) {
+      const [[proveedor]] = await connection.query('SELECT id FROM proveedores WHERE id=? AND activo=1', [p.proveedor]);
+      if (!proveedor) throw Object.assign(new Error('El proveedor principal no está disponible'), { status: 409 });
+    }
+    const [result] = await connection.query(
       `INSERT INTO productos (codigo,nombre,descripcion,precio_venta,costo,stock,stock_minimo,unidad,kilos_por_caja,proveedor_id,activo)
        VALUES (?,?,?,?,?,0,?,?,?,?,1)`, [p.codigo,p.nombre,p.descripcion,p.precio,p.costo,p.minimo,p.unidad,p.kilosCaja,p.proveedor]
     );
+    if (p.proveedor) await connection.query('INSERT INTO producto_proveedores(producto_id,proveedor_id,activo) VALUES(?,?,1)', [result.insertId, p.proveedor]);
+    await connection.commit();
     res.status(201).json({ id: result.insertId, mensaje: 'Producto creado; el stock se agrega desde Inventario' });
-  } catch (error) { if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El código ya existe' }); next(error); }
+  } catch (error) { await connection.rollback(); if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El código ya existe' }); next(error); }
+  finally { connection.release(); }
 });
 
 router.put('/:id', permitirRoles('ADMON_GRAL'), async (req, res, next) => {
   const id=Number(req.params.id),p=datos(req.body),errorValidacion=validar(p);
   if (!Number.isInteger(id)||id<=0||errorValidacion) return res.status(400).json({ error:errorValidacion||'Producto inválido' });
+  const connection = await db.promise.getConnection();
   try {
-    const [result]=await db.promise.query(`UPDATE productos SET codigo=?,nombre=?,descripcion=?,precio_venta=?,costo=?,stock_minimo=?,unidad=?,kilos_por_caja=?,proveedor_id=? WHERE id=?`,[p.codigo,p.nombre,p.descripcion,p.precio,p.costo,p.minimo,p.unidad,p.kilosCaja,p.proveedor,id]);
-    if(!result.affectedRows)return res.status(404).json({error:'Producto no encontrado'}); res.json({mensaje:'Producto actualizado'});
-  } catch(error){if(error.code==='ER_DUP_ENTRY')return res.status(409).json({error:'El código ya existe'});next(error);}
+    await connection.beginTransaction();
+    if(p.proveedor){const[[proveedor]]=await connection.query('SELECT id FROM proveedores WHERE id=? AND activo=1',[p.proveedor]);if(!proveedor)throw Object.assign(new Error('El proveedor principal no está disponible'),{status:409});}
+    const [result]=await connection.query(`UPDATE productos SET codigo=?,nombre=?,descripcion=?,precio_venta=?,costo=?,stock_minimo=?,unidad=?,kilos_por_caja=?,proveedor_id=? WHERE id=?`,[p.codigo,p.nombre,p.descripcion,p.precio,p.costo,p.minimo,p.unidad,p.kilosCaja,p.proveedor,id]);
+    if(!result.affectedRows)throw Object.assign(new Error('Producto no encontrado'),{status:404});
+    if(p.proveedor)await connection.query(`INSERT INTO producto_proveedores(producto_id,proveedor_id,activo) VALUES(?,?,1) ON DUPLICATE KEY UPDATE activo=1`,[id,p.proveedor]);
+    await connection.commit();
+    res.json({mensaje:'Producto actualizado'});
+  } catch(error){await connection.rollback();if(error.code==='ER_DUP_ENTRY')return res.status(409).json({error:'El código ya existe'});next(error);}finally{connection.release();}
 });
 
 router.patch('/:id/estado', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
   const id=Number(req.params.id),activo=req.body.activo===true||req.body.activo===1;
   if(!Number.isInteger(id)||id<=0)return res.status(400).json({error:'Producto inválido'});
   try{const [r]=await db.promise.query('UPDATE productos SET activo=? WHERE id=?',[activo?1:0,id]);if(!r.affectedRows)return res.status(404).json({error:'Producto no encontrado'});res.json({mensaje:activo?'Producto activado':'Producto desactivado'});}catch(e){next(e);}
+});
+
+router.get('/:id/proveedores', permitirRoles('ADMON_GRAL'), async (req, res, next) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Producto inválido' });
+  try {
+    const [rows] = await db.promise.query(
+      `SELECT pp.proveedor_id,p.nombre,p.activo proveedor_activo,pp.codigo_proveedor,
+              pp.costo_ultimo,pp.ultima_compra_at,pp.activo,pr.proveedor_id=pp.proveedor_id principal
+       FROM producto_proveedores pp
+       JOIN proveedores p ON p.id=pp.proveedor_id JOIN productos pr ON pr.id=pp.producto_id
+       WHERE pp.producto_id=? ORDER BY principal DESC,p.nombre`, [id]
+    );
+    return res.json(rows);
+  } catch (error) { return next(error); }
+});
+
+router.put('/:id/proveedores', permitirRoles('ADMON_GRAL'), async (req, res, next) => {
+  const id = Number(req.params.id);
+  const proveedores = Array.isArray(req.body.proveedores) ? req.body.proveedores : [];
+  const ids = proveedores.map(item => Number(item.proveedor_id));
+  if (!Number.isInteger(id) || id <= 0 || ids.some(x => !Number.isInteger(x) || x <= 0) || new Set(ids).size !== ids.length) {
+    return res.status(400).json({ error: 'Producto o proveedores inválidos' });
+  }
+  const connection = await db.promise.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [[producto]] = await connection.query('SELECT id,proveedor_id FROM productos WHERE id=? FOR UPDATE', [id]);
+    if (!producto) throw Object.assign(new Error('Producto no encontrado'), { status: 404 });
+    if (ids.length) {
+      const [activos] = await connection.query(`SELECT id FROM proveedores WHERE activo=1 AND id IN (${ids.map(() => '?').join(',')})`, ids);
+      if (activos.length !== ids.length) throw Object.assign(new Error('Todos los proveedores asociados deben estar activos'), { status: 409 });
+    }
+    await connection.query('UPDATE producto_proveedores SET activo=0 WHERE producto_id=?', [id]);
+    for (const item of proveedores) {
+      await connection.query(
+        `INSERT INTO producto_proveedores(producto_id,proveedor_id,codigo_proveedor,activo)
+         VALUES(?,?,?,1) ON DUPLICATE KEY UPDATE codigo_proveedor=VALUES(codigo_proveedor),activo=1`,
+        [id, Number(item.proveedor_id), String(item.codigo_proveedor || '').trim() || null]
+      );
+    }
+    const principal = req.body.proveedor_principal_id ? Number(req.body.proveedor_principal_id) : null;
+    if (principal && !ids.includes(principal)) throw Object.assign(new Error('El proveedor principal debe estar asociado'), { status: 400 });
+    await connection.query('UPDATE productos SET proveedor_id=? WHERE id=?', [principal, id]);
+    await connection.commit();
+    return res.json({ mensaje: 'Proveedores del producto actualizados' });
+  } catch (error) {
+    await connection.rollback(); return next(error);
+  } finally { connection.release(); }
 });
 
 router.put('/:id/precio', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
