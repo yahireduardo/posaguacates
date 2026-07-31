@@ -4,10 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const { splitStatements, migrationChecksum, preflight } = require('../scripts/migrate');
 
-test('la migración funcional es aditiva y no contiene operaciones destructivas', () => {
-  const sql = fs.readFileSync(path.join(__dirname, '..', 'sql', 'migrations', '001_reconciliacion_funcional.sql'), 'utf8');
-  assert.doesNotMatch(sql, /\b(?:DROP|TRUNCATE|DELETE)\b/i);
-  assert.ok(splitStatements(sql).length > 10);
+test('todas las migraciones son aditivas y no contienen operaciones destructivas', () => {
+  const directory = path.join(__dirname, '..', 'sql', 'migrations');
+  const files = fs.readdirSync(directory).filter(file => /^\d+.*\.sql$/.test(file));
+  assert.ok(files.length >= 2);
+  for (const file of files) {
+    const sql = fs.readFileSync(path.join(directory, file), 'utf8');
+    assert.doesNotMatch(sql, /\b(?:DROP|TRUNCATE|DELETE)\b/i, file);
+    assert.ok(splitStatements(sql).length > 0, file);
+  }
 });
 
 test('el checksum de migración es estable entre LF y CRLF', () => {
