@@ -36,6 +36,298 @@ CREATE TABLE `aplicaciones_pago` (
 ) ;
 
 --
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `clientes`
+--
+
+CREATE TABLE `clientes` (
+  `id` int(11) NOT NULL,
+  `nombre_razon_social` varchar(180) NOT NULL,
+  `rfc` varchar(13) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `correo_electronico` varchar(180) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `compras`
+--
+
+CREATE TABLE `compras` (
+  `id` int(11) NOT NULL,
+  `total` decimal(10,2) DEFAULT NULL,
+  `fecha` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `cuentas_por_cobrar`
+--
+
+CREATE TABLE `cuentas_por_cobrar` (
+  `id` int(11) NOT NULL,
+  `venta_id` int(11) NOT NULL,
+  `cliente_id` int(11) NOT NULL,
+  `total_deuda` decimal(12,2) NOT NULL,
+  `saldo_pendiente` decimal(12,2) NOT NULL,
+  `estado` enum('PENDIENTE','PAGADO','CANCELADA') NOT NULL DEFAULT 'PENDIENTE',
+  `fecha` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `detalle_compra`
+--
+
+CREATE TABLE `detalle_compra` (
+  `id` int(11) NOT NULL,
+  `compra_id` int(11) DEFAULT NULL,
+  `producto_id` int(11) DEFAULT NULL,
+  `cantidad` decimal(10,2) DEFAULT NULL,
+  `precio_compra` decimal(10,2) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `detalle_orden_venta`
+--
+
+CREATE TABLE `detalle_orden_venta` (
+  `id` int(11) NOT NULL,
+  `orden_id` int(11) NOT NULL,
+  `producto_id` int(11) NOT NULL,
+  `cantidad` decimal(12,2) NOT NULL,
+  `precio_estimado` decimal(12,2) NOT NULL,
+  `subtotal_estimado` decimal(12,2) NOT NULL,
+  `observaciones` varchar(255) DEFAULT NULL
+) ;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `detalle_venta`
+--
+
+CREATE TABLE `detalle_venta` (
+  `id` int(11) NOT NULL,
+  `venta_id` int(11) DEFAULT NULL,
+  `producto_id` int(11) DEFAULT NULL,
+  `cantidad` decimal(12,2) NOT NULL,
+  `precio_unitario` decimal(12,2) NOT NULL,
+  `subtotal` decimal(12,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `movimientos_cartera`
+--
+
+CREATE TABLE `movimientos_cartera` (
+  `id` int(11) NOT NULL,
+  `cliente_id` int(11) NOT NULL,
+  `venta_id` int(11) DEFAULT NULL,
+  `cuenta_id` int(11) DEFAULT NULL,
+  `pago_id` int(11) DEFAULT NULL,
+  `fecha` datetime NOT NULL DEFAULT current_timestamp(),
+  `concepto` enum('VENTA_MOSTRADOR','VENTA_CREDITO','COBRO','COBRO_MOSTRADOR','CANCELACION','CANCELACION_PAGO','AJUSTE') NOT NULL,
+  `folio` varchar(30) NOT NULL,
+  `cargo` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `credito` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `saldo_resultante` decimal(12,2) NOT NULL,
+  `descripcion` varchar(500) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL
+) ;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `movimientos_inventario`
+--
+
+CREATE TABLE `movimientos_inventario` (
+  `id` int(11) NOT NULL,
+  `producto_id` int(11) DEFAULT NULL,
+  `tipo` enum('ENTRADA','SALIDA') NOT NULL,
+  `cantidad` decimal(12,2) NOT NULL,
+  `motivo` varchar(150) NOT NULL,
+  `referencia_id` int(11) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
+  `fecha` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `ordenes_venta`
+--
+
+CREATE TABLE `ordenes_venta` (
+  `id` int(11) NOT NULL,
+  `folio` varchar(20) NOT NULL,
+  `cliente_id` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `estado` enum('BORRADOR','PENDIENTE','CONVERTIDA','CANCELADA') NOT NULL DEFAULT 'BORRADOR',
+  `observaciones` varchar(500) DEFAULT NULL,
+  `total_estimado` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `venta_id` int(11) DEFAULT NULL,
+  `creada_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizada_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `convertida_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `pagos`
+--
+
+CREATE TABLE `pagos` (
+  `id` int(11) NOT NULL,
+  `cliente_id` int(11) DEFAULT NULL,
+  `cuenta_id` int(11) DEFAULT NULL,
+  `monto` decimal(10,2) DEFAULT NULL,
+  `monto_total` decimal(12,2) DEFAULT NULL,
+  `metodo_pago` varchar(50) DEFAULT NULL,
+  `referencia` varchar(100) DEFAULT NULL,
+  `observaciones` varchar(500) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
+  `fecha` timestamp NOT NULL DEFAULT current_timestamp(),
+  `estado` enum('ACTIVO','CANCELADO') NOT NULL DEFAULT 'ACTIVO',
+  `cancelado_por` int(11) DEFAULT NULL,
+  `cancelado_at` datetime DEFAULT NULL,
+  `motivo_cancelacion` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `predicciones`
+--
+
+CREATE TABLE `predicciones` (
+  `id` int(11) NOT NULL,
+  `producto_id` int(11) DEFAULT NULL,
+  `fecha_prediccion` date DEFAULT NULL,
+  `cantidad_predicha` decimal(10,2) DEFAULT NULL,
+  `modelo_usado` varchar(50) DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `productos`
+--
+
+CREATE TABLE `productos` (
+  `id` int(11) NOT NULL,
+  `codigo` varchar(30) DEFAULT NULL,
+  `nombre` varchar(100) NOT NULL,
+  `precio_venta` decimal(12,2) NOT NULL,
+  `stock` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `stock_minimo` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `unidad` varchar(20) DEFAULT 'kg',
+  `activo` tinyint(1) DEFAULT 1,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `kilos_por_caja` decimal(10,2) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `usuarios`
+--
+
+CREATE TABLE `usuarios` (
+  `id` int(11) NOT NULL,
+  `nombre` varchar(100) DEFAULT NULL,
+  `username` varchar(50) NOT NULL,
+  `password` varchar(100) DEFAULT NULL,
+  `password_hash` varchar(255) DEFAULT NULL,
+  `rol` enum('ADMON_GRAL','CAJERO') NOT NULL DEFAULT 'CAJERO',
+  `activo` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `ventas`
+--
+
+CREATE TABLE `ventas` (
+  `id` int(11) NOT NULL,
+  `cliente_id` int(11) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
+  `total` decimal(12,2) NOT NULL,
+  `tipo_pago` enum('CONTADO','CREDITO') NOT NULL,
+  `metodo_pago` enum('EFECTIVO','TRANSFERENCIA','CHEQUE') NOT NULL DEFAULT 'EFECTIVO',
+  `estado_pago` enum('PAGADO','PENDIENTE') NOT NULL DEFAULT 'PENDIENTE',
+  `estado_venta` enum('ACTIVA','CANCELADA') NOT NULL DEFAULT 'ACTIVA',
+  `cancelada_por` int(11) DEFAULT NULL,
+  `cancelada_at` datetime DEFAULT NULL,
+  `motivo_cancelacion` varchar(255) DEFAULT NULL,
+  `impresiones` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `ultima_impresion_at` datetime DEFAULT NULL,
+  `fecha` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+--
+
+
+--
 -- Índices para tablas volcadas
 --
 
@@ -179,7 +471,7 @@ ALTER TABLE `aplicaciones_pago`
 -- AUTO_INCREMENT de la tabla `clientes`
 --
 ALTER TABLE `clientes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `compras`
@@ -191,7 +483,7 @@ ALTER TABLE `compras`
 -- AUTO_INCREMENT de la tabla `cuentas_por_cobrar`
 --
 ALTER TABLE `cuentas_por_cobrar`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `detalle_compra`
@@ -209,7 +501,7 @@ ALTER TABLE `detalle_orden_venta`
 -- AUTO_INCREMENT de la tabla `detalle_venta`
 --
 ALTER TABLE `detalle_venta`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `movimientos_cartera`
@@ -221,19 +513,19 @@ ALTER TABLE `movimientos_cartera`
 -- AUTO_INCREMENT de la tabla `movimientos_inventario`
 --
 ALTER TABLE `movimientos_inventario`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `ordenes_venta`
 --
 ALTER TABLE `ordenes_venta`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `pagos`
 --
 ALTER TABLE `pagos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `predicciones`
@@ -245,19 +537,19 @@ ALTER TABLE `predicciones`
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `ventas`
 --
 ALTER TABLE `ventas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Restricciones para tablas volcadas
