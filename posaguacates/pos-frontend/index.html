@@ -797,6 +797,26 @@
     </div>
   </div>
 
+  <div id="modalCancelarCompra" class="modal hidden">
+    <div class="modal-contenido">
+      <div class="modal-encabezado">
+        <h2>Cancelar compra</h2>
+        <button id="cerrarCancelarCompra" type="button" class="danger" aria-label="Cerrar">×</button>
+      </div>
+      <p>Esta acción descontará del inventario los productos recibidos y anulará la deuda pendiente.</p>
+      <form id="formCancelarCompra">
+        <input id="cancelarCompraId" type="hidden">
+        <label>Motivo de cancelación
+          <textarea id="motivoCancelarCompra" minlength="5" maxlength="500" rows="3" required></textarea>
+        </label>
+        <div class="actions">
+          <button id="confirmarCancelarCompra" type="submit" class="danger">Confirmar cancelación</button>
+          <button id="cancelarCancelarCompra" type="button">Volver</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>

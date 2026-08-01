@@ -12,6 +12,8 @@ La migración `004_ventas_credito_sin_metodo.sql` permite que las ventas a créd
 
 La migración `005_cuentas_proveedores.sql` crea cuentas por pagar y pagos a proveedores. Cada compra activa existente se incorpora una sola vez como deuda pendiente y las compras nuevas crean su cuenta dentro de la misma transacción.
 
+La migración `006_reconciliar_cuentas_proveedores.sql` repara de forma idempotente las compras activas que hayan quedado sin cuenta por pagar al operar temporalmente con una versión anterior.
+
 Procedimiento: respaldo verificado, conteos previos, cuenta DDL temporal, `npm run db:migrate`, `SELECT * FROM schema_migrations`, conteos posteriores y pruebas. La migración 001 es aditiva y no elimina históricos.
 
 Rollback: detenga el POS, conserve el SQL fallido y restaure el respaldo lógico previo mediante el flujo documentado. No improvise eliminaciones de columnas; el rollback seguro es restaurar el respaldo completo.
