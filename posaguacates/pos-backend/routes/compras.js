@@ -67,7 +67,7 @@ router.post('/', async (req, res, next) => {
         'SELECT id,nombre,unidad,stock FROM productos WHERE id=? AND activo=1 FOR UPDATE', [id]
       );
       if (!producto || String(item.unidad || producto.unidad).toUpperCase() !== String(producto.unidad).toUpperCase() ||
-          !esCantidadValida(cantidad, producto.unidad) || !Number.isFinite(costo) || costo < 0) {
+          !esCantidadValida(cantidad, producto.unidad) || !Number.isInteger(costo) || costo < 0) {
         throw fallo('Producto, unidad, cantidad o costo inválido', 409);
       }
       const subtotal = Math.round(cantidad * costo * 100) / 100;

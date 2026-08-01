@@ -21,7 +21,7 @@ function detalleValido(items) {
     const cantidad = Number(item.cantidad);
     const precio = item.precio_unitario == null ? null : Number(item.precio_unitario);
     if (!id || !Number.isFinite(cantidad) || cantidad <= 0 ||
-        (precio !== null && (!Number.isFinite(precio) || precio <= 0 || precio > 99999999.99))) {
+        (precio !== null && (!Number.isInteger(precio) || precio <= 0 || precio > 99999999))) {
       throw error('Producto, cantidad o precio inválido');
     }
     cantidades.set(id, (cantidades.get(id) || 0) + cantidad);

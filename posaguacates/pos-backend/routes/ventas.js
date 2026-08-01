@@ -456,11 +456,11 @@ router.post('/crear', async (req, res) => {
       productoId <= 0 ||
       !Number.isFinite(cantidad) ||
       cantidad <= 0 ||
-      (precioCapturado !== null && (!Number.isFinite(precioCapturado) || precioCapturado <= 0 || precioCapturado > 99999999.99))
+      (precioCapturado !== null && (!Number.isInteger(precioCapturado) || precioCapturado <= 0 || precioCapturado > 99999999))
     ) {
 
       return res.status(400).json({
-        error: 'Producto o cantidad inválida'
+        error: 'Producto, cantidad o precio entero inválido'
       });
 
     }
