@@ -16,6 +16,9 @@ test('recorrido transaccional HTTP completo',async()=>{
   r=await request('/proveedores',{method:'POST',body:{nombre:'No permitido'}});assert.equal(r.status,403);
   r=await request('/compras',{method:'POST',headers:{'Idempotency-Key':'cajero-no-permitido'},body:{proveedor_id:1,productos:[{producto_id:1,cantidad:1,costo:1}]}});assert.equal(r.status,403);
   token=tokenAdmin;
+  r=await request('/usuarios');assert.equal(r.status,200);const cajero=r.data.find(x=>x.username==='cajero_test');assert.ok(cajero);
+  const passwordEditada='CajeroEditado-456';r=await request(`/usuarios/${cajero.id}`,{method:'PUT',body:{nombre:'Cajero Prueba Editado',username:'cajero_test',password:passwordEditada,rol:'CAJERO'}});assert.equal(r.status,200);
+  r=await request('/auth/login',{method:'POST',body:{username:'cajero_test',password:passwordEditada}});assert.equal(r.status,200);token=tokenAdmin;
   r=await request('/proveedores',{method:'POST',body:{nombre:'Proveedor Prueba',rfc:'TST010101AA1'}});assert.equal(r.status,201);const proveedorId=r.data.id;
   r=await request('/proveedores',{method:'POST',body:{nombre:'  Proveedor   Prueba  '}});assert.equal(r.status,409);
   r=await request('/proveedores?buscar=Prueba&estado=TODOS');assert.equal(r.status,200);assert.ok(r.data.some(x=>x.id===proveedorId));

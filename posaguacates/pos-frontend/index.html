@@ -754,6 +754,30 @@
     </div>
   </div>
 
+  <div id="modalAccionUsuario" class="modal hidden">
+    <div class="modal-contenido">
+      <div class="modal-encabezado">
+        <h2 id="tituloAccionUsuario">Actualizar usuario</h2>
+        <button id="cerrarAccionUsuario" type="button" class="danger" aria-label="Cerrar">×</button>
+      </div>
+      <p id="textoAccionUsuario"></p>
+      <form id="formAccionUsuario">
+        <input id="accionUsuarioId" type="hidden">
+        <input id="accionUsuarioTipo" type="hidden">
+        <label id="grupoMotivoUsuario">Motivo
+          <textarea id="motivoAccionUsuario" maxlength="255"></textarea>
+        </label>
+        <label id="grupoPasswordUsuario">Nueva contraseña
+          <input id="passwordAccionUsuario" type="password" autocomplete="new-password" minlength="8" maxlength="128">
+        </label>
+        <div class="actions">
+          <button id="confirmarAccionUsuario" type="submit" class="primary">Confirmar</button>
+          <button id="cancelarAccionUsuario" type="button">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>
