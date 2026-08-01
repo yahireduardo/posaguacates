@@ -77,17 +77,25 @@ app.use((req, res, next) => {
   return next();
 });
 
-const loginAttempts = new Map();
-app.use('/auth/login', (req, res, next) => {
-  if (req.method !== 'POST') return next();
-  const now = Date.now();
-  const key = req.ip;
-  const recent = (loginAttempts.get(key) || []).filter(time => now - time < 15 * 60 * 1000);
-  if (recent.length >= 10) return res.status(429).json({ error: 'Demasiados intentos. Intenta de nuevo más tarde' });
-  recent.push(now);
-  loginAttempts.set(key, recent);
-  return next();
-});
+function crearLimitadorLogin({ maxIntentos = 10, ventanaMs = 15 * 60 * 1000, now = () => Date.now() } = {}) {
+  const intentosFallidos = new Map();
+  return (req, res, next) => {
+    if (req.method !== 'POST') return next();
+    const key = req.ip;
+    const recientes = (intentosFallidos.get(key) || []).filter(time => now() - time < ventanaMs);
+    if (recientes.length >= maxIntentos) {
+      return res.status(429).json({ error: 'Demasiados intentos. Intenta de nuevo más tarde' });
+    }
+    intentosFallidos.set(key, recientes);
+    res.once('finish', () => {
+      if (res.statusCode === 401) intentosFallidos.set(key, [...recientes, now()]);
+      else if (res.statusCode >= 200 && res.statusCode < 300) intentosFallidos.delete(key);
+    });
+    return next();
+  };
+}
+
+app.use('/auth/login', crearLimitadorLogin());
 
 app.use('/auth', require('./routes/auth'));
 app.use('/tickets', require('./routes/tickets'));
@@ -149,4 +157,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, iniciarServidor, resolveListenHost, resolveCorsOrigins };
+module.exports = { app, iniciarServidor, resolveListenHost, resolveCorsOrigins, crearLimitadorLogin };
