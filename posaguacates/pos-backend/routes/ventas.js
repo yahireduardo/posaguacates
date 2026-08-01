@@ -16,12 +16,12 @@ const router = express.Router();
 
 /* =========================================================
    VENTAS DE MOSTRADOR CON FILTROS
-   Solo Administrador General
+   Administrador General y Cajero
 ========================================================= */
 
 router.get(
   '/',
-  permitirRoles('ADMON_GRAL'),
+  permitirRoles('ADMON_GRAL', 'CAJERO'),
   async (req, res) => {
 
     try {

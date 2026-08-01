@@ -105,6 +105,7 @@ const sesion = [autenticar, validarSesion];
 app.use('/usuarios', ...sesion, require('./routes/usuarios'));
 app.use('/proveedores', ...sesion, require('./routes/proveedores'));
 app.use('/compras', ...sesion, require('./routes/compras'));
+app.use('/cuentas-proveedores', ...sesion, require('./routes/cuentasProveedores'));
 app.use('/configuracion', ...sesion, require('./routes/configuracion'));
 app.use('/productos', ...sesion, require('./routes/productos'));
 app.use('/ventas', ...sesion, require('./routes/ventas'));

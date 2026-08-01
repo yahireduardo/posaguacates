@@ -40,7 +40,7 @@
 
     <main>
               <section id="pos" class="seccion activa">
-          <nav class="venta-tabs" aria-label="Punto de venta"><button class="activo" type="button" data-section="pos">Nueva venta</button><button class="admin" type="button" data-section="ventas">Historial de ventas</button></nav>
+          <nav class="venta-tabs" aria-label="Punto de venta"><button class="activo" type="button" data-section="pos">Nueva venta</button><button type="button" data-section="ventas">Historial de ventas</button></nav>
 
           <div class="venta-layout">
 
@@ -776,6 +776,24 @@
           <button id="cancelarAccionUsuario" type="button">Cancelar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="modalPagoProveedor" class="modal hidden">
+    <div class="modal-contenido modal-respaldo">
+      <div class="modal-encabezado"><h2>Pago a proveedores</h2><button id="cerrarPagoProveedor" type="button" class="danger" aria-label="Cerrar">×</button></div>
+      <div id="resumenDeudaProveedores"></div>
+      <form id="formPagoProveedor">
+        <label>Compra pendiente<select id="cuentaPagoProveedor" required></select></label>
+        <div class="form-grid">
+          <label>Monto<input id="montoPagoProveedor" type="number" min="0.01" step="0.01" required></label>
+          <label>Método<select id="metodoPagoProveedor"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option></select></label>
+          <label id="grupoReferenciaProveedor" class="hidden">Referencia<input id="referenciaPagoProveedor" maxlength="100"></label>
+          <label>Observaciones<input id="observacionesPagoProveedor" maxlength="500"></label>
+        </div>
+        <button id="confirmarPagoProveedor" class="primary" type="submit">Registrar pago</button>
+      </form>
+      <h3>Pagos recientes</h3><div id="historialPagosProveedores"></div>
     </div>
   </div>
 
