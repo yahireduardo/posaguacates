@@ -8,6 +8,8 @@ La migración `002_autorizaciones_admin.sql` incorpora al proceso automático la
 
 La migración `003_proveedores_productos.sql` agrega razón social y la relación idempotente `producto_proveedores`. Migra los proveedores principales existentes sin borrar ni duplicar información. El rollback operativo es restaurar el respaldo lógico verificado previo a la migración.
 
+La migración `004_ventas_credito_sin_metodo.sql` permite que las ventas a crédito conserven método y referencia vacíos hasta que el cliente realice un pago. Las ventas de contado mantienen los métodos efectivo, transferencia y cheque.
+
 Procedimiento: respaldo verificado, conteos previos, cuenta DDL temporal, `npm run db:migrate`, `SELECT * FROM schema_migrations`, conteos posteriores y pruebas. La migración 001 es aditiva y no elimina históricos.
 
 Rollback: detenga el POS, conserve el SQL fallido y restaure el respaldo lógico previo mediante el flujo documentado. No improvise eliminaciones de columnas; el rollback seguro es restaurar el respaldo completo.

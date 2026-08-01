@@ -448,6 +448,7 @@
 #productoMasVendido{margin:14px 0}
 .inventario-encabezado{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}
 .inventario-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;padding:8px;background:#edf5f0;border:1px solid #d4e3da;border-radius:10px}
+.venta-tabs{display:flex;gap:8px;margin:0 0 18px;padding:8px;background:#edf5f0;border:1px solid #d4e3da;border-radius:10px}.venta-tabs button{background:transparent;color:#285a40;border:1px solid transparent}.venta-tabs button.activo{background:#168b52;color:#fff}
 .inventario-tabs button{background:transparent;color:#285a40;border:1px solid transparent}
 .inventario-tabs button:hover,.inventario-tabs button.activo{background:#168b52;color:#fff}
 .proveedor-filtros{display:grid;grid-template-columns:minmax(240px,1fr) 180px;gap:12px;align-items:center}

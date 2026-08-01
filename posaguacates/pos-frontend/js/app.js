@@ -763,7 +763,7 @@ function limpiarCaptura() {
           </td>
 
           <td>
-            ${dinero.format(producto.precio)}
+            <input class="precio-carrito" data-indice="${indice}" type="number" min="0.01" step="0.01" value="${Number(producto.precio).toFixed(2)}" aria-label="Precio unitario de ${esc(producto.nombre)}">
           </td>
 
           <td class="money">
@@ -883,9 +883,22 @@ function quitar(indice) {
 
 }
 
+function cambiarPrecio(indice, nuevoValor) {
+  const precio = Number(nuevoValor);
+  if (!Number.isFinite(precio) || precio <= 0 || precio > 99999999.99) {
+    alert('Ingresa un precio unitario mayor a cero');
+    dibujarCarrito();
+    return;
+  }
+  carrito[indice].precio = Number(precio.toFixed(2));
+  dibujarCarrito();
+}
+
 document.getElementById('detalleVenta')?.addEventListener('change', evento => {
   const input = evento.target.closest('.cantidad-carrito');
   if (input) cambiarCantidad(Number(input.dataset.indice), input.value);
+  const precio = evento.target.closest('.precio-carrito');
+  if (precio) cambiarPrecio(Number(precio.dataset.indice), precio.value);
 });
 document.getElementById('detalleVenta')?.addEventListener('click', evento => {
   const boton = evento.target.closest('.boton-eliminar-producto');
@@ -897,26 +910,27 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
     const tipoPagoSelect = document.getElementById('tipoPago');
     const metodoPagoVentaSelect = document.getElementById('metodoPagoVenta');
     const referenciaPagoVenta = document.getElementById('referenciaPagoVenta');
-    metodoPagoVentaSelect?.addEventListener('change',()=>{const visible=metodoPagoVentaSelect.value!=='EFECTIVO';referenciaPagoVenta.classList.toggle('hidden',!visible);document.getElementById('grupoReferenciaVenta').classList.toggle('hidden',!visible);if(!visible)referenciaPagoVenta.value='';});
+    function actualizarCobroVenta(){const credito=tipoPagoSelect.value==='CREDITO';metodoPagoVentaSelect.disabled=credito;document.getElementById('etiquetaMetodoPagoVenta').classList.toggle('hidden',credito);metodoPagoVentaSelect.classList.toggle('hidden',credito);if(credito){referenciaPagoVenta.value='';document.getElementById('grupoReferenciaVenta').classList.add('hidden');referenciaPagoVenta.classList.add('hidden')}else{const referencia=metodoPagoVentaSelect.value!=='EFECTIVO';document.getElementById('grupoReferenciaVenta').classList.toggle('hidden',!referencia);referenciaPagoVenta.classList.toggle('hidden',!referencia);if(!referencia)referenciaPagoVenta.value=''}}
+    tipoPagoSelect?.addEventListener('change',actualizarCobroVenta);metodoPagoVentaSelect?.addEventListener('change',actualizarCobroVenta);actualizarCobroVenta();
     venderBtn?.addEventListener('click', async () => {
       if (!carrito.length) return alert('Agrega productos');
       const clienteSeleccionado=clientes.find(c=>c.id===Number(clienteVentaSelect.value));
-      if(metodoPagoVentaSelect.value!=='EFECTIVO'&&!referenciaPagoVenta.value.trim())return alert('Captura la referencia de transferencia o el número de cheque');
+      if(tipoPagoSelect.value==='CONTADO'&&metodoPagoVentaSelect.value!=='EFECTIVO'&&!referenciaPagoVenta.value.trim())return alert('Captura la referencia de transferencia o el número de cheque');
       idempotenciaVentaPendiente ||= (crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`);
       if(!clienteSeleccionado)return alert('Selecciona un cliente de los resultados de búsqueda');
       try {
         const endpoint=ordenCargada?`/ordenes/${ordenCargada.id}/convertir`:'/ventas/crear';
         const data = await api(endpoint, { method: 'POST', headers:{'Idempotency-Key':idempotenciaVentaPendiente}, body: JSON.stringify({
           cliente_id: Number(clienteVentaSelect.value), tipo_pago: tipoPagoSelect.value,
-          metodo_pago: metodoPagoVentaSelect.value,
-          referencia_pago: referenciaPagoVenta.value.trim(), idempotency_key: idempotenciaVentaPendiente,
-          productos: carrito.map(({ producto_id, cantidad }) => ({ producto_id, cantidad }))
+          metodo_pago: tipoPagoSelect.value==='CONTADO'?metodoPagoVentaSelect.value:null,
+          referencia_pago: tipoPagoSelect.value==='CONTADO'?referenciaPagoVenta.value.trim():null, idempotency_key: idempotenciaVentaPendiente,
+          productos: carrito.map(({ producto_id, cantidad, precio }) => ({ producto_id, cantidad, precio_unitario:precio }))
         }) });
         ultimaVenta = {
           ...data,
           cliente: clienteSeleccionado.nombre_razon_social,
           tipo_pago: tipoPagoSelect.value,
-          metodo_pago: metodoPagoVentaSelect.value,
+          metodo_pago: tipoPagoSelect.value==='CONTADO'?metodoPagoVentaSelect.value:null,
           fecha: new Date().toISOString()
         };
         localStorage.setItem('ultimaVentaPOS',String(data.venta_id));
@@ -926,7 +940,7 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
         ordenCargada=null;
         dibujarCarrito();
         imprimirBtn.disabled = false;
-        await cargarProductos();
+        await Promise.all([cargarProductos(),usuario?.rol==='ADMON_GRAL'?cargarVentas():Promise.resolve()]);
         alert(`Venta #${data.venta_id} registrada por ${dinero.format(data.total)}`);
       } catch (error) { alert(error.message); }
     });
