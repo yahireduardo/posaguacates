@@ -17,7 +17,9 @@ router.get('/', async (req, res, next) => {
               p.activo,p.creado_en,p.actualizado_en,
               (SELECT COUNT(*) FROM producto_proveedores pp WHERE pp.proveedor_id=p.id AND pp.activo=1) productos,
               (SELECT MAX(c.fecha) FROM compras c WHERE c.proveedor_id=p.id AND c.estado='ACTIVA') ultima_compra,
-              (SELECT COALESCE(SUM(c.total),0) FROM compras c WHERE c.proveedor_id=p.id AND c.estado='ACTIVA') total_comprado
+              (SELECT COALESCE(SUM(c.total),0) FROM compras c WHERE c.proveedor_id=p.id AND c.estado='ACTIVA') total_comprado,
+              (SELECT COALESCE(SUM(cpp.saldo_pendiente),0) FROM cuentas_por_pagar_proveedores cpp
+               WHERE cpp.proveedor_id=p.id AND cpp.estado='PENDIENTE') deuda_pendiente
        FROM proveedores p
        WHERE (?=1 OR p.activo=1) AND (?=0 OR p.activo=0)
          AND (?='' OR p.nombre LIKE ? OR p.razon_social LIKE ? OR p.contacto LIKE ?
@@ -27,7 +29,7 @@ router.get('/', async (req, res, next) => {
         ...Array(6).fill(`%${buscar}%`)]
     );
     if (req.usuario.rol !== 'ADMON_GRAL') {
-      return res.json(rows.map(({ total_comprado, notas, direccion, ...row }) => row));
+      return res.json(rows.map(({ total_comprado, deuda_pendiente, notas, direccion, ...row }) => row));
     }
     return res.json(rows);
   } catch (error) { return next(error); }

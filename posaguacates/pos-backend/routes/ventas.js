@@ -16,12 +16,12 @@ const router = express.Router();
 
 /* =========================================================
    VENTAS DE MOSTRADOR CON FILTROS
-   Solo Administrador General
+   Administrador General y Cajero
 ========================================================= */
 
 router.get(
   '/',
-  permitirRoles('ADMON_GRAL'),
+  permitirRoles('ADMON_GRAL', 'CAJERO'),
   async (req, res) => {
 
     try {
@@ -375,12 +375,9 @@ router.post('/crear', async (req, res) => {
       req.body.tipo_pago || ''
     ).toUpperCase();
 
-  const metodoPago =
-    String(
-      req.body.metodo_pago || 'EFECTIVO'
-    ).toUpperCase();
-
-  const referenciaPago = String(req.body.referencia_pago || '').trim() || null;
+  const metodoPagoCapturado = String(req.body.metodo_pago || '').toUpperCase();
+  const metodoPago = tipoPago === 'CREDITO' ? null : (metodoPagoCapturado || 'EFECTIVO');
+  const referenciaPago = tipoPago === 'CREDITO' ? null : (String(req.body.referencia_pago || '').trim() || null);
   const idempotencyKey = String(req.get('Idempotency-Key') || req.body.idempotency_key || '').trim();
 
   const productos =
@@ -414,7 +411,7 @@ router.post('/crear', async (req, res) => {
 
   }
 
-  if (!['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago)) {
+  if (tipoPago === 'CONTADO' && !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago)) {
     return res.status(400).json({
       error: 'Método de pago inválido'
     });
@@ -423,7 +420,7 @@ router.post('/crear', async (req, res) => {
   if (!/^[A-Za-z0-9._:-]{8,80}$/.test(idempotencyKey)) {
     return res.status(400).json({ error: 'Idempotency-Key inválido o ausente' });
   }
-  if (metodoPago !== 'EFECTIVO' && !referenciaPago) {
+  if (tipoPago === 'CONTADO' && metodoPago !== 'EFECTIVO' && !referenciaPago) {
     return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
   }
 
@@ -442,6 +439,7 @@ router.post('/crear', async (req, res) => {
    */
 
   const cantidades = new Map();
+  const preciosCapturados = new Map();
 
   for (const item of productos) {
 
@@ -451,15 +449,18 @@ router.post('/crear', async (req, res) => {
     const cantidad =
       Number(item.cantidad);
 
+    const precioCapturado = item.precio_unitario == null ? null : Number(item.precio_unitario);
+
     if (
       !Number.isInteger(productoId) ||
       productoId <= 0 ||
       !Number.isFinite(cantidad) ||
-      cantidad <= 0
+      cantidad <= 0 ||
+      (precioCapturado !== null && (!Number.isInteger(precioCapturado) || precioCapturado <= 0 || precioCapturado > 99999999))
     ) {
 
       return res.status(400).json({
-        error: 'Producto o cantidad inválida'
+        error: 'Producto, cantidad o precio entero inválido'
       });
 
     }
@@ -471,6 +472,13 @@ router.post('/crear', async (req, res) => {
         cantidades.get(productoId) || 0
       ) + cantidad
     );
+    if (precioCapturado !== null) {
+      const anterior = preciosCapturados.get(productoId);
+      if (anterior !== undefined && anterior !== precioCapturado) {
+        return res.status(400).json({ error: 'Un producto repetido no puede tener precios diferentes' });
+      }
+      preciosCapturados.set(productoId, precioCapturado);
+    }
 
   }
 
@@ -613,14 +621,8 @@ router.post('/crear', async (req, res) => {
 
       }
 
-      /*
-       * El precio se toma de MySQL.
-       * Nunca se acepta el precio enviado
-       * desde el navegador.
-       */
-
-      const precio =
-        Number(producto.precio_venta);
+      const precioCatalogo = Number(producto.precio_venta);
+      const precio = Number((preciosCapturados.get(producto.id) ?? precioCatalogo).toFixed(2));
 
       const subtotal =
         Number(
@@ -647,7 +649,9 @@ router.post('/crear', async (req, res) => {
 
         precio,
 
-        subtotal
+        subtotal,
+        precio_catalogo: precioCatalogo,
+        precio_modificado: precio !== precioCatalogo
 
       });
 

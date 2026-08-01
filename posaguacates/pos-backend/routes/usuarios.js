@@ -55,7 +55,9 @@ router.put('/:id', async (req, res, next) => {
   const nombre = String(req.body.nombre || '').trim();
   const username = String(req.body.username || '').trim();
   const rol = String(req.body.rol || '');
-  if (!Number.isInteger(id) || id <= 0 || !nombre || !usernameValido(username) || !['ADMON_GRAL', 'CAJERO'].includes(rol)) {
+  const password = String(req.body.password || '');
+  if (!Number.isInteger(id) || id <= 0 || !nombre || !usernameValido(username) ||
+      !['ADMON_GRAL', 'CAJERO'].includes(rol) || (password && !passwordValido(password))) {
     return res.status(400).json({ error: 'Datos de usuario inválidos' });
   }
   const connection = await db.promise.getConnection();
@@ -67,8 +69,14 @@ router.put('/:id', async (req, res, next) => {
       const [[admins]] = await connection.query("SELECT COUNT(*) total FROM usuarios WHERE rol='ADMON_GRAL' AND activo=1 FOR UPDATE");
       if (Number(admins.total) <= 1) throw fallo('No se puede quitar el rol al último administrador activo', 409);
     }
-    await connection.query('UPDATE usuarios SET nombre=?,username=?,rol=? WHERE id=?', [nombre, username, rol, id]);
-    await auditar(connection, req.usuario.id, 'EDITAR_USUARIO', id, null, { username, rol });
+    const hash = password ? await bcrypt.hash(password, 12) : null;
+    await connection.query(
+      `UPDATE usuarios SET nombre=?,username=?,rol=?,
+       password_hash=CASE WHEN ? IS NULL THEN password_hash ELSE ? END,
+       password=CASE WHEN ? IS NULL THEN password ELSE NULL END WHERE id=?`,
+      [nombre, username, rol, hash, hash, hash, id]
+    );
+    await auditar(connection, req.usuario.id, 'EDITAR_USUARIO', id, null, { username, rol, password_actualizada: Boolean(password) });
     await connection.commit();
     res.json({ mensaje: 'Usuario actualizado' });
   } catch (error) {

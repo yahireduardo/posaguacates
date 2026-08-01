@@ -15,7 +15,7 @@ function datos(body) {
 }
 function validar(p) {
   if (!p.codigo || !p.nombre || !['KG', 'CAJA'].includes(p.unidad)) return 'Código, nombre y unidad (KG o CAJA) son obligatorios';
-  if (![p.precio, p.costo, p.minimo].every(Number.isFinite) || p.precio < 0 || p.costo < 0 || p.minimo < 0) return 'Precios, costo y stock mínimo deben ser números no negativos';
+  if (!Number.isInteger(p.precio) || !Number.isInteger(p.costo) || !Number.isFinite(p.minimo) || p.precio < 0 || p.costo < 0 || p.minimo < 0) return 'Precio y costo deben ser pesos enteros; el stock mínimo debe ser un número no negativo';
   if (p.unidad === 'CAJA' && (!Number.isFinite(p.kilosCaja) || p.kilosCaja <= 0)) return 'Kilos por caja es obligatorio para productos por caja';
   return null;
 }
@@ -135,7 +135,7 @@ router.put('/:id/proveedores', permitirRoles('ADMON_GRAL'), async (req, res, nex
 });
 
 router.put('/:id/precio', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
-  const id=Number(req.params.id),precio=Number(req.body.precio_venta);if(!Number.isInteger(id)||id<=0||!Number.isFinite(precio)||precio<0)return res.status(400).json({error:'Producto o precio inválido'});
+  const id=Number(req.params.id),precio=Number(req.body.precio_venta);if(!Number.isInteger(id)||id<=0||!Number.isInteger(precio)||precio<0)return res.status(400).json({error:'Producto o precio entero inválido'});
   try{const[r]=await db.promise.query('UPDATE productos SET precio_venta=? WHERE id=?',[precio,id]);if(!r.affectedRows)return res.status(404).json({error:'Producto no encontrado'});res.json({mensaje:'Precio actualizado'});}catch(e){next(e);}
 });
 module.exports=router;

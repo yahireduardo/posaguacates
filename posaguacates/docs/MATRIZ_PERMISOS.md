@@ -11,3 +11,5 @@
 | Proveedores: consultar lista operativa | Sí, sin costos/notas/totales | Sí |
 | Proveedores: crear, editar, activar, desactivar y detalle administrativo | No | Sí |
 | Compras y entradas de inventario | No | Sí |
+| Historial de ventas | Sí | Sí |
+| Consultar deuda y registrar pagos a proveedores | No | Sí |

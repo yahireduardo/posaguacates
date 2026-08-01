@@ -15,16 +15,22 @@ function error(message, status = 400) {
 function detalleValido(items) {
   if (!Array.isArray(items) || !items.length) throw error('La orden debe incluir productos');
   const cantidades = new Map();
+  const precios = new Map();
   for (const item of items) {
     const id = numeroId(item.producto_id);
     const cantidad = Number(item.cantidad);
-    if (!id || !Number.isFinite(cantidad) || cantidad <= 0) throw error('Producto o cantidad inválida');
+    const precio = item.precio_unitario == null ? null : Number(item.precio_unitario);
+    if (!id || !Number.isFinite(cantidad) || cantidad <= 0 ||
+        (precio !== null && (!Number.isInteger(precio) || precio <= 0 || precio > 99999999))) {
+      throw error('Producto, cantidad o precio inválido');
+    }
     cantidades.set(id, (cantidades.get(id) || 0) + cantidad);
+    if (precio !== null) precios.set(id, precio);
   }
-  return { cantidades };
+  return { cantidades, precios };
 }
-async function catalogoOrden(connection, clienteId, items, bloquear = false) {
-  const { cantidades } = detalleValido(items);
+async function catalogoOrden(connection, clienteId, items, bloquear = false, permitirPrecio = false) {
+  const { cantidades, precios } = detalleValido(items);
   const [[cliente]] = await connection.query(
     'SELECT id, nombre_razon_social FROM clientes WHERE id = ? AND activo = 1', [clienteId]
   );
@@ -40,7 +46,7 @@ async function catalogoOrden(connection, clienteId, items, bloquear = false) {
   const detalle = productos.map(p => {
     const cantidad = Number(cantidades.get(p.id));
     if (!esCantidadValida(cantidad, p.unidad)) throw error(mensajeCantidad(p.unidad));
-    const precio = Number(p.precio_venta);
+    const precio = permitirPrecio && precios.has(p.id) ? Number(precios.get(p.id).toFixed(2)) : Number(p.precio_venta);
     return { ...p, cantidad, precio, subtotal: Number((cantidad * precio).toFixed(2)) };
   });
   return { cliente, detalle, total: Number(detalle.reduce((s, p) => s + p.subtotal, 0).toFixed(2)) };
@@ -160,14 +166,15 @@ router.post('/:id/cancelar', permitirRoles('ADMON_GRAL'), async (req, res) => {
 router.post('/:id/convertir', async (req, res) => {
   const ordenId = numeroId(req.params.id);
   const tipoPago = String(req.body.tipo_pago || '').toUpperCase();
-  const metodoPago = String(req.body.metodo_pago || 'EFECTIVO').toUpperCase();
-  const referenciaPago = String(req.body.referencia_pago || '').trim() || null;
+  const metodoCapturado = String(req.body.metodo_pago || '').toUpperCase();
+  const metodoPago = tipoPago === 'CREDITO' ? null : (metodoCapturado || 'EFECTIVO');
+  const referenciaPago = tipoPago === 'CREDITO' ? null : (String(req.body.referencia_pago || '').trim() || null);
   const items = req.body.productos;
   if (!ordenId || !['CONTADO', 'CREDITO'].includes(tipoPago) ||
-      !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago)) {
+      (tipoPago === 'CONTADO' && !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago))) {
     return res.status(400).json({ error: 'Conversión inválida' });
   }
-  if (metodoPago !== 'EFECTIVO' && !referenciaPago) {
+  if (tipoPago === 'CONTADO' && metodoPago !== 'EFECTIVO' && !referenciaPago) {
     return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
   }
   const connection = await db.promise.getConnection();
@@ -185,7 +192,7 @@ router.post('/:id/convertir', async (req, res) => {
     }
     const productosEntrada = Array.isArray(items) && items.length ? items :
       (await connection.query('SELECT producto_id,cantidad FROM detalle_orden_venta WHERE orden_id=?', [ordenId]))[0];
-    const calculo = await catalogoOrden(connection, orden.cliente_id, productosEntrada, true);
+    const calculo = await catalogoOrden(connection, orden.cliente_id, productosEntrada, true, true);
     for (const p of calculo.detalle) if (Number(p.stock) < p.cantidad) throw error(`Stock insuficiente para ${p.nombre}`, 409);
     const [venta] = await connection.query(
       `INSERT INTO ventas (cliente_id,usuario_id,total,tipo_pago,metodo_pago,referencia_pago,estado_pago,estado_venta,impresiones)
