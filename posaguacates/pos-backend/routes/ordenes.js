@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
 const { esCantidadValida, mensajeCantidad } = require('../lib/cantidades');
+const { normalizarMetodosPago, insertarMetodosPago } = require('../lib/metodosPago');
 const router = express.Router();
 
 const estados = ['BORRADOR', 'PENDIENTE', 'CONVERTIDA', 'CANCELADA'];
@@ -167,15 +168,12 @@ router.post('/:id/convertir', async (req, res) => {
   const ordenId = numeroId(req.params.id);
   const tipoPago = String(req.body.tipo_pago || '').toUpperCase();
   const metodoCapturado = String(req.body.metodo_pago || '').toUpperCase();
-  const metodoPago = tipoPago === 'CREDITO' ? null : (metodoCapturado || 'EFECTIVO');
-  const referenciaPago = tipoPago === 'CREDITO' ? null : (String(req.body.referencia_pago || '').trim() || null);
+  let metodoPago = tipoPago === 'CREDITO' ? null : (metodoCapturado || 'EFECTIVO');
+  let referenciaPago = tipoPago === 'CREDITO' ? null : (String(req.body.referencia_pago || '').trim() || null);
+  let desglosePago = null;
   const items = req.body.productos;
-  if (!ordenId || !['CONTADO', 'CREDITO'].includes(tipoPago) ||
-      (tipoPago === 'CONTADO' && !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago))) {
+  if (!ordenId || !['CONTADO', 'CREDITO'].includes(tipoPago)) {
     return res.status(400).json({ error: 'Conversión inválida' });
-  }
-  if (tipoPago === 'CONTADO' && metodoPago !== 'EFECTIVO' && !referenciaPago) {
-    return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
   }
   const connection = await db.promise.getConnection();
   try {
@@ -193,6 +191,11 @@ router.post('/:id/convertir', async (req, res) => {
     const productosEntrada = Array.isArray(items) && items.length ? items :
       (await connection.query('SELECT producto_id,cantidad FROM detalle_orden_venta WHERE orden_id=?', [ordenId]))[0];
     const calculo = await catalogoOrden(connection, orden.cliente_id, productosEntrada, true, true);
+    if (tipoPago === 'CONTADO') {
+      desglosePago = normalizarMetodosPago(req.body, calculo.total, { metodo: 'metodo_pago', referencia: 'referencia_pago' });
+      metodoPago = desglosePago.metodo_resumen;
+      referenciaPago = desglosePago.referencia_resumen;
+    }
     for (const p of calculo.detalle) if (Number(p.stock) < p.cantidad) throw error(`Stock insuficiente para ${p.nombre}`, 409);
     const [venta] = await connection.query(
       `INSERT INTO ventas (cliente_id,usuario_id,total,tipo_pago,metodo_pago,referencia_pago,estado_pago,estado_venta,impresiones)
@@ -200,6 +203,7 @@ router.post('/:id/convertir', async (req, res) => {
       [orden.cliente_id, req.usuario.id, calculo.total, tipoPago, metodoPago,referenciaPago,
         tipoPago === 'CONTADO' ? 'PAGADO' : 'PENDIENTE']
     );
+    if (tipoPago === 'CONTADO') await insertarMetodosPago(connection, 'venta_formas_pago', 'venta_id', venta.insertId, desglosePago.metodos);
     for (const p of calculo.detalle) {
       await connection.query('INSERT INTO detalle_venta (venta_id,producto_id,cantidad,precio_unitario,subtotal) VALUES (?,?,?,?,?)',
         [venta.insertId, p.id, p.cantidad, p.precio, p.subtotal]);
@@ -225,11 +229,12 @@ router.post('/:id/convertir', async (req, res) => {
       );
     }
     if (tipoPago === 'CONTADO') {
-      await connection.query(
+      const [pagoContado] = await connection.query(
         `INSERT INTO pagos(cliente_id,cuenta_id,monto,monto_total,metodo_pago,referencia,observaciones,usuario_id,fecha,estado)
          VALUES (?,NULL,?,?,?,?,'Pago de orden convertida',?,NOW(),'ACTIVO')`,
         [orden.cliente_id,calculo.total,calculo.total,metodoPago,referenciaPago,req.usuario.id]
       );
+      await insertarMetodosPago(connection, 'pago_formas_pago', 'pago_id', pagoContado.insertId, desglosePago.metodos);
     }
     await connection.query(
       "UPDATE ordenes_venta SET estado='CONVERTIDA',venta_id=?,convertida_at=NOW() WHERE id=?",
@@ -239,6 +244,7 @@ router.post('/:id/convertir', async (req, res) => {
     res.status(201).json({ mensaje: 'Orden convertida', venta_id: venta.insertId, total: calculo.total, productos: calculo.detalle });
   } catch (e) {
     await connection.rollback();
+    console.error('Error convirtiendo orden en venta:', { ordenId, code: e.code, message: e.message });
     res.status(e.status || 500).json({ error: e.status ? e.message : 'No fue posible convertir la orden' });
   } finally { connection.release(); }
 });

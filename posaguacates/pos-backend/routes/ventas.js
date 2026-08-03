@@ -11,6 +11,7 @@ const {
 } = require('../lib/autorizacionAdmin');
 const jwt = require('jsonwebtoken');
 const { jwtSecret } = require('../middleware/auth');
+const { normalizarMetodosPago, insertarMetodosPago } = require('../lib/metodosPago');
 
 const router = express.Router();
 
@@ -376,8 +377,9 @@ router.post('/crear', async (req, res) => {
     ).toUpperCase();
 
   const metodoPagoCapturado = String(req.body.metodo_pago || '').toUpperCase();
-  const metodoPago = tipoPago === 'CREDITO' ? null : (metodoPagoCapturado || 'EFECTIVO');
-  const referenciaPago = tipoPago === 'CREDITO' ? null : (String(req.body.referencia_pago || '').trim() || null);
+  let metodoPago = tipoPago === 'CREDITO' ? null : (metodoPagoCapturado || 'EFECTIVO');
+  let referenciaPago = tipoPago === 'CREDITO' ? null : (String(req.body.referencia_pago || '').trim() || null);
+  let desglosePago = null;
   const idempotencyKey = String(req.get('Idempotency-Key') || req.body.idempotency_key || '').trim();
 
   const productos =
@@ -411,19 +413,9 @@ router.post('/crear', async (req, res) => {
 
   }
 
-  if (tipoPago === 'CONTADO' && !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodoPago)) {
-    return res.status(400).json({
-      error: 'Método de pago inválido'
-    });
-  }
-
   if (!/^[A-Za-z0-9._:-]{8,80}$/.test(idempotencyKey)) {
     return res.status(400).json({ error: 'Idempotency-Key inválido o ausente' });
   }
-  if (tipoPago === 'CONTADO' && metodoPago !== 'EFECTIVO' && !referenciaPago) {
-    return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
-  }
-
   if (productos.length === 0) {
 
     return res.status(400).json({
@@ -660,6 +652,12 @@ router.post('/crear', async (req, res) => {
     total =
       Number(total.toFixed(2));
 
+    if (tipoPago === 'CONTADO') {
+      desglosePago = normalizarMetodosPago(req.body, total, { metodo: 'metodo_pago', referencia: 'referencia_pago' });
+      metodoPago = desglosePago.metodo_resumen;
+      referenciaPago = desglosePago.referencia_resumen;
+    }
+
     /* =========================
        INSERTAR VENTA
     ========================= */
@@ -714,6 +712,10 @@ router.post('/crear', async (req, res) => {
 
     const ventaId =
       ventaResult.insertId;
+
+    if (tipoPago === 'CONTADO') {
+      await insertarMetodosPago(connection, 'venta_formas_pago', 'venta_id', ventaId, desglosePago.metodos);
+    }
 
     /* =========================
        DETALLES E INVENTARIO
@@ -863,11 +865,12 @@ router.post('/crear', async (req, res) => {
 
     }
     else {
-      await connection.query(
+      const [pagoContado] = await connection.query(
         `INSERT INTO pagos (cliente_id,cuenta_id,monto,monto_total,metodo_pago,referencia,
           observaciones,usuario_id,fecha,estado) VALUES (?,NULL,?,?,?,?,'Pago de venta de contado',?,NOW(),'ACTIVO')`,
         [clienteId,total,total,metodoPago,referenciaPago,req.usuario.id]
       );
+      await insertarMetodosPago(connection, 'pago_formas_pago', 'pago_id', pagoContado.insertId, desglosePago.metodos);
     }
 
     await connection.commit();
@@ -881,6 +884,8 @@ router.post('/crear', async (req, res) => {
       folio: ventaId,
 
       total,
+
+      metodos_pago: desglosePago?.metodos || [],
 
       productos: detalle
 

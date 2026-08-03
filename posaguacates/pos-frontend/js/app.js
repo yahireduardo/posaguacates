@@ -814,6 +814,9 @@ function limpiarCaptura() {
   totalElemento.textContent =
     dinero.format(totalVenta);
 
+  const efectivoVenta=document.getElementById('pagoVentaEfectivo'),transferenciaVenta=document.getElementById('pagoVentaTransferencia'),chequeVenta=document.getElementById('pagoVentaCheque');
+  if(efectivoVenta&&Number(transferenciaVenta?.value||0)===0&&Number(chequeVenta?.value||0)===0)efectivoVenta.value=totalVenta.toFixed(2);
+
   cantidadArticulos.textContent =
     cantidad(totalCantidad);
 
@@ -912,35 +915,35 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
     const imprimirBtn = document.getElementById('imprimir');
     const clienteVentaSelect = document.getElementById('clienteVenta');
     const tipoPagoSelect = document.getElementById('tipoPago');
-    const metodoPagoVentaSelect = document.getElementById('metodoPagoVenta');
-    const referenciaPagoVenta = document.getElementById('referenciaPagoVenta');
-    function actualizarCobroVenta(){const credito=tipoPagoSelect.value==='CREDITO';metodoPagoVentaSelect.disabled=credito;document.getElementById('etiquetaMetodoPagoVenta').classList.toggle('hidden',credito);metodoPagoVentaSelect.classList.toggle('hidden',credito);if(credito){referenciaPagoVenta.value='';document.getElementById('grupoReferenciaVenta').classList.add('hidden');referenciaPagoVenta.classList.add('hidden')}else{const referencia=metodoPagoVentaSelect.value!=='EFECTIVO';document.getElementById('grupoReferenciaVenta').classList.toggle('hidden',!referencia);referenciaPagoVenta.classList.toggle('hidden',!referencia);if(!referencia)referenciaPagoVenta.value=''}}
-    tipoPagoSelect?.addEventListener('change',actualizarCobroVenta);metodoPagoVentaSelect?.addEventListener('change',actualizarCobroVenta);actualizarCobroVenta();
+    function leerMetodosPago(prefijo,total){const configuracion=[['EFECTIVO',`${prefijo}Efectivo`,null],['TRANSFERENCIA',`${prefijo}Transferencia`,prefijo==='pagoVenta'?'referenciaVentaTransferencia':'referenciaClienteTransferencia'],['CHEQUE',`${prefijo}Cheque`,prefijo==='pagoVenta'?'referenciaVentaCheque':'referenciaClienteCheque']];const metodos=configuracion.map(([metodo,id,refId])=>({metodo_pago:metodo,monto:Number(document.getElementById(id)?.value||0),referencia:refId?document.getElementById(refId)?.value.trim():null})).filter(x=>x.monto>0);if(!metodos.length)throw new Error('Captura al menos un método de pago');if(metodos.some(x=>!Number.isFinite(x.monto)))throw new Error('Revisa los montos de los métodos de pago');for(const x of metodos)if(x.metodo_pago!=='EFECTIVO'&&!x.referencia)throw new Error(x.metodo_pago==='CHEQUE'?'Captura el número de cheque':'Captura la referencia de la transferencia');const suma=Number(metodos.reduce((s,x)=>s+x.monto,0).toFixed(2));if(Math.abs(suma-Number(total))>0.005)throw new Error(`La distribución ${dinero.format(suma)} debe coincidir con ${dinero.format(total)}`);return metodos}
+    function limpiarMetodosVenta(){['pagoVentaEfectivo','pagoVentaTransferencia','pagoVentaCheque'].forEach(id=>document.getElementById(id).value='0');['referenciaVentaTransferencia','referenciaVentaCheque'].forEach(id=>document.getElementById(id).value='')}
+    function actualizarCobroVenta(){const credito=tipoPagoSelect.value==='CREDITO';document.getElementById('metodosPagoVenta').classList.toggle('hidden',credito);if(credito)limpiarMetodosVenta()}
+    tipoPagoSelect?.addEventListener('change',actualizarCobroVenta);actualizarCobroVenta();
     venderBtn?.addEventListener('click', async () => {
       if (!carrito.length) return alert('Agrega productos');
       const clienteSeleccionado=clientes.find(c=>c.id===Number(clienteVentaSelect.value));
-      if(tipoPagoSelect.value==='CONTADO'&&metodoPagoVentaSelect.value!=='EFECTIVO'&&!referenciaPagoVenta.value.trim())return alert('Captura la referencia de transferencia o el número de cheque');
       idempotenciaVentaPendiente ||= (crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`);
       if(!clienteSeleccionado)return alert('Selecciona un cliente de los resultados de búsqueda');
       try {
+        const total=carrito.reduce((s,x)=>s+Number(x.cantidad)*Number(x.precio),0).toFixed(2),metodos=tipoPagoSelect.value==='CONTADO'?leerMetodosPago('pagoVenta',total):[];
         const endpoint=ordenCargada?`/ordenes/${ordenCargada.id}/convertir`:'/ventas/crear';
         const data = await api(endpoint, { method: 'POST', headers:{'Idempotency-Key':idempotenciaVentaPendiente}, body: JSON.stringify({
           cliente_id: Number(clienteVentaSelect.value), tipo_pago: tipoPagoSelect.value,
-          metodo_pago: tipoPagoSelect.value==='CONTADO'?metodoPagoVentaSelect.value:null,
-          referencia_pago: tipoPagoSelect.value==='CONTADO'?referenciaPagoVenta.value.trim():null, idempotency_key: idempotenciaVentaPendiente,
+          metodo_pago: tipoPagoSelect.value==='CONTADO'?(metodos.length>1?'MIXTO':metodos[0].metodo_pago):null,
+          metodos_pago:metodos, idempotency_key: idempotenciaVentaPendiente,
           productos: carrito.map(({ producto_id, cantidad, precio }) => ({ producto_id, cantidad, precio_unitario:precio }))
         }) });
         ultimaVenta = {
           ...data,
           cliente: clienteSeleccionado.nombre_razon_social,
           tipo_pago: tipoPagoSelect.value,
-          metodo_pago: tipoPagoSelect.value==='CONTADO'?metodoPagoVentaSelect.value:null,
+          metodo_pago: tipoPagoSelect.value==='CONTADO'?(metodos.length>1?'MIXTO':metodos[0].metodo_pago):null,
           fecha: new Date().toISOString()
         };
         localStorage.setItem('ultimaVentaPOS',String(data.venta_id));
         carrito = [];
         idempotenciaVentaPendiente=null;
-        referenciaPagoVenta.value='';
+        limpiarMetodosVenta();
         ordenCargada=null;
         dibujarCarrito();
         imprimirBtn.disabled = false;
@@ -1692,8 +1695,7 @@ const ordenFolio=document.getElementById('ordenFolio'),ordenCliente=document.get
   buscarClientePago=document.getElementById('buscarClientePago'),pagoClienteId=document.getElementById('pagoClienteId'),
   pagoClienteNombre=document.getElementById('pagoClienteNombre'),notasPago=document.getElementById('notasPago'),
   formPago=document.getElementById('formPago'),resultadosClientePago=document.getElementById('resultadosClientePago'),
-  pagoMonto=document.getElementById('pagoMonto'),pagoMetodo=document.getElementById('pagoMetodo'),
-  pagoReferencia=document.getElementById('pagoReferencia'),pagoObservaciones=document.getElementById('pagoObservaciones'),
+  pagoMonto=document.getElementById('pagoMonto'),pagoObservaciones=document.getElementById('pagoObservaciones'),
   confirmarPago=document.getElementById('confirmarPago'),
   rpcInicio=document.getElementById('rpcInicio'),rpcFin=document.getElementById('rpcFin'),
   rpcCliente=document.getElementById('rpcCliente'),rpcProducto=document.getElementById('rpcProducto'),
@@ -1776,9 +1778,8 @@ async function abrirPagoParaCliente(id,nombre=''){
 let temporizadorPago;
 document.getElementById('buscarClientePago')?.addEventListener('input',e=>{clearTimeout(temporizadorPago);temporizadorPago=setTimeout(async()=>{try{const d=await api(`/cuentas/clientes/buscar?q=${encodeURIComponent(e.target.value)}`);resultadosClientePago.innerHTML=d.map(c=>`<button class="cliente-pago" data-id="${c.id}" data-nombre="${esc(c.nombre_razon_social)}">${esc(c.nombre_razon_social)} · ${dinero.format(c.saldo_total)}</button>`).join('')}catch(err){alert(err.message)}},250)});
 document.getElementById('resultadosClientePago')?.addEventListener('click',async e=>{const b=e.target.closest('.cliente-pago');if(!b)return;try{await abrirPagoParaCliente(Number(b.dataset.id),b.dataset.nombre)}catch(err){alert(err.message)}});
-document.getElementById('notasPago')?.addEventListener('change',e=>{const check=e.target.closest('.nota-pago');if(!check)return;const input=document.querySelector(`.aplicacion-manual[data-id="${check.value}"]`);input.disabled=!check.checked;input.value=check.checked?input.dataset.saldo:'';const seleccionadas=[...document.querySelectorAll('.nota-pago:checked')];pagoMonto.value=seleccionadas.reduce((s,c)=>s+Number(document.querySelector(`.aplicacion-manual[data-id="${c.value}"]`).value||0),0).toFixed(2)});
-document.getElementById('pagoMetodo')?.addEventListener('change',()=>{const requiere=pagoMetodo.value!=='EFECTIVO',grupo=document.getElementById('grupoPagoReferencia');grupo.classList.toggle('hidden',!requiere);pagoReferencia.required=requiere;pagoReferencia.placeholder=pagoMetodo.value==='CHEQUE'?'Número de cheque':'Referencia bancaria';if(!requiere)pagoReferencia.value=''});
-document.getElementById('formPago')?.addEventListener('submit',async e=>{e.preventDefault();const checks=[...document.querySelectorAll('.nota-pago:checked')],aplicaciones=checks.map(c=>{const input=document.querySelector(`.aplicacion-manual[data-id="${c.value}"]`);return{cuenta_id:Number(c.value),monto:Number(input.value),saldo:Number(input.dataset.saldo)}});if(!aplicaciones.length)return alert('Selecciona al menos una nota');if(aplicaciones.some(a=>!Number.isFinite(a.monto)||a.monto<=0||a.monto>a.saldo))return alert('Revisa los montos aplicados; deben ser positivos y no superar el saldo');const monto=Number(pagoMonto.value),suma=aplicaciones.reduce((s,a)=>s+a.monto,0);if(!Number.isFinite(monto)||monto<=0)return alert('El monto recibido debe ser mayor que cero');if(Math.abs(suma-monto)>0.005)return alert('La suma aplicada debe coincidir con el monto recibido');if(pagoMetodo.value!=='EFECTIVO'&&!pagoReferencia.value.trim())return alert(pagoMetodo.value==='CHEQUE'?'Captura el número de cheque':'Captura la referencia bancaria');const resumen=`Cliente: ${pagoClienteNombre.textContent}\nMonto: ${dinero.format(monto)}\nMétodo: ${pagoMetodo.value}\nNotas: ${aplicaciones.length}`;if(!confirm(resumen))return;confirmarPago.disabled=true;try{const r=await api('/cuentas/pagos',{method:'POST',body:JSON.stringify({cliente_id:Number(pagoClienteId.value),monto_recibido:monto,cuenta_ids:aplicaciones.map(a=>a.cuenta_id),modo:'MANUAL',aplicaciones,metodo_pago:pagoMetodo.value,referencia:pagoReferencia.value.trim(),observaciones:pagoObservaciones.value,fecha:pagoFecha.value})});alert(`Pago ${r.pago_id} aplicado correctamente`);modalPago.classList.add('hidden');e.target.reset();cargarCuentas()}catch(err){alert(err.message)}finally{confirmarPago.disabled=false}});
+document.getElementById('notasPago')?.addEventListener('change',e=>{const check=e.target.closest('.nota-pago');if(!check)return;const input=document.querySelector(`.aplicacion-manual[data-id="${check.value}"]`);input.disabled=!check.checked;input.value=check.checked?input.dataset.saldo:'';const seleccionadas=[...document.querySelectorAll('.nota-pago:checked')];pagoMonto.value=seleccionadas.reduce((s,c)=>s+Number(document.querySelector(`.aplicacion-manual[data-id="${c.value}"]`).value||0),0).toFixed(2);if(Number(document.getElementById('pagoClienteTransferencia').value||0)===0&&Number(document.getElementById('pagoClienteCheque').value||0)===0)document.getElementById('pagoClienteEfectivo').value=pagoMonto.value});
+document.getElementById('formPago')?.addEventListener('submit',async e=>{e.preventDefault();const checks=[...document.querySelectorAll('.nota-pago:checked')],aplicaciones=checks.map(c=>{const input=document.querySelector(`.aplicacion-manual[data-id="${c.value}"]`);return{cuenta_id:Number(c.value),monto:Number(input.value),saldo:Number(input.dataset.saldo)}});if(!aplicaciones.length)return alert('Selecciona al menos una nota');if(aplicaciones.some(a=>!Number.isFinite(a.monto)||a.monto<=0||a.monto>a.saldo))return alert('Revisa los montos aplicados; deben ser positivos y no superar el saldo');const monto=Number(pagoMonto.value),suma=aplicaciones.reduce((s,a)=>s+a.monto,0);if(!Number.isFinite(monto)||monto<=0)return alert('El monto recibido debe ser mayor que cero');if(Math.abs(suma-monto)>0.005)return alert('La suma aplicada debe coincidir con el monto recibido');let metodos;try{metodos=leerMetodosPago('pagoCliente',monto)}catch(error){return alert(error.message)}const resumen=`Cliente: ${pagoClienteNombre.textContent}\nMonto: ${dinero.format(monto)}\nMétodos: ${metodos.map(x=>`${x.metodo_pago} ${dinero.format(x.monto)}`).join(' + ')}\nNotas: ${aplicaciones.length}`;if(!confirm(resumen))return;confirmarPago.disabled=true;try{const r=await api('/cuentas/pagos',{method:'POST',body:JSON.stringify({cliente_id:Number(pagoClienteId.value),monto_recibido:monto,cuenta_ids:aplicaciones.map(a=>a.cuenta_id),modo:'MANUAL',aplicaciones,metodos_pago:metodos,observaciones:pagoObservaciones.value,fecha:pagoFecha.value})});alert(`Pago ${r.pago_id} aplicado correctamente`);modalPago.classList.add('hidden');e.target.reset();cargarCuentas()}catch(err){alert(err.message)}finally{confirmarPago.disabled=false}});
 
 // Reporte de productos por cliente
 function parametrosReporte(){return new URLSearchParams({fecha_inicio:rpcInicio.value,fecha_fin:rpcFin.value,cliente_id:rpcCliente.value,producto_id:rpcProducto.value,tipo_pago:rpcPago.value,incluir_canceladas:rpcCanceladas.checked?'1':'0'})}

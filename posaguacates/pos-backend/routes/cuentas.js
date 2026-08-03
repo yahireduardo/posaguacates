@@ -7,6 +7,7 @@ const {
 } = require('../lib/autorizacionAdmin');
 const { construirAplicaciones } = require('../lib/cartera');
 const { prepararReversionPago } = require('../lib/pagos');
+const { normalizarMetodosPago, insertarMetodosPago } = require('../lib/metodosPago');
 const router = express.Router();
 
 const idValido = value => Number.isInteger(Number(value)) && Number(value) > 0;
@@ -67,7 +68,9 @@ router.get('/cliente/:id', async (req, res) => {
     const [pagos] = await db.promise.query(
       `SELECT p.id pago_id,ap.id aplicacion_id,ap.cuenta_id,ap.monto_aplicado monto,
               p.estado pago_estado,p.cancelado_at,p.motivo_cancelacion,
-              p.metodo_pago,p.fecha,p.referencia
+              p.metodo_pago,p.fecha,p.referencia,
+              (SELECT GROUP_CONCAT(CONCAT(pfp.metodo_pago,': ',FORMAT(pfp.monto,2)) ORDER BY pfp.id SEPARATOR ' + ')
+               FROM pago_formas_pago pfp WHERE pfp.pago_id=p.id) metodos_detalle
        FROM pagos p JOIN aplicaciones_pago ap ON ap.pago_id=p.id
        WHERE p.cliente_id=? ORDER BY p.fecha,p.id,ap.id`, [Number(req.params.id)]
     );
@@ -102,13 +105,12 @@ router.get('/cliente/:id', async (req, res) => {
 router.post('/pagos', permitirRoles('ADMON_GRAL'), async (req, res) => {
   const clienteId = Number(req.body.cliente_id);
   const monto = Number(req.body.monto_recibido);
-  const metodo = String(req.body.metodo_pago || '').toUpperCase();
-  const referencia = String(req.body.referencia || '').trim() || null;
   const fecha = req.body.fecha || null;
-  if (!idValido(clienteId) || !Number.isFinite(monto) || monto <= 0 || !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodo)) {
-    return res.status(400).json({ error: 'Cliente, monto y método válidos son obligatorios' });
-  }
-  if (metodo !== 'EFECTIVO' && !referencia) return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
+  if (!idValido(clienteId) || !Number.isFinite(monto) || monto <= 0) return res.status(400).json({ error: 'Cliente y monto válidos son obligatorios' });
+  let desglose;
+  try { desglose = normalizarMetodosPago(req.body, monto); }
+  catch (error) { return res.status(error.status || 400).json({ error: error.message }); }
+  const metodo = desglose.metodo_resumen, referencia = desglose.referencia_resumen;
   const ids = [...new Set((req.body.cuenta_ids || []).map(Number).filter(idValido))].sort((a, b) => a - b);
   if (!ids.length) return res.status(400).json({ error: 'Selecciona al menos una nota' });
   const connection = await db.promise.getConnection();
@@ -133,6 +135,7 @@ router.post('/pagos', permitirRoles('ADMON_GRAL'), async (req, res) => {
        VALUES (NULL,NULL,?,COALESCE(?,NOW()),?,?,?,?,?)`,
       [metodo, fecha, clienteId, monto, referencia, String(req.body.observaciones || '').trim() || null, req.usuario.id]
     );
+    await insertarMetodosPago(connection, 'pago_formas_pago', 'pago_id', pago.insertId, desglose.metodos);
     const recibo = [];
     for (const a of aplicaciones) {
       const anterior = Number(a.cuenta.saldo_pendiente);
@@ -158,7 +161,7 @@ router.post('/pagos', permitirRoles('ADMON_GRAL'), async (req, res) => {
       recibo.push({ cuenta_id: a.cuenta.id, venta_id: a.cuenta.venta_id, monto_aplicado: a.monto, saldo_anterior: anterior, saldo_resultante: nuevo });
     }
     await connection.commit();
-    res.status(201).json({ pago_id: pago.insertId, cliente_id: clienteId, monto_total: monto, metodo_pago: metodo, referencia, aplicaciones: recibo });
+    res.status(201).json({ pago_id: pago.insertId, cliente_id: clienteId, monto_total: monto, metodo_pago: metodo, metodos_pago: desglose.metodos, referencia, aplicaciones: recibo });
   } catch (e) {
     await connection.rollback();
     res.status(e.status || 500).json({ error: e.status ? e.message : 'No fue posible aplicar el pago' });
@@ -262,7 +265,10 @@ router.get('/pagos/:id/recibo', async (req, res) => {
       `SELECT ap.*,cxc.venta_id,CONCAT('V-',LPAD(cxc.venta_id,8,'0')) folio
        FROM aplicaciones_pago ap JOIN cuentas_por_cobrar cxc ON cxc.id=ap.cuenta_id WHERE ap.pago_id=? ORDER BY ap.id`, [pago.id]
     );
-    res.json({ pago, aplicaciones });
+    const [formas_pago] = await db.promise.query(
+      'SELECT metodo_pago,monto,referencia FROM pago_formas_pago WHERE pago_id=? ORDER BY id', [pago.id]
+    );
+    res.json({ pago, aplicaciones, formas_pago });
   } catch (e) { res.status(500).json({ error: 'No fue posible generar el recibo' }); }
 });
 

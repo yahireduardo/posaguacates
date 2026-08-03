@@ -51,6 +51,9 @@ router.get('/:ventaId', async (req, res) => {
        FROM detalle_venta dv JOIN productos p ON p.id=dv.producto_id
        WHERE dv.venta_id=? ORDER BY dv.id`, [ventaId]
     );
+    const [formasPago] = await connection.query(
+      `SELECT metodo_pago,monto,referencia FROM venta_formas_pago WHERE venta_id=? ORDER BY id`, [ventaId]
+    );
     const [[configuracion]] = await connection.query('SELECT * FROM configuracion_negocio WHERE id=1');
     const numeroImpresion = Number(venta.impresiones) + 1;
     const leyenda = numeroImpresion === 1 ? 'ORIGINAL' : 'COPIA';
@@ -80,7 +83,7 @@ th:last-child,td:last-child{text-align:right}.total{text-align:right;font-size:1
 <td>${esc(p.cantidad)}</td><td>${dinero.format(Number(p.precio_unitario))}</td>
 <td>${dinero.format(Number(p.subtotal))}</td></tr>`).join('')}</tbody></table>
 <hr><h2 class="total">Total ${dinero.format(Number(venta.total))}</h2>
-${venta.referencia_pago?`<p>Referencia: ${esc(venta.referencia_pago)}</p>`:''}
+${venta.tipo_pago==='CONTADO'?`<p><strong>Forma de cobro</strong><br>${formasPago.map(f=>`${esc(f.metodo_pago)}: ${dinero.format(Number(f.monto))}${f.referencia?` · Ref. ${esc(f.referencia)}`:''}`).join('<br>')}</p>`:''}
 ${venta.tipo_pago==='CREDITO'?`<p>Saldo pendiente: ${dinero.format(Number(venta.saldo_pendiente||0))}</p>`:''}
 <p>${esc(configuracion?.mensaje_ticket||'Gracias por su compra')}</p>
 <script src="/js/ticket.js" defer></script></body></html>`);

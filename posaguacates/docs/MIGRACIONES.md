@@ -14,6 +14,8 @@ La migración `005_cuentas_proveedores.sql` crea cuentas por pagar y pagos a pro
 
 La migración `006_reconciliar_cuentas_proveedores.sql` repara de forma idempotente las compras activas que hayan quedado sin cuenta por pagar al operar temporalmente con una versión anterior.
 
+La migración `007_pagos_mixtos.sql` agrega el desglose de efectivo, transferencia y cheque para ventas de contado y pagos de clientes. Los cobros anteriores se migran como una sola forma de pago sin alterar sus importes.
+
 Procedimiento: respaldo verificado, conteos previos, cuenta DDL temporal, `npm run db:migrate`, `SELECT * FROM schema_migrations`, conteos posteriores y pruebas. La migración 001 es aditiva y no elimina históricos.
 
 Rollback: detenga el POS, conserve el SQL fallido y restaure el respaldo lógico previo mediante el flujo documentado. No improvise eliminaciones de columnas; el rollback seguro es restaurar el respaldo completo.
