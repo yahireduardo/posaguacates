@@ -40,12 +40,14 @@ router.get('/:id', soloAdmin, async (req, res, next) => {
     const [proveedores] = await db.promise.query(
       `SELECT p.*,
               COALESCE(SUM(CASE WHEN c.estado='ACTIVA' THEN c.total ELSE 0 END),0) total_comprado,
-              MAX(CASE WHEN c.estado='ACTIVA' THEN c.fecha END) ultima_compra
+              MAX(CASE WHEN c.estado='ACTIVA' THEN c.fecha END) ultima_compra,
+              (SELECT COALESCE(SUM(cpp.saldo_pendiente),0) FROM cuentas_por_pagar_proveedores cpp
+               WHERE cpp.proveedor_id=p.id AND cpp.estado='PENDIENTE') deuda_pendiente
        FROM proveedores p LEFT JOIN compras c ON c.proveedor_id=p.id WHERE p.id=? GROUP BY p.id`,
       [req.params.id]
     );
     if (!proveedores.length) return res.status(404).json({ error: 'Proveedor no encontrado' });
-    const [compras, productos] = await Promise.all([
+    const [compras, productos, cuentas, pagos] = await Promise.all([
       db.promise.query(
         'SELECT id,folio,referencia,total,estado,fecha FROM compras WHERE proveedor_id=? ORDER BY fecha DESC,id DESC LIMIT 100',
         [req.params.id]
@@ -57,8 +59,35 @@ router.get('/:id', soloAdmin, async (req, res, next) => {
          WHERE pp.proveedor_id=? AND pp.activo=1 ORDER BY pr.nombre`,
         [req.params.id, req.params.id]
       ).then(([rows]) => rows)
+      ,db.promise.query(
+        `SELECT cpp.id,cpp.compra_id,cpp.total_deuda,cpp.saldo_pendiente,cpp.estado,cpp.fecha,c.folio
+         FROM cuentas_por_pagar_proveedores cpp JOIN compras c ON c.id=cpp.compra_id
+         WHERE cpp.proveedor_id=? ORDER BY cpp.fecha,cpp.id`, [req.params.id]
+      ).then(([rows]) => rows)
+      ,db.promise.query(
+        `SELECT pp.id,pp.cuenta_id,pp.monto,pp.metodo_pago,pp.referencia,pp.observaciones,
+                pp.fecha,pp.estado,u.nombre usuario,c.folio
+         FROM pagos_proveedores pp JOIN usuarios u ON u.id=pp.usuario_id
+         JOIN cuentas_por_pagar_proveedores cpp ON cpp.id=pp.cuenta_id
+         JOIN compras c ON c.id=cpp.compra_id WHERE pp.proveedor_id=?
+         ORDER BY pp.fecha,pp.id`, [req.params.id]
+      ).then(([rows]) => rows)
     ]);
-    return res.json({ proveedor: proveedores[0], compras, productos });
+    const movimientos = [
+      ...cuentas.map(c => ({ id: `C-${c.id}`, fecha: c.fecha, tipo: 'COMPRA', folio: c.folio,
+        cargo: c.estado === 'CANCELADA' ? 0 : Number(c.total_deuda), abono: 0,
+        estado: c.estado, descripcion: c.estado === 'CANCELADA' ? 'Compra cancelada' : 'Compra registrada' })),
+      ...pagos.map(p => ({ id: `P-${p.id}`, fecha: p.fecha, tipo: 'PAGO', folio: p.folio,
+        cargo: 0, abono: p.estado === 'ACTIVO' ? Number(p.monto) : 0, estado: p.estado,
+        descripcion: [p.metodo_pago, p.referencia && `Ref. ${p.referencia}`, p.observaciones].filter(Boolean).join(' · '),
+        usuario: p.usuario }))
+    ].sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || String(a.id).localeCompare(String(b.id)));
+    let saldo = 0;
+    for (const movimiento of movimientos) {
+      saldo = Number((saldo + movimiento.cargo - movimiento.abono).toFixed(2));
+      movimiento.saldo = saldo;
+    }
+    return res.json({ proveedor: proveedores[0], compras, productos, cuentas, pagos, movimientos });
   } catch (error) { return next(error); }
 });
 

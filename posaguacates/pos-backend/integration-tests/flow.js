@@ -42,6 +42,7 @@ test('recorrido transaccional HTTP completo',async()=>{
   const[[cuentaProveedor]]=await db.promise.query('SELECT id,saldo_pendiente FROM cuentas_por_pagar_proveedores WHERE compra_id=?',[compraPagoId]);assert.equal(Number(cuentaProveedor.saldo_pendiente),20);
   r=await request('/cuentas-proveedores/pagos',{method:'POST',body:{cuenta_id:cuentaProveedor.id,monto:5,metodo_pago:'TRANSFERENCIA',referencia:'PAGO-PROV-1'}});assert.equal(r.status,201);assert.equal(Number(r.data.saldo_pendiente),15);
   r=await request('/cuentas-proveedores');assert.equal(r.status,200);assert.equal(Number(r.data.deuda_total),15);
+  r=await request(`/proveedores/${proveedorId}`);assert.equal(r.status,200);assert.equal(r.data.pagos.length,1);assert.ok(r.data.movimientos.some(m=>m.tipo==='PAGO'&&Number(m.abono)===5));assert.equal(Number(r.data.proveedor.deuda_pendiente),15);
   const ventaKey='venta-integracion-0001',venta={cliente_id:clienteId,tipo_pago:'CONTADO',metodos_pago:[{metodo_pago:'EFECTIVO',monto:30},{metodo_pago:'TRANSFERENCIA',monto:64,referencia:'TEST-REF'}],idempotency_key:ventaKey,productos:[{producto_id:productoId,cantidad:2,precio_unitario:47}]};
   r=await request('/ventas/crear',{method:'POST',headers:{'Idempotency-Key':ventaKey},body:venta});assert.equal(r.status,201);assert.equal(Number(r.data.total),94);const ventaContado=r.data.venta_id;
   const[[detallePrecio]]=await db.promise.query('SELECT precio_unitario FROM detalle_venta WHERE venta_id=?',[ventaContado]);assert.equal(Number(detallePrecio.precio_unitario),47);
