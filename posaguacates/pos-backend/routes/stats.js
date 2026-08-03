@@ -120,4 +120,29 @@ router.get('/clientes-compras', permitirRoles('ADMON_GRAL'), async (req, res) =>
   }
 });
 
+router.get('/compras-por-proveedor', permitirRoles('ADMON_GRAL'), async (req, res) => {
+  const where = ["c.estado='ACTIVA'"];
+  const params = [];
+  if (req.query.fecha_inicio) { where.push('c.fecha>=?'); params.push(`${req.query.fecha_inicio} 00:00:00`); }
+  if (req.query.fecha_fin) { where.push('c.fecha<DATE_ADD(?,INTERVAL 1 DAY)'); params.push(req.query.fecha_fin); }
+  const limiteSolicitado = Number(req.query.limite), limite = Number.isInteger(limiteSolicitado) && limiteSolicitado > 0
+    ? Math.min(limiteSolicitado, 100) : 500;
+  try {
+    const [rows] = await db.promise.query(
+      `SELECT p.id proveedor_id,p.nombre proveedor,COUNT(c.id) numero_compras,
+              COALESCE(SUM(c.total),0) total_comprado,COALESCE(AVG(c.total),0) promedio_compra,
+              MIN(c.fecha) primera_compra,MAX(c.fecha) ultima_compra
+       FROM proveedores p JOIN compras c ON c.proveedor_id=p.id
+       WHERE ${where.join(' AND ')}
+       GROUP BY p.id,p.nombre ORDER BY total_comprado DESC,p.nombre LIMIT ${limite}`, params
+    );
+    res.json({ datos: rows, total_general: rows.reduce((s, row) => s + Number(row.total_comprado), 0),
+      numero_compras: rows.reduce((s, row) => s + Number(row.numero_compras), 0),
+      periodo: { fecha_inicio: req.query.fecha_inicio || null, fecha_fin: req.query.fecha_fin || null } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'No fue posible generar las compras por proveedor' });
+  }
+});
+
 module.exports = router;
