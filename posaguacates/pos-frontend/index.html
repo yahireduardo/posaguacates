@@ -210,15 +210,10 @@
               </select>
 
               <div id="metodosPagoVenta" class="panel">
-                <strong>Distribución del cobro</strong>
-                <div class="form-grid">
-                  <label>Efectivo<input id="pagoVentaEfectivo" type="number" min="0" step="0.01" value="0"></label>
-                  <label>Transferencia<input id="pagoVentaTransferencia" type="number" min="0" step="0.01" value="0"></label>
-                  <label>Referencia transferencia<input id="referenciaVentaTransferencia" maxlength="100"></label>
-                  <label>Cheque<input id="pagoVentaCheque" type="number" min="0" step="0.01" value="0"></label>
-                  <label>Número de cheque<input id="referenciaVentaCheque" maxlength="100"></label>
-                </div>
-                <small id="resumenMetodosVenta">Distribuye el total entre uno o varios métodos.</small>
+                <strong>Forma de cobro</strong>
+                <div id="filasPagoVenta"></div>
+                <p id="saldoPagoVenta" class="money"></p>
+                <button id="agregarMetodoVenta" type="button" class="hidden">Agregar otro método</button>
               </div>
 
               <div class="resumen-venta">
@@ -682,7 +677,7 @@
 </div>
 
 
-  <div id="modalPago" class="modal hidden"><div class="modal-contenido"><div class="modal-encabezado"><h2>Aplicar pago</h2><button id="cerrarPago" class="danger">×</button></div><input id="buscarClientePago" class="input-ancho" placeholder="Buscar cliente"><div id="resultadosClientePago"></div><form id="formPago" class="hidden"><input id="pagoClienteId" type="hidden"><h3 id="pagoClienteNombre"></h3><div id="notasPago"></div><div class="form-grid"><label>Monto recibido<input id="pagoMonto" type="number" min="0.01" step="0.01" readonly required></label><label>Fecha<input id="pagoFecha" type="date" required></label><label>Observaciones<input id="pagoObservaciones" maxlength="500"></label></div><div class="panel"><strong>Distribución del pago</strong><div class="form-grid"><label>Efectivo<input id="pagoClienteEfectivo" type="number" min="0" step="0.01" value="0"></label><label>Transferencia<input id="pagoClienteTransferencia" type="number" min="0" step="0.01" value="0"></label><label>Referencia transferencia<input id="referenciaClienteTransferencia" maxlength="100"></label><label>Cheque<input id="pagoClienteCheque" type="number" min="0" step="0.01" value="0"></label><label>Número de cheque<input id="referenciaClienteCheque" maxlength="100"></label></div><small id="resumenMetodosCliente">Distribuye el monto recibido entre uno o varios métodos.</small></div><div id="resumenPago"></div><button id="confirmarPago" class="primary">Confirmar pago</button></form></div></div>
+  <div id="modalPago" class="modal hidden"><div class="modal-contenido"><div class="modal-encabezado"><h2>Aplicar pago</h2><button id="cerrarPago" class="danger">×</button></div><input id="buscarClientePago" class="input-ancho" placeholder="Buscar cliente"><div id="resultadosClientePago"></div><form id="formPago" class="hidden"><input id="pagoClienteId" type="hidden"><h3 id="pagoClienteNombre"></h3><div id="notasPago"></div><div class="form-grid"><label>Monto recibido<input id="pagoMonto" type="number" min="0.01" step="0.01" readonly required></label><label>Fecha<input id="pagoFecha" type="date" required></label><label>Observaciones<input id="pagoObservaciones" maxlength="500"></label></div><div class="panel"><strong>Forma de pago</strong><div id="filasPagoCliente"></div><p id="saldoPagoCliente" class="money"></p><button id="agregarMetodoCliente" type="button" class="hidden">Agregar otro método</button></div><div id="resumenPago"></div><button id="confirmarPago" class="primary">Confirmar pago</button></form></div></div>
 
   <div id="modalEliminarCliente" class="modal hidden">
     <div class="modal-contenido">
