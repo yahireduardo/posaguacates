@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
 const { esCantidadValida } = require('../lib/cantidades');
+const { cambiaImporteCompra, calcularStockEditado } = require('../lib/edicionCompra');
 
 const router = express.Router();
 router.use(permitirRoles('ADMON_GRAL'));
@@ -11,7 +12,8 @@ router.get('/', async (req, res, next) => {
   try {
     const [rows] = await db.promise.query(
       `SELECT c.id,c.folio,c.referencia,c.observaciones,c.total,c.estado,c.fecha,
-              p.nombre proveedor,u.nombre usuario,cpp.id cuenta_id,cpp.saldo_pendiente,cpp.estado estado_cuenta
+              p.nombre proveedor,u.nombre usuario,cpp.id cuenta_id,cpp.saldo_pendiente,cpp.estado estado_cuenta,
+              (SELECT COUNT(*) FROM pagos_proveedores pg WHERE pg.cuenta_id=cpp.id AND pg.estado='ACTIVO') pagos_activos
        FROM compras c LEFT JOIN proveedores p ON p.id=c.proveedor_id
        LEFT JOIN usuarios u ON u.id=c.usuario_id
        LEFT JOIN cuentas_por_pagar_proveedores cpp ON cpp.compra_id=c.id
@@ -25,7 +27,8 @@ router.get('/:id', async (req, res, next) => {
   try {
     const [[cabecera], [detalle]] = await Promise.all([
       db.promise.query(
-        `SELECT c.*,p.nombre proveedor,u.nombre usuario,cpp.id cuenta_id,cpp.saldo_pendiente,cpp.estado estado_cuenta
+        `SELECT c.*,p.nombre proveedor,u.nombre usuario,cpp.id cuenta_id,cpp.saldo_pendiente,cpp.estado estado_cuenta,
+                (SELECT COUNT(*) FROM pagos_proveedores pg WHERE pg.cuenta_id=cpp.id AND pg.estado='ACTIVO') pagos_activos
          FROM compras c LEFT JOIN proveedores p ON p.id=c.proveedor_id
          LEFT JOIN usuarios u ON u.id=c.usuario_id
          LEFT JOIN cuentas_por_pagar_proveedores cpp ON cpp.compra_id=c.id WHERE c.id=?`, [req.params.id]
@@ -114,6 +117,110 @@ router.post('/', async (req, res, next) => {
   } catch (error) {
     await connection.rollback();
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Folio o solicitud duplicada' });
+    next(error);
+  } finally { connection.release(); }
+});
+
+router.put('/:id', async (req, res, next) => {
+  const id = Number(req.params.id), proveedorId = Number(req.body.proveedor_id);
+  const items = Array.isArray(req.body.productos) ? req.body.productos : [];
+  const ids = items.map(item => Number(item.producto_id));
+  if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(proveedorId) || proveedorId <= 0 ||
+      !items.length || new Set(ids).size !== ids.length) {
+    return res.status(400).json({ error: 'Compra, proveedor y productos sin repetir son obligatorios' });
+  }
+  const connection = await db.promise.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [[compra]] = await connection.query('SELECT * FROM compras WHERE id=? FOR UPDATE', [id]);
+    if (!compra) throw fallo('Compra no encontrada', 404);
+    if (compra.estado !== 'ACTIVA') throw fallo('Solo se pueden editar compras activas', 409);
+    const [[proveedor]] = await connection.query('SELECT id FROM proveedores WHERE id=? AND activo=1 FOR UPDATE', [proveedorId]);
+    if (!proveedor) throw fallo('Proveedor no disponible', 409);
+    const [[cuenta]] = await connection.query(
+      'SELECT id,total_deuda,saldo_pendiente,estado FROM cuentas_por_pagar_proveedores WHERE compra_id=? FOR UPDATE', [id]
+    );
+    const [anteriores] = await connection.query(
+      `SELECT dc.*,p.nombre,p.stock,p.unidad FROM detalle_compra dc JOIN productos p ON p.id=dc.producto_id
+       WHERE dc.compra_id=? ORDER BY dc.producto_id FOR UPDATE`, [id]
+    );
+    const todosIds = [...new Set([...anteriores.map(item => Number(item.producto_id)), ...ids])].sort((a, b) => a - b);
+    const [productos] = await connection.query(
+      `SELECT id,nombre,unidad,stock,activo FROM productos WHERE id IN (${todosIds.map(() => '?').join(',')}) ORDER BY id FOR UPDATE`, todosIds
+    );
+    const mapaProductos = new Map(productos.map(producto => [Number(producto.id), producto]));
+    let total = 0;
+    const nuevos = items.map(item => {
+      const producto = mapaProductos.get(Number(item.producto_id));
+      const cantidad = Number(item.cantidad), costo = Number(item.costo);
+      if (!producto || !producto.activo || String(item.unidad || producto.unidad).toUpperCase() !== String(producto.unidad).toUpperCase() ||
+          !esCantidadValida(cantidad, producto.unidad) || !Number.isInteger(costo) || costo < 0) {
+        throw fallo('Producto, unidad, cantidad o costo inválido', 409);
+      }
+      const subtotal = Math.round(cantidad * costo * 100) / 100;
+      total = Math.round((total + subtotal) * 100) / 100;
+      return { producto, cantidad, costo, subtotal };
+    });
+    const [[pagos]] = cuenta ? await connection.query(
+      "SELECT COUNT(*) total FROM pagos_proveedores WHERE cuenta_id=? AND estado='ACTIVO' FOR UPDATE", [cuenta.id]
+    ) : [[{ total: 0 }]];
+    const cambiaImporte = cambiaImporteCompra({ compra, proveedorId, total, anteriores, nuevos });
+    if (Number(pagos.total) > 0 && cambiaImporte) {
+      throw fallo('La compra ya tiene pagos. Solo puedes editar folio, referencia y observaciones', 409);
+    }
+    const folio = String(req.body.folio || compra.folio || `C-${id}`).trim().replace(/\s+/g, ' ');
+    const referencia = String(req.body.referencia || '').trim().replace(/\s+/g, ' ') || null;
+    const observaciones = String(req.body.observaciones || '').trim().replace(/\s+/g, ' ') || null;
+    if (!cambiaImporte) {
+      await connection.query('UPDATE compras SET folio=?,referencia=?,observaciones=? WHERE id=?', [folio, referencia, observaciones, id]);
+    } else {
+      const cantidadAnterior = new Map(anteriores.map(item => [Number(item.producto_id), Number(item.cantidad)]));
+      const cantidadNueva = new Map(nuevos.map(item => [Number(item.producto.id), item.cantidad]));
+      for (const productoId of todosIds) {
+        const producto = mapaProductos.get(productoId), anterior = cantidadAnterior.get(productoId) || 0, nueva = cantidadNueva.get(productoId) || 0;
+        const stockFinal = calcularStockEditado(producto.stock, anterior, nueva), diferencia = Number((nueva - anterior).toFixed(2));
+        if (stockFinal == null) throw fallo(`No se puede editar: el stock recibido de ${producto.nombre} ya fue consumido`, 409);
+        const detalleNuevo = nuevos.find(item => Number(item.producto.id) === productoId);
+        await connection.query('UPDATE productos SET stock=?' + (detalleNuevo ? ',costo=?' : '') + ' WHERE id=?',
+          detalleNuevo ? [stockFinal, detalleNuevo.costo, productoId] : [stockFinal, productoId]);
+        if (Math.abs(diferencia) > 0.0001) await connection.query(
+          `INSERT INTO movimientos_inventario
+           (producto_id,tipo,cantidad,stock_anterior,stock_final,motivo,referencia_tipo,referencia_id,usuario_id)
+           VALUES (?,?,?,?,?,'EDICION_COMPRA','COMPRA',?,?)`,
+          [productoId, diferencia > 0 ? 'ENTRADA' : 'SALIDA', Math.abs(diferencia), producto.stock, stockFinal, id, req.usuario.id]
+        );
+      }
+      await connection.query('DELETE FROM detalle_compra WHERE compra_id=?', [id]);
+      for (const detalle of nuevos) {
+        await connection.query(
+          `INSERT INTO detalle_compra(compra_id,producto_id,cantidad,unidad,precio_compra,subtotal) VALUES (?,?,?,?,?,?)`,
+          [id, detalle.producto.id, detalle.cantidad, detalle.producto.unidad, detalle.costo, detalle.subtotal]
+        );
+        await connection.query(
+          `INSERT INTO producto_proveedores(producto_id,proveedor_id,costo_ultimo,ultima_compra_at,activo)
+           VALUES (?,?,?,NOW(),1) ON DUPLICATE KEY UPDATE costo_ultimo=VALUES(costo_ultimo),ultima_compra_at=VALUES(ultima_compra_at),activo=1`,
+          [detalle.producto.id, proveedorId, detalle.costo]
+        );
+      }
+      await connection.query(
+        'UPDATE compras SET proveedor_id=?,folio=?,referencia=?,observaciones=?,total=? WHERE id=?',
+        [proveedorId, folio, referencia, observaciones, total, id]
+      );
+      if (cuenta) await connection.query(
+        'UPDATE cuentas_por_pagar_proveedores SET proveedor_id=?,total_deuda=?,saldo_pendiente=?,estado=? WHERE id=?',
+        [proveedorId, total, total, total === 0 ? 'PAGADA' : 'PENDIENTE', cuenta.id]
+      );
+    }
+    await connection.query(
+      `INSERT INTO auditoria_operaciones(usuario_id,accion,entidad,entidad_id,datos_json)
+       VALUES (?,'EDITAR_COMPRA','COMPRA',?,?)`,
+      [req.usuario.id, String(id), JSON.stringify({ proveedor_id: proveedorId, total, cambia_importe: cambiaImporte })]
+    );
+    await connection.commit();
+    res.json({ mensaje: 'Compra actualizada correctamente', id, folio, total });
+  } catch (error) {
+    await connection.rollback();
+    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El folio ya pertenece a otra compra' });
     next(error);
   } finally { connection.release(); }
 });
