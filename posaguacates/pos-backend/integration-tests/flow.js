@@ -58,8 +58,9 @@ test('recorrido transaccional HTTP completo',async()=>{
   r=await request('/stats');assert.equal(r.status,200);assert.ok('ingresos_mes'in r.data);
   r=await request('/chatbot',{method:'POST',body:{pregunta:'cuánto vendí hoy'}});assert.equal(r.status,200);assert.equal(r.data.soportada,true);
   r=await request('/prediccion');assert.equal(r.status,200);assert.ok(Array.isArray(r.data.predicciones));
-  r=await request('/ordenes',{method:'POST',body:{cliente_id:clienteId,estado:'PENDIENTE',observaciones:'Orden integración',productos:[{producto_id:productoId,cantidad:1}]}});assert.equal(r.status,201);const ordenId=r.data.orden_id;
+  r=await request('/ordenes',{method:'POST',body:{cliente_id:clienteId,estado:'PENDIENTE',observaciones:'Orden integración',productos:[{producto_id:productoId,cantidad:1,precio_unitario:45}]}});assert.equal(r.status,201);const ordenId=r.data.orden_id;
   r=await request(`/ordenes/${ordenId}/convertir`,{method:'POST',body:{tipo_pago:'CONTADO',metodo_pago:'CHEQUE',referencia_pago:'CHK-TEST'}});assert.equal(r.status,201);
+  const[[precioOrdenConvertida]]=await db.promise.query('SELECT precio_unitario FROM detalle_venta WHERE venta_id=?',[r.data.venta_id]);assert.equal(Number(precioOrdenConvertida.precio_unitario),45);
   r=await request(`/ordenes/${ordenId}/convertir`,{method:'POST',body:{tipo_pago:'CONTADO',metodo_pago:'CHEQUE',referencia_pago:'CHK-TEST'}});assert.equal(r.status,409);
   r=await request('/configuracion',{method:'PUT',body:{nombre_comercial:'POS Integración',moneda:'MXN',papel_mm:80,stock_minimo_default:1,vencimiento_dias:30}});assert.equal(r.status,200);
   r=await request('/reportes/ventas.csv');assert.equal(r.status,200);assert.match(r.data,/folio/);

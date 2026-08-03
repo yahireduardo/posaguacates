@@ -119,7 +119,7 @@ async function guardar(req, res) {
       if (!actual) throw error('Orden no encontrada', 404);
       if (!['BORRADOR', 'PENDIENTE'].includes(actual.estado)) throw error('La orden ya no puede editarse', 409);
     }
-    const calculo = await catalogoOrden(connection, clienteId, req.body.productos);
+    const calculo = await catalogoOrden(connection, clienteId, req.body.productos, false, true);
     let ordenId = id;
     if (id) {
       await connection.query(
@@ -189,7 +189,7 @@ router.post('/:id/convertir', async (req, res) => {
       throw error('El cliente seleccionado no tiene crédito autorizado', 409);
     }
     const productosEntrada = Array.isArray(items) && items.length ? items :
-      (await connection.query('SELECT producto_id,cantidad FROM detalle_orden_venta WHERE orden_id=?', [ordenId]))[0];
+      (await connection.query('SELECT producto_id,cantidad,precio_estimado precio_unitario FROM detalle_orden_venta WHERE orden_id=?', [ordenId]))[0];
     const calculo = await catalogoOrden(connection, orden.cliente_id, productosEntrada, true, true);
     if (tipoPago === 'CONTADO') {
       desglosePago = normalizarMetodosPago(req.body, calculo.total, { metodo: 'metodo_pago', referencia: 'referencia_pago' });
