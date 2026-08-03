@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
+const { prepararCancelacionPagoProveedor } = require('../lib/cancelacionPagoProveedor');
 
 const router = express.Router();
 router.use(permitirRoles('ADMON_GRAL'));
@@ -72,6 +73,38 @@ router.post('/pagos', async (req, res, next) => {
     );
     await connection.commit();
     res.status(201).json({ pago_id: pago.insertId, saldo_pendiente: saldo, estado: saldo === 0 ? 'PAGADA' : 'PENDIENTE' });
+  } catch (error) { await connection.rollback(); next(error); }
+  finally { connection.release(); }
+});
+
+router.post('/pagos/:id/cancelar', async (req, res, next) => {
+  const id = Number(req.params.id), motivo = String(req.body.motivo || '').trim();
+  if (!Number.isInteger(id) || id <= 0 || motivo.length < 5 || motivo.length > 500) {
+    return res.status(400).json({ error: 'Pago y motivo de 5 a 500 caracteres son obligatorios' });
+  }
+  const connection = await db.promise.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [[pago]] = await connection.query(
+      'SELECT id,cuenta_id,proveedor_id,monto,estado FROM pagos_proveedores WHERE id=? FOR UPDATE', [id]
+    );
+    const [[cuenta]] = pago ? await connection.query(
+      'SELECT id,total_deuda,saldo_pendiente,estado FROM cuentas_por_pagar_proveedores WHERE id=? FOR UPDATE', [pago.cuenta_id]
+    ) : [[null]];
+    const resultado = prepararCancelacionPagoProveedor(pago, cuenta);
+    if (resultado.error) throw fallo(resultado.error, resultado.status);
+    await connection.query("UPDATE pagos_proveedores SET estado='CANCELADO' WHERE id=?", [id]);
+    await connection.query(
+      'UPDATE cuentas_por_pagar_proveedores SET saldo_pendiente=?,estado=? WHERE id=?',
+      [resultado.saldo_nuevo, resultado.estado_cuenta, cuenta.id]
+    );
+    await connection.query(
+      `INSERT INTO auditoria_operaciones(usuario_id,accion,entidad,entidad_id,motivo,datos_json)
+       VALUES (?,'CANCELAR_PAGO_PROVEEDOR','PAGO_PROVEEDOR',?,?,?)`,
+      [req.usuario.id, String(id), motivo, JSON.stringify({ cuenta_id: cuenta.id, monto: Number(pago.monto), saldo_restaurado: resultado.saldo_nuevo })]
+    );
+    await connection.commit();
+    res.json({ mensaje: 'Pago eliminado y saldo restaurado', saldo_pendiente: resultado.saldo_nuevo });
   } catch (error) { await connection.rollback(); next(error); }
   finally { connection.release(); }
 });

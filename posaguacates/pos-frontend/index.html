@@ -802,18 +802,38 @@
   <div id="modalCancelarCompra" class="modal hidden">
     <div class="modal-contenido">
       <div class="modal-encabezado">
-        <h2>Cancelar compra</h2>
+        <h2>Eliminar compra</h2>
         <button id="cerrarCancelarCompra" type="button" class="danger" aria-label="Cerrar">×</button>
       </div>
-      <p>Esta acción descontará del inventario los productos recibidos y anulará la deuda pendiente.</p>
+      <p>Esta eliminación administrativa descontará del inventario los productos recibidos, anulará la deuda y conservará el registro como cancelado en auditoría.</p>
       <form id="formCancelarCompra">
         <input id="cancelarCompraId" type="hidden">
-        <label>Motivo de cancelación
+        <label>Motivo de eliminación
           <textarea id="motivoCancelarCompra" minlength="5" maxlength="500" rows="3" required></textarea>
         </label>
         <div class="actions">
-          <button id="confirmarCancelarCompra" type="submit" class="danger">Confirmar cancelación</button>
+          <button id="confirmarCancelarCompra" type="submit" class="danger">Eliminar compra</button>
           <button id="cancelarCancelarCompra" type="button">Volver</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalCancelarPagoProveedor" class="modal hidden">
+    <div class="modal-contenido">
+      <div class="modal-encabezado">
+        <h2>Eliminar pago a proveedor</h2>
+        <button id="cerrarCancelarPagoProveedor" type="button" class="danger" aria-label="Cerrar">×</button>
+      </div>
+      <p>El pago quedará cancelado en el historial y su importe regresará al saldo pendiente de la compra.</p>
+      <form id="formCancelarPagoProveedor">
+        <input id="cancelarPagoProveedorId" type="hidden">
+        <label>Motivo de eliminación
+          <textarea id="motivoCancelarPagoProveedor" minlength="5" maxlength="500" rows="3" required></textarea>
+        </label>
+        <div class="actions">
+          <button id="confirmarCancelarPagoProveedor" type="submit" class="danger">Eliminar pago</button>
+          <button id="volverCancelarPagoProveedor" type="button">Volver</button>
         </div>
       </form>
     </div>
