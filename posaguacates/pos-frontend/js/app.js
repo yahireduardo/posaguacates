@@ -1745,7 +1745,7 @@ document.getElementById('resultadosProductoOrden')?.addEventListener('click',e=>
 document.getElementById('editorOrden')?.addEventListener('submit',e=>{if(Number(document.getElementById('ordenEditorCliente').value)>0)return;e.preventDefault();e.stopImmediatePropagation();alert('Selecciona un cliente de los resultados de búsqueda')},true);
 document.getElementById('ordenNueva')?.addEventListener('click',limpiarEditorOrden);
 document.getElementById('ordenCerrarEditor')?.addEventListener('click',limpiarEditorOrden);
-document.getElementById('ordenAgregarProducto')?.addEventListener('click',()=>{
+function agregarProductoOrden(){
   const id=Number(document.getElementById('ordenEditorProducto').value),p=productos.find(x=>x.id===id),cantidadNueva=Number(document.getElementById('ordenEditorCantidad').value),precio=Number(document.getElementById('ordenEditorPrecio').value);
   if(!p||!esCantidadValida(cantidadNueva,p.unidad))return alert(p?mensajeCantidad(p.unidad):'Selecciona un producto');
   if(!Number.isInteger(precio)||precio<=0)return alert('El precio unitario debe ser un entero mayor a cero');
@@ -1753,7 +1753,9 @@ document.getElementById('ordenAgregarProducto')?.addEventListener('click',()=>{
   if(existente){existente.cantidad+=cantidadNueva;existente.precio=precio}
   else ordenDetalle.push({producto_id:id,codigo:p.codigo||p.id,nombre:p.nombre,unidad:p.unidad,precio,cantidad:cantidadNueva});
   document.getElementById('ordenEditorCantidad').value='1';document.getElementById('ordenEditorProducto').value='';document.getElementById('ordenEditorProductoBuscar').value='';document.getElementById('ordenEditorPrecio').value='';dibujarEditorOrden();document.getElementById('ordenEditorProductoBuscar').focus();
-});
+}
+document.getElementById('ordenAgregarProducto')?.addEventListener('click',agregarProductoOrden);
+document.getElementById('editorOrden')?.addEventListener('keydown',e=>{if(e.key!=='Enter'||e.target.tagName==='TEXTAREA'||e.target.id==='ordenGuardar')return;e.preventDefault();e.stopPropagation();if(['ordenEditorProductoBuscar','ordenEditorCantidad','ordenEditorPrecio'].includes(e.target.id))agregarProductoOrden()});
 document.getElementById('ordenEditorDetalle')?.addEventListener('change',e=>{const i=Number(e.target.dataset.i);if(e.target.matches('.orden-item-cantidad')){const n=Number(e.target.value);if(!esCantidadValida(n,ordenDetalle[i].unidad)){alert(mensajeCantidad(ordenDetalle[i].unidad));return dibujarEditorOrden()}ordenDetalle[i].cantidad=n}if(e.target.matches('.orden-item-precio')){const precio=Number(e.target.value);if(!Number.isInteger(precio)||precio<=0){alert('El precio unitario debe ser un entero mayor a cero');return dibujarEditorOrden()}ordenDetalle[i].precio=precio}dibujarEditorOrden()});
 document.getElementById('ordenEditorDetalle')?.addEventListener('click',e=>{const b=e.target.closest('.orden-item-quitar');if(b){ordenDetalle.splice(Number(b.dataset.i),1);dibujarEditorOrden()}});
 document.getElementById('editorOrden')?.addEventListener('submit',async e=>{e.preventDefault();if(!ordenDetalle.length)return alert('Agrega productos a la orden');const invalido=ordenDetalle.find(x=>!esCantidadValida(x.cantidad,x.unidad)||!Number.isInteger(Number(x.precio))||Number(x.precio)<=0);if(invalido)return alert(!esCantidadValida(invalido.cantidad,invalido.unidad)?mensajeCantidad(invalido.unidad):'Todos los precios deben ser enteros mayores a cero');const id=ordenActualId,endpoint=id?`/ordenes/${id}`:'/ordenes';try{await api(endpoint,{method:id?'PUT':'POST',body:JSON.stringify({cliente_id:Number(document.getElementById('ordenEditorCliente').value),estado:'PENDIENTE',observaciones:document.getElementById('ordenEditorObservaciones').value,productos:ordenDetalle.map(x=>({producto_id:x.producto_id,cantidad:x.cantidad,precio_unitario:x.precio}))})});alert(id?'Orden actualizada':'Orden guardada');limpiarEditorOrden();await cargarOrdenes()}catch(err){alert(err.message)}});
