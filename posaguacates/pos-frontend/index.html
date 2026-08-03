@@ -779,7 +779,14 @@
       <div class="modal-encabezado"><h2>Pago a proveedores</h2><button id="cerrarPagoProveedor" type="button" class="danger" aria-label="Cerrar">×</button></div>
       <div id="resumenDeudaProveedores"></div>
       <form id="formPagoProveedor">
-        <label>Compra pendiente<select id="cuentaPagoProveedor" required></select></label>
+        <input id="proveedorPagoId" type="hidden">
+        <label class="campo-busqueda-proveedor">Proveedor
+          <input id="buscarProveedorPago" type="text" autocomplete="off" placeholder="Escribe nombre, RFC, teléfono o contacto">
+          <div id="resultadosProveedorPago" class="resultados-busqueda hidden"></div>
+        </label>
+        <label>Compra pendiente
+          <select id="cuentaPagoProveedor" required disabled><option value="">Busca y selecciona un proveedor</option></select>
+        </label>
         <div class="form-grid">
           <label>Monto<input id="montoPagoProveedor" type="number" min="0.01" step="0.01" required></label>
           <label>Método<select id="metodoPagoProveedor"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option></select></label>
