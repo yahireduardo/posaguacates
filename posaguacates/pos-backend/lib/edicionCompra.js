@@ -18,4 +18,9 @@ function calcularStockEditado(stockActual, cantidadAnterior, cantidadNueva) {
   return Number((stock - anterior + nueva).toFixed(2));
 }
 
-module.exports = { cambiaImporteCompra, calcularStockEditado };
+function totalCompraNoDisminuye(totalOriginal, totalNuevo) {
+  const original = Number(totalOriginal), nuevo = Number(totalNuevo);
+  return Number.isFinite(original) && Number.isFinite(nuevo) && nuevo + 0.005 >= original;
+}
+
+module.exports = { cambiaImporteCompra, calcularStockEditado, totalCompraNoDisminuye };

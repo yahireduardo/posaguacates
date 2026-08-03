@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
 const { esCantidadValida } = require('../lib/cantidades');
-const { cambiaImporteCompra, calcularStockEditado } = require('../lib/edicionCompra');
+const { cambiaImporteCompra, calcularStockEditado, totalCompraNoDisminuye } = require('../lib/edicionCompra');
 
 const router = express.Router();
 router.use(permitirRoles('ADMON_GRAL'));
@@ -164,6 +164,9 @@ router.put('/:id', async (req, res, next) => {
     const [[pagos]] = cuenta ? await connection.query(
       "SELECT COUNT(*) total FROM pagos_proveedores WHERE cuenta_id=? AND estado='ACTIVO' FOR UPDATE", [cuenta.id]
     ) : [[{ total: 0 }]];
+    if (!totalCompraNoDisminuye(compra.total, total)) {
+      throw fallo(`El nuevo total (${total.toFixed(2)}) no puede ser menor al total original (${Number(compra.total).toFixed(2)})`, 409);
+    }
     const cambiaImporte = cambiaImporteCompra({ compra, proveedorId, total, anteriores, nuevos });
     if (Number(pagos.total) > 0 && cambiaImporte) {
       throw fallo('La compra ya tiene pagos. Solo puedes editar folio, referencia y observaciones', 409);
