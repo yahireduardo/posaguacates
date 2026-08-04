@@ -9,6 +9,8 @@
 - [ ] Prueba sin Internet aprobada.
 - [ ] `.env`, dumps, ZIP, logs y `node_modules` ausentes de Git.
 - [ ] Rama revisada y Pull Request sin fusionar.
-- [ ] No se incorporó Electron ni empaquetado ejecutable.
+- [ ] Instalador Windows recompilado y hash SHA-256 registrado.
+- [ ] Instalador probado en una computadora limpia con MariaDB recién instalado.
+- [ ] Paquete sin `.env`, respaldos, logs, datos comerciales ni archivos temporales.
 - [ ] Validar Inventario → Proveedores → Nuevo proveedor → Producto → Compra → Entrada de stock.
 - [ ] Confirmar que CAJERO consulta la lista operativa pero no administra proveedores ni compras.

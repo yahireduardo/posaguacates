@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
 const { datosProveedor, validarProveedor } = require('../lib/proveedores');
+const { validarConfirmacionProveedor, proveedorTieneCompras } = require('../lib/eliminacionProveedor');
 
 const router = express.Router();
 const soloAdmin = permitirRoles('ADMON_GRAL');
@@ -135,6 +136,25 @@ router.patch('/:id/estado', soloAdmin, async (req, res, next) => {
     if (!result.affectedRows) return res.status(404).json({ error: 'Proveedor no encontrado' });
     return res.json({ mensaje: activo ? 'Proveedor activado' : 'Proveedor desactivado' });
   } catch (error) { return next(error); }
+});
+
+router.delete('/:id', soloAdmin, async (req, res, next) => {
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<=0)return res.status(400).json({error:'Proveedor inválido'});
+  if(!validarConfirmacionProveedor(req.body.confirmacion))return res.status(400).json({error:'Confirma la eliminación del proveedor'});
+  const connection=await db.promise.getConnection();
+  try{
+    await connection.beginTransaction();
+    const[[proveedor]]=await connection.query('SELECT id,nombre FROM proveedores WHERE id=? FOR UPDATE',[id]);
+    if(!proveedor)throw Object.assign(new Error('Proveedor no encontrado'),{status:404});
+    const[[uso]]=await connection.query('SELECT COUNT(*) compras FROM compras WHERE proveedor_id=?',[id]);
+    if(proveedorTieneCompras(uso))throw Object.assign(new Error('No se puede eliminar: el proveedor tiene compras asociadas'),{status:409});
+    await connection.query('UPDATE productos SET proveedor_id=NULL WHERE proveedor_id=?',[id]);
+    await connection.query('DELETE FROM producto_proveedores WHERE proveedor_id=?',[id]);
+    await connection.query('DELETE FROM proveedores WHERE id=?',[id]);
+    await connection.commit();
+    return res.json({mensaje:'Proveedor eliminado correctamente'});
+  }catch(error){await connection.rollback();return next(error)}finally{connection.release()}
 });
 
 module.exports = router;

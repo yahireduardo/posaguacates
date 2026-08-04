@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
+const { validarConfirmacionProducto, motivoBloqueoProducto } = require('../lib/eliminacionProducto');
 const router = express.Router();
 
 function datos(body) {
@@ -16,7 +17,8 @@ function datos(body) {
 function validar(p) {
   if (!p.codigo || !p.nombre || !['KG', 'CAJA'].includes(p.unidad)) return 'Código, nombre y unidad (KG o CAJA) son obligatorios';
   if (!Number.isInteger(p.precio) || !Number.isInteger(p.costo) || !Number.isFinite(p.minimo) || p.precio < 0 || p.costo < 0 || p.minimo < 0) return 'Precio y costo deben ser pesos enteros; el stock mínimo debe ser un número no negativo';
-  if (p.unidad === 'CAJA' && (!Number.isFinite(p.kilosCaja) || p.kilosCaja <= 0)) return 'Kilos por caja es obligatorio para productos por caja';
+  if (p.unidad === 'CAJA' && !Number.isInteger(p.minimo * 2)) return 'El stock mínimo por caja debe avanzar de 0.5 en 0.5';
+  if (p.kilosCaja !== null && (!Number.isFinite(p.kilosCaja) || p.kilosCaja <= 0)) return 'Kilos por caja debe ser un número mayor que cero';
   return null;
 }
 
@@ -85,6 +87,30 @@ router.patch('/:id/estado', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
   try{const [r]=await db.promise.query('UPDATE productos SET activo=? WHERE id=?',[activo?1:0,id]);if(!r.affectedRows)return res.status(404).json({error:'Producto no encontrado'});res.json({mensaje:activo?'Producto activado':'Producto desactivado'});}catch(e){next(e);}
 });
 
+router.delete('/:id', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
+  const id=Number(req.params.id),confirmacion=String(req.body.confirmacion||'').trim().toUpperCase();
+  if(!Number.isInteger(id)||id<=0)return res.status(400).json({error:'Producto inválido'});
+  if(!validarConfirmacionProducto(confirmacion))return res.status(400).json({error:'Confirma la eliminación del producto'});
+  const connection=await db.promise.getConnection();
+  try{
+    await connection.beginTransaction();
+    const[[producto]]=await connection.query('SELECT id,nombre FROM productos WHERE id=? FOR UPDATE',[id]);
+    if(!producto)throw Object.assign(new Error('Producto no encontrado'),{status:404});
+    const[[uso]]=await connection.query(`SELECT
+      (SELECT COUNT(*) FROM movimientos_inventario WHERE producto_id=?) movimientos,
+      (SELECT COUNT(*) FROM detalle_venta WHERE producto_id=?) ventas,
+      (SELECT COUNT(*) FROM detalle_compra WHERE producto_id=?) compras,
+      (SELECT COUNT(*) FROM detalle_orden_venta WHERE producto_id=?) ordenes`,[id,id,id,id]);
+    const motivoBloqueo=motivoBloqueoProducto(uso);
+    if(motivoBloqueo)throw Object.assign(new Error(motivoBloqueo),{status:409});
+    await connection.query('DELETE FROM predicciones WHERE producto_id=?',[id]);
+    await connection.query('DELETE FROM producto_proveedores WHERE producto_id=?',[id]);
+    await connection.query('DELETE FROM productos WHERE id=?',[id]);
+    await connection.commit();
+    return res.json({mensaje:'Producto eliminado correctamente'});
+  }catch(error){await connection.rollback();return next(error)}finally{connection.release()}
+});
+
 router.get('/:id/proveedores', permitirRoles('ADMON_GRAL'), async (req, res, next) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Producto inválido' });
@@ -140,3 +166,4 @@ router.put('/:id/precio', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
 });
 module.exports=router;
 module.exports.datosProducto=datos;
+module.exports.validarProducto=validar;

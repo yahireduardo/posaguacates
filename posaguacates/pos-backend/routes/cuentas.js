@@ -80,7 +80,7 @@ router.get('/cliente/:id', async (req, res) => {
               COALESCE(u.nombre,u.username,'Sistema') usuario
        FROM movimientos_cartera mc
        LEFT JOIN usuarios u ON u.id=mc.usuario_id
-       WHERE mc.cliente_id=? ORDER BY mc.fecha,mc.id`, [Number(req.params.id)]
+       WHERE mc.cliente_id=? ORDER BY DATE(mc.fecha) ASC,mc.id ASC`, [Number(req.params.id)]
     );
     res.json({
       cliente,
@@ -102,7 +102,7 @@ router.get('/cliente/:id', async (req, res) => {
   }
 });
 
-router.post('/pagos', permitirRoles('ADMON_GRAL'), async (req, res) => {
+router.post('/pagos', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) => {
   const clienteId = Number(req.body.cliente_id);
   const monto = Number(req.body.monto_recibido);
   const fecha = req.body.fecha || null;

@@ -436,6 +436,8 @@
 @media(max-width:700px){#ordenes .orden-layout{gap:14px;padding:14px}#ordenes .orden-seccion{padding:14px}}
 #resultadosClientePago{display:flex;flex-direction:column;gap:6px;margin:8px 0}
 #resultadosClientePago button{text-align:left}
+.cliente-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.cliente-acciones button{flex:0 0 auto}
 .busqueda-cuenta{display:flex;gap:10px;align-items:center}.busqueda-cuenta input{flex:1}
 #resultadosClienteCuenta{display:flex;flex-direction:column;gap:6px}
 #resultadosClienteCuenta button{text-align:left}
@@ -498,9 +500,13 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid #
 .campo-busqueda-compra{position:relative}
 .campo-busqueda-compra>input:not([type="hidden"]){width:100%;padding:10px;border:1px solid #ccd7d0;border-radius:8px}
 #resultadosProductoCompra{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;max-height:270px;overflow-y:auto;padding:5px;background:#fff;border:1px solid var(--verde-borde);border-radius:8px;box-shadow:0 12px 28px #0002}
+#resultadosProductoMovimiento{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;max-height:270px;overflow-y:auto;padding:5px;background:#fff;border:1px solid var(--verde-borde);border-radius:8px;box-shadow:0 12px 28px #0002}
 #resultadosProductoCompra .resultado-producto-compra{display:grid;width:100%;grid-template-columns:80px 1fr auto;gap:9px;align-items:center;padding:10px;text-align:left;background:#fff;color:#26372f;border-bottom:1px solid #e7ede9}
+#resultadosProductoMovimiento .resultado-producto-movimiento{display:grid;width:100%;grid-template-columns:80px 1fr auto;gap:9px;align-items:center;padding:10px;text-align:left;background:#fff;color:#26372f;border-bottom:1px solid #e7ede9}
 #resultadosProductoCompra .resultado-producto-compra:hover,#resultadosProductoCompra .resultado-producto-compra:focus{background:var(--verde-suave);outline:none}
+#resultadosProductoMovimiento .resultado-producto-movimiento:hover,#resultadosProductoMovimiento .resultado-producto-movimiento:focus{background:var(--verde-suave);outline:none}
 #resultadosProductoCompra small{color:#65766d}
+#resultadosProductoMovimiento small{color:#65766d}
 #productoCompraSeleccionado{margin:8px 0}
 @media(max-width:650px){#resultadosProductoCompra .resultado-producto-compra{grid-template-columns:1fr}#resultadosProductoCompra small{display:block}}
 .resultado-analisis{margin-top:18px;padding-top:8px;border-top:1px solid #dce7e0}
@@ -518,3 +524,15 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid #
 .instancia-entregada .boton-eliminar-producto,.instancia-entregada .cantidad-carrito,.instancia-entregada .editar-cliente,.instancia-entregada .eliminar-cliente,.instancia-entregada .orden-cancelar,.instancia-entregada .orden-pos,.instancia-entregada .cancelar-pago,.instancia-entregada .aplicar-pago-cliente{pointer-events:none;opacity:.5}
 button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:not-allowed;opacity:.58}
 @media(max-width:800px){.respaldo-grid,.guia-traslado{grid-template-columns:1fr}.respaldo-encabezado{align-items:flex-start;flex-direction:column}.confirmacion-restauracion{grid-template-columns:1fr}.estado-instancia div{grid-template-columns:1fr}.barra-entregada{align-items:flex-start;flex-direction:column}}
+
+/* Separación visual uniforme para jornadas prolongadas de captura. */
+.seccion>*+*{margin-top:18px}
+.panel>h2+*,.panel>h3+*,.panel>form+*,.panel>.form-grid+*,.panel>.detalle-resumen+*{margin-top:14px}
+.panel+.panel,form.panel+.panel,.panel+form.panel{margin-top:18px}
+.modal-contenido>*+*{margin-top:14px}
+.preguntas-consulta{display:flex;flex-wrap:wrap;gap:10px}
+.preguntas-consulta button{background:var(--verde-suave);color:var(--verde-texto);border:1px solid var(--verde-borde);text-align:left}
+.preguntas-consulta button:hover,.preguntas-consulta button:focus{background:#dce9e2;outline:2px solid var(--verde-borde)}
+.prediccion-producto{padding:8px 0}
+.prediccion-producto small{display:block;margin-top:5px;color:#687a70}
+.producto-admin-acciones{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
