@@ -17,7 +17,6 @@ function validar(p) {
   if (!p.codigo || !p.nombre || !['KG', 'CAJA'].includes(p.unidad)) return 'Código, nombre y unidad (KG o CAJA) son obligatorios';
   if (!Number.isInteger(p.precio) || !Number.isInteger(p.costo) || !Number.isFinite(p.minimo) || p.precio < 0 || p.costo < 0 || p.minimo < 0) return 'Precio y costo deben ser pesos enteros; el stock mínimo debe ser un número no negativo';
   if (p.unidad === 'CAJA' && !Number.isInteger(p.minimo * 2)) return 'El stock mínimo por caja debe avanzar de 0.5 en 0.5';
-  if (p.unidad === 'CAJA' && (!Number.isFinite(p.kilosCaja) || p.kilosCaja <= 0)) return 'Kilos por caja es obligatorio para productos por caja';
   if (p.kilosCaja !== null && (!Number.isFinite(p.kilosCaja) || p.kilosCaja <= 0)) return 'Kilos por caja debe ser un número mayor que cero';
   return null;
 }
