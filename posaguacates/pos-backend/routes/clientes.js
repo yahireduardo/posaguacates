@@ -97,7 +97,8 @@ router.get('/:id/resumen', async (req, res) => {
       db.promise.query(`SELECT id,venta_id,total_deuda,saldo_pendiente,estado,fecha
         FROM cuentas_por_cobrar WHERE cliente_id=? ORDER BY fecha,id`, [id]),
       db.promise.query(`SELECT mc.*,u.nombre usuario FROM movimientos_cartera mc
-        LEFT JOIN usuarios u ON u.id=mc.usuario_id WHERE mc.cliente_id=? ORDER BY mc.fecha,mc.id`, [id]),
+        LEFT JOIN usuarios u ON u.id=mc.usuario_id
+        WHERE mc.cliente_id=? ORDER BY DATE(mc.fecha) ASC,mc.id ASC`, [id]),
       db.promise.query(`SELECT id,folio,estado,total_estimado,creada_at FROM ordenes_venta
         WHERE cliente_id=? AND estado='PENDIENTE' ORDER BY creada_at,id`, [id]),
       db.promise.query(`SELECT id,total,tipo_pago,estado_pago,estado_venta,fecha FROM ventas

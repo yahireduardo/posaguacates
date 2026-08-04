@@ -101,7 +101,7 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', guardar);
-router.put('/:id', permitirRoles('ADMON_GRAL'), guardar);
+router.put('/:id', permitirRoles('ADMON_GRAL', 'CAJERO'), guardar);
 async function guardar(req, res) {
   const id = req.method === 'PUT' ? numeroId(req.params.id) : null;
   const clienteId = numeroId(req.body.cliente_id);
