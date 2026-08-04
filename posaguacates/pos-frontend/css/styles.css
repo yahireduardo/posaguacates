@@ -518,3 +518,9 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid #
 .instancia-entregada .boton-eliminar-producto,.instancia-entregada .cantidad-carrito,.instancia-entregada .editar-cliente,.instancia-entregada .eliminar-cliente,.instancia-entregada .orden-cancelar,.instancia-entregada .orden-pos,.instancia-entregada .cancelar-pago,.instancia-entregada .aplicar-pago-cliente{pointer-events:none;opacity:.5}
 button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:not-allowed;opacity:.58}
 @media(max-width:800px){.respaldo-grid,.guia-traslado{grid-template-columns:1fr}.respaldo-encabezado{align-items:flex-start;flex-direction:column}.confirmacion-restauracion{grid-template-columns:1fr}.estado-instancia div{grid-template-columns:1fr}.barra-entregada{align-items:flex-start;flex-direction:column}}
+
+/* Separación visual uniforme para jornadas prolongadas de captura. */
+.seccion>*+*{margin-top:18px}
+.panel>h2+*,.panel>h3+*,.panel>form+*,.panel>.form-grid+*,.panel>.detalle-resumen+*{margin-top:14px}
+.panel+.panel,form.panel+.panel,.panel+form.panel{margin-top:18px}
+.modal-contenido>*+*{margin-top:14px}
