@@ -436,6 +436,8 @@
 @media(max-width:700px){#ordenes .orden-layout{gap:14px;padding:14px}#ordenes .orden-seccion{padding:14px}}
 #resultadosClientePago{display:flex;flex-direction:column;gap:6px;margin:8px 0}
 #resultadosClientePago button{text-align:left}
+.cliente-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.cliente-acciones button{flex:0 0 auto}
 .busqueda-cuenta{display:flex;gap:10px;align-items:center}.busqueda-cuenta input{flex:1}
 #resultadosClienteCuenta{display:flex;flex-direction:column;gap:6px}
 #resultadosClienteCuenta button{text-align:left}
