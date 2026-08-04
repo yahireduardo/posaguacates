@@ -16,6 +16,8 @@
     "windows:shortcut": "powershell -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1",
     "usuario:crear": "node scripts/crearUsuario.js",
     "usuario:cambiar-password": "node scripts/cambiarPassword.js",
+    "empresa:configurar": "node scripts/configurarEmpresa.js",
+    "package:windows": "powershell -ExecutionPolicy Bypass -File ../packaging/build-release.ps1",
     "db:backup": "powershell -ExecutionPolicy Bypass -File scripts/backup/backup-db.ps1",
     "db:restore": "powershell -ExecutionPolicy Bypass -File scripts/backup/restore-db.ps1",
     "db:backup:auto": "powershell -ExecutionPolicy Bypass -File scripts/backup/backup-automatico.ps1",

@@ -20,6 +20,8 @@ tmp/
 restore/
 restoration/
 diagnostics/
+dist/
+packaging/vendor/*.exe
 *.credentials
 *.cnf
 instance-id
