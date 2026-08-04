@@ -701,6 +701,22 @@
     </div>
   </div>
 
+  <div id="modalEliminarProducto" class="modal hidden">
+    <div class="modal-contenido">
+      <div class="modal-encabezado">
+        <h2>Confirmar eliminación</h2>
+        <button id="cerrarEliminarProducto" type="button" class="danger">×</button>
+      </div>
+      <p id="textoEliminarProducto"></p>
+      <p class="muted">Solo se podrá eliminar si nunca ha tenido movimientos de inventario ni historial comercial relacionado.</p>
+      <input id="eliminarProductoId" type="hidden">
+      <div class="actions">
+        <button id="confirmarEliminarProducto" type="button" class="danger">Sí, eliminar producto</button>
+        <button id="cancelarEliminarProducto" type="button">No, conservar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modalAutorizacionCancelacion" class="modal hidden">
     <div class="modal-contenido">
       <div class="modal-encabezado">

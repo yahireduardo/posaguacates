@@ -535,3 +535,4 @@ button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:not-allo
 .preguntas-consulta button:hover,.preguntas-consulta button:focus{background:#dce9e2;outline:2px solid var(--verde-borde)}
 .prediccion-producto{padding:8px 0}
 .prediccion-producto small{display:block;margin-top:5px;color:#687a70}
+.producto-admin-acciones{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}

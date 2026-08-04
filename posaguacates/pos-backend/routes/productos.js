@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
+const { validarConfirmacionProducto, motivoBloqueoProducto } = require('../lib/eliminacionProducto');
 const router = express.Router();
 
 function datos(body) {
@@ -84,6 +85,30 @@ router.patch('/:id/estado', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
   const id=Number(req.params.id),activo=req.body.activo===true||req.body.activo===1;
   if(!Number.isInteger(id)||id<=0)return res.status(400).json({error:'Producto inválido'});
   try{const [r]=await db.promise.query('UPDATE productos SET activo=? WHERE id=?',[activo?1:0,id]);if(!r.affectedRows)return res.status(404).json({error:'Producto no encontrado'});res.json({mensaje:activo?'Producto activado':'Producto desactivado'});}catch(e){next(e);}
+});
+
+router.delete('/:id', permitirRoles('ADMON_GRAL'), async(req,res,next)=>{
+  const id=Number(req.params.id),confirmacion=String(req.body.confirmacion||'').trim().toUpperCase();
+  if(!Number.isInteger(id)||id<=0)return res.status(400).json({error:'Producto inválido'});
+  if(!validarConfirmacionProducto(confirmacion))return res.status(400).json({error:'Confirma la eliminación del producto'});
+  const connection=await db.promise.getConnection();
+  try{
+    await connection.beginTransaction();
+    const[[producto]]=await connection.query('SELECT id,nombre FROM productos WHERE id=? FOR UPDATE',[id]);
+    if(!producto)throw Object.assign(new Error('Producto no encontrado'),{status:404});
+    const[[uso]]=await connection.query(`SELECT
+      (SELECT COUNT(*) FROM movimientos_inventario WHERE producto_id=?) movimientos,
+      (SELECT COUNT(*) FROM detalle_venta WHERE producto_id=?) ventas,
+      (SELECT COUNT(*) FROM detalle_compra WHERE producto_id=?) compras,
+      (SELECT COUNT(*) FROM detalle_orden_venta WHERE producto_id=?) ordenes`,[id,id,id,id]);
+    const motivoBloqueo=motivoBloqueoProducto(uso);
+    if(motivoBloqueo)throw Object.assign(new Error(motivoBloqueo),{status:409});
+    await connection.query('DELETE FROM predicciones WHERE producto_id=?',[id]);
+    await connection.query('DELETE FROM producto_proveedores WHERE producto_id=?',[id]);
+    await connection.query('DELETE FROM productos WHERE id=?',[id]);
+    await connection.commit();
+    return res.json({mensaje:'Producto eliminado correctamente'});
+  }catch(error){await connection.rollback();return next(error)}finally{connection.release()}
 });
 
 router.get('/:id/proveedores', permitirRoles('ADMON_GRAL'), async (req, res, next) => {
