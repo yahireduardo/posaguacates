@@ -524,3 +524,8 @@ button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:not-allo
 .panel>h2+*,.panel>h3+*,.panel>form+*,.panel>.form-grid+*,.panel>.detalle-resumen+*{margin-top:14px}
 .panel+.panel,form.panel+.panel,.panel+form.panel{margin-top:18px}
 .modal-contenido>*+*{margin-top:14px}
+.preguntas-consulta{display:flex;flex-wrap:wrap;gap:10px}
+.preguntas-consulta button{background:var(--verde-suave);color:var(--verde-texto);border:1px solid var(--verde-borde);text-align:left}
+.preguntas-consulta button:hover,.preguntas-consulta button:focus{background:#dce9e2;outline:2px solid var(--verde-borde)}
+.prediccion-producto{padding:8px 0}
+.prediccion-producto small{display:block;margin-top:5px;color:#687a70}
