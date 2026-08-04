@@ -1,2 +1,4 @@
-const test=require('node:test');const assert=require('node:assert/strict');const{datosProducto}=require('../routes/productos');
+const test=require('node:test');const assert=require('node:assert/strict');const{datosProducto,validarProducto}=require('../routes/productos');
 test('producto por kilogramo normaliza kilos por caja ausente a NULL',()=>{const p=datosProducto({codigo:'A',nombre:'A',precio_venta:1,costo:0,unidad:'KG'});assert.equal(p.kilosCaja,null);});
+test('stock mínimo por caja solo acepta enteros y medias cajas',()=>{for(const minimo of [0,0.5,1,1.5,10.5])assert.equal(validarProducto(datosProducto({codigo:'A',nombre:'A',precio_venta:1,costo:0,unidad:'CAJA',kilos_por_caja:10,stock_minimo:minimo})),null);assert.match(validarProducto(datosProducto({codigo:'A',nombre:'A',precio_venta:1,costo:0,unidad:'CAJA',kilos_por_caja:10,stock_minimo:1.25})),/0\.5/);});
+test('stock mínimo en kilos permite decimales no negativos',()=>{for(const minimo of [0,0.01,1.25,10.75])assert.equal(validarProducto(datosProducto({codigo:'A',nombre:'A',precio_venta:1,costo:0,unidad:'KG',stock_minimo:minimo})),null);});
