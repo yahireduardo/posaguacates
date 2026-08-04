@@ -203,29 +203,6 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
 
         productos = await api('/productos');
 
-        const productoMovimiento =
-          document.getElementById('productoMovimiento');
-
-        if (productoMovimiento) {
-
-          productoMovimiento.innerHTML =
-            productos.map(producto => `
-
-              <option value="${producto.id}">
-
-                ${esc(producto.codigo || producto.id)}
-                -
-                ${esc(producto.nombre)}
-                — ${formatearCantidad(producto.stock,producto.unidad)} ${esc(producto.unidad||'')}
-
-              </option>
-
-            `).join('');
-
-          configurarPasoCantidad(document.getElementById('cantidadMovimiento'),productos[0]?.unidad);
-
-        }
-
       } catch (error) {
 
         console.error(
@@ -1061,8 +1038,14 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
     document.getElementById('resultadosClienteCuenta')?.addEventListener('click',e=>{const b=e.target.closest('.seleccionar-cliente-cuenta');if(b)verCuenta(Number(b.dataset.id))});
 
     async function cargarInventario(){await cargarProductos();const data=await api('/inventario');const existencias=document.getElementById('existenciasInventario');if(existencias)existencias.innerHTML=`<table><thead><tr><th>Código</th><th>Producto</th><th>Unidad</th><th>Stock</th><th>Mínimo</th><th>Estado</th></tr></thead><tbody>${productos.map(p=>`<tr><td>${esc(p.codigo)}</td><td>${esc(p.nombre)}</td><td>${esc(p.unidad)}</td><td>${formatearCantidad(p.stock,p.unidad)}</td><td>${formatearCantidad(p.stock_minimo,p.unidad)}</td><td>${Number(p.stock)<=Number(p.stock_minimo)?'<span class="estado-chip warning">Stock bajo</span>':'<span class="estado-chip ok">Disponible</span>'}</td></tr>`).join('')}</tbody></table>`;movimientos.innerHTML=data.map(m=>`<div class="panel row"><span>${esc(m.producto)} · ${esc(m.motivo)}<br><small>${new Date(m.fecha).toLocaleString('es-MX')} · ${esc(m.referencia_tipo||'MANUAL')}</small></span><strong>${m.tipo==='ENTRADA'?'+':'−'}${formatearCantidad(m.cantidad,m.unidad)} ${esc(m.unidad||'')}</strong></div>`).join('')}
-    document.getElementById('productoMovimiento')?.addEventListener('change',e=>{const p=productos.find(x=>x.id===Number(e.target.value));configurarPasoCantidad(document.getElementById('cantidadMovimiento'),p?.unidad)});
-    document.getElementById('movimientoForm')?.addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget,productoId=Number(document.getElementById('productoMovimiento').value),valor=Number(document.getElementById('cantidadMovimiento').value),producto=productos.find(p=>p.id===productoId);if(!producto||!esCantidadValida(valor,producto.unidad))return alert(mensajeCantidad(producto?.unidad));try{await api('/inventario/movimiento',{method:'POST',body:JSON.stringify({producto_id:productoId,tipo:document.getElementById('tipoMovimiento').value,cantidad:valor,motivo:document.getElementById('motivoMovimiento').value})});form.reset();await cargarInventario()}catch(error){alert(error.message)}});
+    const productoMovimiento=document.getElementById('productoMovimiento'),productoMovimientoBuscar=document.getElementById('productoMovimientoBuscar'),resultadosProductoMovimiento=document.getElementById('resultadosProductoMovimiento');
+    function productosCoincidentesMovimiento(){const q=productoMovimientoBuscar.value.trim().toLocaleLowerCase('es-MX');return q?productos.filter(p=>p.activo!==0&&[p.codigo,p.nombre].some(v=>String(v||'').toLocaleLowerCase('es-MX').includes(q))).slice(0,12):[]}
+    function seleccionarProductoMovimiento(producto){productoMovimiento.value=producto.id;productoMovimientoBuscar.value=`${producto.codigo} · ${producto.nombre}`;resultadosProductoMovimiento.classList.add('hidden');configurarPasoCantidad(document.getElementById('cantidadMovimiento'),producto.unidad);document.getElementById('tipoMovimiento').focus()}
+    function buscarProductosMovimiento(){productoMovimiento.value='';const encontrados=productosCoincidentesMovimiento();if(!productoMovimientoBuscar.value.trim()){resultadosProductoMovimiento.classList.add('hidden');return}resultadosProductoMovimiento.innerHTML=encontrados.length?encontrados.map(p=>`<button type="button" class="resultado-producto-movimiento" data-producto-movimiento="${p.id}"><strong>${esc(p.codigo)}</strong><span>${esc(p.nombre)}</span><small>${esc(p.unidad)} · stock ${cantidad(p.stock)}</small></button>`).join(''):'<p class="muted">No hay productos que coincidan.</p>';resultadosProductoMovimiento.classList.remove('hidden')}
+    productoMovimientoBuscar?.addEventListener('input',buscarProductosMovimiento);
+    productoMovimientoBuscar?.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();e.stopPropagation();const producto=productosCoincidentesMovimiento()[0];if(producto)seleccionarProductoMovimiento(producto)});
+    resultadosProductoMovimiento?.addEventListener('click',e=>{const boton=e.target.closest('[data-producto-movimiento]'),producto=productos.find(p=>Number(p.id)===Number(boton?.dataset.productoMovimiento));if(producto)seleccionarProductoMovimiento(producto)});
+    document.getElementById('movimientoForm')?.addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget,productoId=Number(productoMovimiento.value),valor=Number(document.getElementById('cantidadMovimiento').value),producto=productos.find(p=>p.id===productoId);if(!producto)return alert('Busca y selecciona un producto');if(!esCantidadValida(valor,producto.unidad))return alert(mensajeCantidad(producto.unidad));try{await api('/inventario/movimiento',{method:'POST',body:JSON.stringify({producto_id:productoId,tipo:document.getElementById('tipoMovimiento').value,cantidad:valor,motivo:document.getElementById('motivoMovimiento').value})});form.reset();resultadosProductoMovimiento.classList.add('hidden');productoMovimientoBuscar.focus();await cargarInventario()}catch(error){alert(error.message)}});
 
     async function cargarVentas() {
 

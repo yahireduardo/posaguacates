@@ -500,9 +500,13 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid #
 .campo-busqueda-compra{position:relative}
 .campo-busqueda-compra>input:not([type="hidden"]){width:100%;padding:10px;border:1px solid #ccd7d0;border-radius:8px}
 #resultadosProductoCompra{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;max-height:270px;overflow-y:auto;padding:5px;background:#fff;border:1px solid var(--verde-borde);border-radius:8px;box-shadow:0 12px 28px #0002}
+#resultadosProductoMovimiento{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;max-height:270px;overflow-y:auto;padding:5px;background:#fff;border:1px solid var(--verde-borde);border-radius:8px;box-shadow:0 12px 28px #0002}
 #resultadosProductoCompra .resultado-producto-compra{display:grid;width:100%;grid-template-columns:80px 1fr auto;gap:9px;align-items:center;padding:10px;text-align:left;background:#fff;color:#26372f;border-bottom:1px solid #e7ede9}
+#resultadosProductoMovimiento .resultado-producto-movimiento{display:grid;width:100%;grid-template-columns:80px 1fr auto;gap:9px;align-items:center;padding:10px;text-align:left;background:#fff;color:#26372f;border-bottom:1px solid #e7ede9}
 #resultadosProductoCompra .resultado-producto-compra:hover,#resultadosProductoCompra .resultado-producto-compra:focus{background:var(--verde-suave);outline:none}
+#resultadosProductoMovimiento .resultado-producto-movimiento:hover,#resultadosProductoMovimiento .resultado-producto-movimiento:focus{background:var(--verde-suave);outline:none}
 #resultadosProductoCompra small{color:#65766d}
+#resultadosProductoMovimiento small{color:#65766d}
 #productoCompraSeleccionado{margin:8px 0}
 @media(max-width:650px){#resultadosProductoCompra .resultado-producto-compra{grid-template-columns:1fr}#resultadosProductoCompra small{display:block}}
 .resultado-analisis{margin-top:18px;padding-top:8px;border-top:1px solid #dce7e0}
