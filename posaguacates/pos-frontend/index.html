@@ -717,6 +717,22 @@
     </div>
   </div>
 
+  <div id="modalEliminarProveedor" class="modal hidden">
+    <div class="modal-contenido">
+      <div class="modal-encabezado">
+        <h2>Confirmar eliminación</h2>
+        <button id="cerrarEliminarProveedor" type="button" class="danger">×</button>
+      </div>
+      <p id="textoEliminarProveedor"></p>
+      <p class="muted">Solo se podrá eliminar si no tiene ninguna compra asociada. Los productos permanecerán registrados, pero dejarán de tener este proveedor asignado.</p>
+      <input id="eliminarProveedorId" type="hidden">
+      <div class="actions">
+        <button id="confirmarEliminarProveedor" type="button" class="danger">Sí, eliminar proveedor</button>
+        <button id="cancelarEliminarProveedor" type="button">No, conservar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modalAutorizacionCancelacion" class="modal hidden">
     <div class="modal-contenido">
       <div class="modal-encabezado">
