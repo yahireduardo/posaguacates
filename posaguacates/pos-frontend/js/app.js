@@ -897,17 +897,35 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
     const tipoPagoSelect = document.getElementById('tipoPago');
     function crearGestorMetodosPago(contenedorId,saldoId,agregarId){const contenedor=document.getElementById(contenedorId),saldoNodo=document.getElementById(saldoId),agregar=document.getElementById(agregarId),nombres={EFECTIVO:'Efectivo',TRANSFERENCIA:'Transferencia',CHEQUE:'Cheque'};let filas=[],totalActual=0;const leerFilas=()=>[...contenedor.querySelectorAll('.metodo-pago-fila')].map(f=>({metodo_pago:f.querySelector('.metodo-pago-tipo').value,monto:Number(f.querySelector('.metodo-pago-monto').value||0),referencia:f.querySelector('.metodo-pago-referencia')?.value.trim()||null}));const mostrarError=(campo,mensaje)=>{campo.setCustomValidity(mensaje);campo.focus({preventScroll:true});campo.scrollIntoView({behavior:'smooth',block:'center'});campo.reportValidity();const error=new Error(mensaje);error.mostradoEnCampo=true;throw error};function actualizar(e){e?.target?.setCustomValidity?.('');filas=leerFilas();const suma=filas.reduce((s,x)=>s+(Number.isFinite(x.monto)?x.monto:0),0),restante=Number((totalActual-suma).toFixed(2));saldoNodo.textContent=restante>0.005?`Saldo pendiente: ${dinero.format(restante)}`:restante<-.005?`El cobro excede el total por ${dinero.format(Math.abs(restante))}`:'Nota saldada';saldoNodo.classList.toggle('error',restante<-.005);agregar.classList.toggle('hidden',restante<=.005||filas.length>=3)}function dibujar(){const usados=new Set(filas.map(x=>x.metodo_pago));contenedor.innerHTML=filas.map((fila,i)=>`<div class="metodo-pago-fila form-grid" data-i="${i}"><label>Método<select class="metodo-pago-tipo">${Object.entries(nombres).map(([v,n])=>`<option value="${v}" ${v===fila.metodo_pago?'selected':''} ${usados.has(v)&&v!==fila.metodo_pago?'disabled':''}>${n}</option>`).join('')}</select></label><label>Importe<input class="metodo-pago-monto" type="number" min="0.01" step="0.01" value="${fila.monto||''}"></label>${fila.metodo_pago==='EFECTIVO'?'':`<label>${fila.metodo_pago==='CHEQUE'?'Número de cheque':'Referencia'}<input class="metodo-pago-referencia" maxlength="100" value="${esc(fila.referencia||'')}"></label>`}${i?'<button class="quitar-metodo-pago danger" type="button">Quitar</button>':''}</div>`).join('');actualizar()}contenedor.addEventListener('input',actualizar);contenedor.addEventListener('change',e=>{if(!e.target.matches('.metodo-pago-tipo'))return;filas=leerFilas();dibujar()});contenedor.addEventListener('click',e=>{const boton=e.target.closest('.quitar-metodo-pago');if(!boton)return;filas=leerFilas();filas.splice(Number(boton.closest('.metodo-pago-fila').dataset.i),1);dibujar()});agregar.addEventListener('click',()=>{filas=leerFilas();const usado=new Set(filas.map(x=>x.metodo_pago)),metodo=['EFECTIVO','TRANSFERENCIA','CHEQUE'].find(x=>!usado.has(x));const suma=filas.reduce((s,x)=>s+x.monto,0);if(metodo)filas.push({metodo_pago:metodo,monto:Math.max(0,Number((totalActual-suma).toFixed(2))),referencia:null});dibujar()});return{establecerTotal(total){const anterior=totalActual;totalActual=Number(total)||0;if(!filas.length)filas=[{metodo_pago:'EFECTIVO',monto:totalActual,referencia:null}];else if(filas.length===1&&(Math.abs(filas[0].monto-anterior)<.005||filas[0].monto===0))filas[0].monto=totalActual;dibujar()},reiniciar(total=0){filas=[{metodo_pago:'EFECTIVO',monto:Number(total)||0,referencia:null}];totalActual=Number(total)||0;dibujar()},obtener(){filas=leerFilas();const filasDom=[...contenedor.querySelectorAll('.metodo-pago-fila')],validas=filas.filter(x=>x.monto>0);if(!validas.length)return mostrarError(filasDom[0]?.querySelector('.metodo-pago-monto'),'Captura al menos un método de pago');for(let i=0;i<filas.length;i++){const x=filas[i];if(x.monto>0&&x.metodo_pago!=='EFECTIVO'&&!x.referencia)return mostrarError(filasDom[i].querySelector('.metodo-pago-referencia'),x.metodo_pago==='CHEQUE'?'Captura el número de cheque':'Captura la referencia de la transferencia')}const suma=Number(validas.reduce((s,x)=>s+x.monto,0).toFixed(2));if(Math.abs(suma-totalActual)>.005)return mostrarError(filasDom[0]?.querySelector('.metodo-pago-monto'),`El importe debe completar ${dinero.format(totalActual)}`);return validas}}}
     const gestorPagoVenta=crearGestorMetodosPago('filasPagoVenta','saldoPagoVenta','agregarMetodoVenta');
+    function obtenerMetodosVenta(total){
+      const filas=[...document.querySelectorAll('#filasPagoVenta .metodo-pago-fila')];
+      const metodos=filas.map(f=>({metodo_pago:f.querySelector('.metodo-pago-tipo').value,monto:Number(f.querySelector('.metodo-pago-monto').value||0),referencia:f.querySelector('.metodo-pago-referencia')?.value.trim()||null})).filter(x=>x.monto>0);
+      if(!metodos.length)throw new Error('Captura al menos un método de pago');
+      for(let i=0;i<metodos.length;i++)if(metodos[i].metodo_pago!=='EFECTIVO'&&!metodos[i].referencia){const campo=filas[i].querySelector('.metodo-pago-referencia');campo.focus();campo.reportValidity();throw Object.assign(new Error(metodos[i].metodo_pago==='CHEQUE'?'Captura el número de cheque':'Captura la referencia de la transferencia'),{mostradoEnCampo:true})}
+      const recibido=Number(metodos.reduce((s,x)=>s+x.monto,0).toFixed(2)),cambio=Number((recibido-Number(total)).toFixed(2));
+      if(cambio<-.005)throw new Error(`Falta saldar ${dinero.format(Math.abs(cambio))}`);
+      if(cambio>.005&&!metodos.some(x=>x.metodo_pago==='EFECTIVO'))throw new Error('Solo el efectivo puede exceder el total');
+      return metodos;
+    }
     document.addEventListener('focusin',e=>{if(e.target.matches('.metodo-pago-monto'))e.target.step='any'});
     document.addEventListener('input',e=>{if(!e.target.matches('.metodo-pago-monto'))return;e.target.removeAttribute('max')},true);
+    document.getElementById('filasPagoVenta')?.addEventListener('input',()=>{const total=carrito.reduce((s,x)=>s+Number(x.cantidad)*Number(x.precio),0),filas=[...document.querySelectorAll('#filasPagoVenta .metodo-pago-fila')],recibido=filas.reduce((s,f)=>s+Number(f.querySelector('.metodo-pago-monto').value||0),0),tieneEfectivo=filas.some(f=>f.querySelector('.metodo-pago-tipo').value==='EFECTIVO');if(tieneEfectivo&&recibido>total+.005){saldoPagoVenta.textContent=`Cambio: ${dinero.format(recibido-total)}`;saldoPagoVenta.classList.remove('error')}});
     function actualizarCobroVenta(){const credito=tipoPagoSelect.value==='CREDITO';document.getElementById('metodosPagoVenta').classList.toggle('hidden',credito);if(credito)gestorPagoVenta.reiniciar(0)}
     tipoPagoSelect?.addEventListener('change',actualizarCobroVenta);actualizarCobroVenta();
     venderBtn?.addEventListener('click', async () => {
       if (!carrito.length) return alert('Agrega productos');
       const clienteSeleccionado=clientes.find(c=>c.id===Number(clienteVentaSelect.value));
       idempotenciaVentaPendiente ||= (crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`);
-      if(!clienteSeleccionado)return alert('Selecciona un cliente de los resultados de búsqueda');
+      if(!clienteSeleccionado){
+        const campo=document.getElementById('clienteVentaBuscar');
+        campo.setCustomValidity('Selecciona un cliente de los resultados de búsqueda');
+        campo.focus({preventScroll:true});
+        campo.scrollIntoView({behavior:'smooth',block:'center'});
+        campo.reportValidity();
+        return;
+      }
       try {
-        const total=carrito.reduce((s,x)=>s+Number(x.cantidad)*Number(x.precio),0).toFixed(2),metodos=tipoPagoSelect.value==='CONTADO'?gestorPagoVenta.obtener():[];
+        const total=carrito.reduce((s,x)=>s+Number(x.cantidad)*Number(x.precio),0).toFixed(2),metodos=tipoPagoSelect.value==='CONTADO'?obtenerMetodosVenta(total):[];
         const endpoint=ordenCargada?`/ordenes/${ordenCargada.id}/convertir`:'/ventas/crear';
         const data = await api(endpoint, { method: 'POST', headers:{'Idempotency-Key':idempotenciaVentaPendiente}, body: JSON.stringify({
           cliente_id: Number(clienteVentaSelect.value), tipo_pago: tipoPagoSelect.value,
@@ -963,12 +981,13 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
       const coincidencias=clientes.filter(c=>[c.nombre_razon_social,c.rfc,c.telefono].some(v=>String(v||'').toLocaleLowerCase('es-MX').includes(termino))).slice(0,10);
       resultados.innerHTML=coincidencias.length?coincidencias.map(c=>`<button type="button" class="cliente-venta-opcion" data-id="${c.id}"><strong>${esc(c.nombre_razon_social)}</strong><small>${esc(c.rfc||'Sin RFC')} · ${esc(c.telefono||'Sin teléfono')}</small></button>`).join(''):'<p class="muted">No se encontraron clientes.</p>';
     }
-    document.getElementById('clienteVentaBuscar')?.addEventListener('input',dibujarResultadosClienteVenta);
+    document.getElementById('clienteVentaBuscar')?.addEventListener('input',e=>{e.target.setCustomValidity('');dibujarResultadosClienteVenta()});
     document.getElementById('resultadosClienteVenta')?.addEventListener('click',e=>{
       const boton=e.target.closest('.cliente-venta-opcion');if(!boton)return;
       const cliente=clientes.find(c=>c.id===Number(boton.dataset.id));if(!cliente)return;
       document.getElementById('clienteVenta').value=cliente.id;
       document.getElementById('clienteVentaBuscar').value=cliente.nombre_razon_social;
+      document.getElementById('clienteVentaBuscar').setCustomValidity('');
       document.getElementById('resultadosClienteVenta').innerHTML='';
     });
     function seleccionarCliente(id){const c=clientes.find(x=>x.id===id);if(!c)return;document.getElementById('clienteId').value=c.id;document.getElementById('nombreRazon').value=c.nombre_razon_social;document.getElementById('rfc').value=c.rfc||'';document.getElementById('telefono').value=c.telefono||'';document.getElementById('correo').value=c.correo_electronico||'';cancelarEdicion.classList.remove('hidden')}

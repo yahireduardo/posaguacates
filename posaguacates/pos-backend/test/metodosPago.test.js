@@ -18,3 +18,17 @@ test('rechaza una distribución que no coincide con el total', () => {
 test('exige referencia para transferencia y cheque', () => {
   assert.throws(() => normalizarMetodosPago({ metodos_pago: [{ metodo_pago: 'CHEQUE', monto: 100 }] }, 100), /referencia/);
 });
+
+test('calcula cambio cuando el efectivo recibido supera el total', () => {
+  const r = normalizarMetodosPago({ metodos_pago: [
+    { metodo_pago: 'EFECTIVO', monto: 600 }
+  ] }, 100, { permitirCambio: true });
+  assert.equal(r.importe_recibido, 600);
+  assert.equal(r.cambio, 500);
+});
+
+test('no permite cambio sin efectivo', () => {
+  assert.throws(() => normalizarMetodosPago({ metodos_pago: [
+    { metodo_pago: 'TRANSFERENCIA', monto: 110, referencia: 'ABC' }
+  ] }, 100, { permitirCambio: true }), /Solo el efectivo/);
+});

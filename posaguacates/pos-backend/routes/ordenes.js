@@ -192,7 +192,7 @@ router.post('/:id/convertir', async (req, res) => {
       (await connection.query('SELECT producto_id,cantidad,precio_estimado precio_unitario FROM detalle_orden_venta WHERE orden_id=?', [ordenId]))[0];
     const calculo = await catalogoOrden(connection, orden.cliente_id, productosEntrada, true, true);
     if (tipoPago === 'CONTADO') {
-      desglosePago = normalizarMetodosPago(req.body, calculo.total, { metodo: 'metodo_pago', referencia: 'referencia_pago' });
+      desglosePago = normalizarMetodosPago(req.body, calculo.total, { metodo: 'metodo_pago', referencia: 'referencia_pago', permitirCambio: true });
       metodoPago = desglosePago.metodo_resumen;
       referenciaPago = desglosePago.referencia_resumen;
     }
@@ -241,7 +241,9 @@ router.post('/:id/convertir', async (req, res) => {
       [venta.insertId, ordenId]
     );
     await connection.commit();
-    res.status(201).json({ mensaje: 'Orden convertida', venta_id: venta.insertId, total: calculo.total, productos: calculo.detalle });
+    res.status(201).json({ mensaje: 'Orden convertida', venta_id: venta.insertId, total: calculo.total,
+      importe_recibido: desglosePago?.importe_recibido || calculo.total, cambio: desglosePago?.cambio || 0,
+      productos: calculo.detalle });
   } catch (e) {
     await connection.rollback();
     console.error('Error convirtiendo orden en venta:', { ordenId, code: e.code, message: e.message });

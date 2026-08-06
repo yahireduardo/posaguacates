@@ -1,12 +1,12 @@
 [Setup]
 AppId={{C4F4BDB3-922F-4AD5-91E4-7EF32DC2FE1B}
 AppName=POS Aguacates
-AppVersion=1.0.0
+AppVersion=1.1.0
 DefaultDirName={autopf}\POS Aguacates
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 OutputDir=..\dist
-OutputBaseFilename=POS-Aguacates-Setup-1.0.0
+OutputBaseFilename=POS-HASS-Offline-Setup-1.1.0
 Compression=lzma2
 SolidCompression=yes
 [Files]
