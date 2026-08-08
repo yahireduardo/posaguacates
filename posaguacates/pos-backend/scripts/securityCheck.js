@@ -24,6 +24,10 @@ for (const file of tracked) {
   if (pathFailure) failures.push({ file, reason: pathFailure });
 
   const absolute = path.join(repoRoot, file);
+  // `git ls-files` también conserva rutas eliminadas hasta que se confirma el
+  // cambio. Una revisión de seguridad debe ignorar esas rutas inexistentes en
+  // vez de abortar antes de analizar el resto del árbol de trabajo.
+  if (!fs.existsSync(absolute)) continue;
   const stat = fs.statSync(absolute);
   if (stat.size > 2 * 1024 * 1024) continue;
   const buffer = fs.readFileSync(absolute);

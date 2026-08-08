@@ -1,4 +1,4 @@
-const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, detalleVentaActual=null, grafica=null, graficaProductos=null, graficaClientes=null, graficaProveedores=null, productoSeleccionado = null, indiceResultadoActivo = -1, ordenCargada=null, reporteProductosActual=[], estadoInstanciaPOS=null, archivoRespaldoSeleccionado=null, analisisRespaldoActual=null, backupIdDescargado=null, reinicioRespaldoPendiente=false, idempotenciaVentaPendiente=null;
+const API=''; let usuario=null, token=localStorage.getItem('tokenPOS')||sessionStorage.getItem('tokenPOS'), productos=[], clientes=[], carrito=[], ultimaVenta=null, detalleVentaActual=null, grafica=null, graficaProductos=null, graficaClientes=null, graficaProveedores=null, productoSeleccionado = null, indiceResultadoActivo = -1, ordenCargada=null, reporteProductosActual=[], estadoInstanciaPOS=null, archivoRespaldoSeleccionado=null, analisisRespaldoActual=null, backupIdDescargado=null, reinicioRespaldoPendiente=false, idempotenciaVentaPendiente=null;
     const ultimaVentaGuardada=Number(localStorage.getItem('ultimaVentaPOS'));
     if(Number.isInteger(ultimaVentaGuardada)&&ultimaVentaGuardada>0)ultimaVenta={venta_id:ultimaVentaGuardada};
     const dinero=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:2,maximumFractionDigits:2});
@@ -77,7 +77,7 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
   return data;
 
 }
-    function mostrar(id,{restaurarScroll=false}={}){if(id==='respaldos'&&usuario?.rol!=='ADMON_GRAL')id='pos';if(!document.getElementById(id)?.classList.contains('seccion'))id='pos';localStorage.setItem('seccionPOS',id);document.querySelectorAll('.seccion').forEach(x=>x.classList.toggle('activa',x.id===id));if(id==='cuentas')cargarCuentas();if(id==='ordenes')cargarOrdenes();if(id==='clientes')cargarClientes();if(id==='inventario')cargarInventario();if(id==='ventas')cargarVentas();if(id==='respaldos'){cargarEstadoRespaldos();cargarHistorialRespaldos()}if(id==='dashboard'){cargarDashboard();cargarReporteProductos().then(cargarGraficasHistoricas);cargarGraficaProveedores()}if(restaurarScroll){const y=Number(sessionStorage.getItem('scrollPOS')||0);requestAnimationFrame(()=>setTimeout(()=>window.scrollTo({top:y,left:0,behavior:'auto'}),150))}}
+    function mostrar(id,{restaurarScroll=false}={}){if(id==='respaldos'&&usuario?.rol!=='ADMON_GRAL')id='pos';if(!document.getElementById(id)?.classList.contains('seccion'))id='pos';localStorage.setItem('seccionPOS',id);document.querySelectorAll('.seccion').forEach(x=>x.classList.toggle('activa',x.id===id));if(id==='pos')reactivarBuscadorProductos();if(id==='cuentas')cargarCuentas();if(id==='ordenes')cargarOrdenes();if(id==='clientes')cargarClientes();if(id==='inventario')cargarInventario();if(id==='ventas')cargarVentas();if(id==='respaldos'){cargarEstadoRespaldos();cargarHistorialRespaldos()}if(id==='dashboard'){cargarDashboard();cargarReporteProductos().then(cargarGraficasHistoricas);cargarGraficaProveedores()}if(restaurarScroll){const y=Number(sessionStorage.getItem('scrollPOS')||0);requestAnimationFrame(()=>setTimeout(()=>window.scrollTo({top:y,left:0,behavior:'auto'}),150))}}
     document.querySelectorAll('[data-section]').forEach(b => b.addEventListener('click', () => mostrar(b.dataset.section)));
     document.getElementById('toggleLoginPassword')?.addEventListener('click', e => {
       const input = document.getElementById('password');
@@ -138,17 +138,15 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
       token = data.token;
       usuario = data.usuario;
 
-      localStorage.setItem(
-        'tokenPOS',
-        token
-      );
+      const recordarLogin=document.getElementById('recordarLogin');
+      const almacenamientoSesion=!recordarLogin||recordarLogin.checked?localStorage:sessionStorage;
+      const almacenamientoAlterno=almacenamientoSesion===localStorage?sessionStorage:localStorage;
+      almacenamientoAlterno.removeItem('tokenPOS');
+      almacenamientoAlterno.removeItem('usuarioPOS');
+      almacenamientoSesion.setItem('tokenPOS',token);
+      almacenamientoSesion.setItem('usuarioPOS',JSON.stringify(usuario));
 
-      localStorage.setItem(
-        'usuarioPOS',
-        JSON.stringify(usuario)
-      );
-
-      iniciarApp();
+      iniciarApp({nuevoInicioSesion:true});
 
     } catch (error) {
 
@@ -158,7 +156,7 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
     }
 
   });
-   function iniciarApp() {
+   function iniciarApp({nuevoInicioSesion=false}={}) {
 
   document
     .getElementById('login')
@@ -192,13 +190,19 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
   cargarEstadoRespaldos({silencioso:true});
   const botonUltimoTicket=document.getElementById('imprimir');
   if(botonUltimoTicket)botonUltimoTicket.disabled=!ultimaVenta;
-  const seccionGuardada=localStorage.getItem('seccionPOS')||'pos';
-  mostrar(seccionGuardada,{restaurarScroll:true});
+  if(nuevoInicioSesion){
+    localStorage.setItem('seccionPOS','pos');
+    sessionStorage.removeItem('scrollPOS');
+    mostrar('pos');
+  }else{
+    const seccionGuardada=localStorage.getItem('seccionPOS')||'pos';
+    mostrar(seccionGuardada,{restaurarScroll:true});
+  }
 
 }
     let guardadoScrollPOS;
     window.addEventListener('scroll',()=>{clearTimeout(guardadoScrollPOS);guardadoScrollPOS=setTimeout(()=>sessionStorage.setItem('scrollPOS',String(window.scrollY)),80)},{passive:true});
-    function cerrarSesion(){if(token)fetch('/auth/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}}).catch(()=>{});localStorage.removeItem('tokenPOS');localStorage.removeItem('usuarioPOS');location.reload()}
+    function cerrarSesion(){if(token)fetch('/auth/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}}).catch(()=>{});localStorage.removeItem('tokenPOS');localStorage.removeItem('usuarioPOS');localStorage.removeItem('seccionPOS');sessionStorage.removeItem('tokenPOS');sessionStorage.removeItem('usuarioPOS');sessionStorage.removeItem('scrollPOS');location.reload()}
     document.getElementById('logout')?.addEventListener('click', cerrarSesion);
 
         async function cargarProductos() {
@@ -233,6 +237,20 @@ const API=''; let usuario=null, token=localStorage.getItem('tokenPOS'), producto
 
     const agregarCaptura =
       document.getElementById('agregarCaptura');
+
+function reactivarBuscadorProductos({enfocar=false}={}) {
+  if (!buscarProducto) return;
+  buscarProducto.disabled = false;
+  buscarProducto.readOnly = false;
+  buscarProducto.removeAttribute('inert');
+  buscarProducto.setCustomValidity('');
+  if (enfocar) requestAnimationFrame(() => {
+    buscarProducto.focus({preventScroll:true});
+    buscarProducto.select?.();
+  });
+}
+
+window.addEventListener('pageshow',()=>reactivarBuscadorProductos());
 
       buscarProducto.addEventListener(
   'input',
@@ -913,7 +931,12 @@ document.getElementById('detalleVenta')?.addEventListener('click', evento => {
     function actualizarCobroVenta(){const credito=tipoPagoSelect.value==='CREDITO';document.getElementById('metodosPagoVenta').classList.toggle('hidden',credito);if(credito)gestorPagoVenta.reiniciar(0)}
     tipoPagoSelect?.addEventListener('change',actualizarCobroVenta);actualizarCobroVenta();
     venderBtn?.addEventListener('click', async () => {
-      if (!carrito.length) return alert('Agrega productos');
+      if (!carrito.length) {
+        cerrarResultados();
+        alert('Agrega productos');
+        reactivarBuscadorProductos({enfocar:true});
+        return;
+      }
       const clienteSeleccionado=clientes.find(c=>c.id===Number(clienteVentaSelect.value));
       idempotenciaVentaPendiente ||= (crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`);
       if(!clienteSeleccionado){
@@ -2079,7 +2102,7 @@ document.querySelectorAll('.ir-respaldos').forEach(b=>b.addEventListener('click'
 document.addEventListener('submit',e=>{if((estadoInstanciaPOS?.estado!=='ENTREGADA'&&!reinicioRespaldoPendiente)||!formulariosEscritura.has(e.target.id))return;e.preventDefault();e.stopImmediatePropagation();mostrarMensajeRespaldo(reinicioRespaldoPendiente?'Debe volver a comprobar el sistema antes de registrar operaciones.':'Esta computadora está ENTREGADA y no puede registrar cambios.','error');mostrar('respaldos')},true);
 document.addEventListener('click',e=>{if((estadoInstanciaPOS?.estado!=='ENTREGADA'&&!reinicioRespaldoPendiente)||!e.target.closest(selectorEscrituras))return;e.preventDefault();e.stopImmediatePropagation();mostrarMensajeRespaldo(reinicioRespaldoPendiente?'Debe volver a comprobar el sistema antes de registrar operaciones.':'Esta computadora está ENTREGADA y no puede registrar cambios.','error');mostrar('respaldos')},true);
 
-    try{usuario=JSON.parse(localStorage.getItem('usuarioPOS'))}catch{} if(token&&usuario)api('/auth/me').then(r=>{usuario=r.usuario;localStorage.setItem('usuarioPOS',JSON.stringify(usuario));iniciarApp()}).catch(()=>cerrarSesion());
+    try{usuario=JSON.parse(localStorage.getItem('usuarioPOS')||sessionStorage.getItem('usuarioPOS'))}catch{} if(token&&usuario)api('/auth/me').then(r=>{usuario=r.usuario;const almacenamiento=localStorage.getItem('tokenPOS')?localStorage:sessionStorage;almacenamiento.setItem('usuarioPOS',JSON.stringify(usuario));iniciarApp()}).catch(()=>cerrarSesion());
 
 // Pantallas administrativas agregadas; todas consumen APIs locales protegidas.
 let productosAdmin=[],proveedoresAdmin=[],compraNueva=[];
@@ -2089,6 +2112,12 @@ const compraProducto=document.getElementById('compraProducto'),compraProductoBus
   compraEditandoId=document.getElementById('compraEditandoId'),compraFormTitulo=document.getElementById('compraFormTitulo'),
   cancelarEdicionCompra=document.getElementById('cancelarEdicionCompra');
 const botonPagoProveedor=document.createElement('button');botonPagoProveedor.id='abrirPagoProveedor';botonPagoProveedor.type='button';botonPagoProveedor.textContent='Pago a proveedores';nuevoProveedor?.before(botonPagoProveedor);
+document.getElementById('alternarSidebar')?.addEventListener('click',e=>{
+  const sistema=document.getElementById('sistema');
+  const cerrado=sistema.classList.toggle('sidebar-cerrado');
+  e.currentTarget.setAttribute('aria-expanded',String(!cerrado));
+});
+
 const filas=(items,render,vacio='Sin registros.')=>items.length?items.map(render).join(''):`<p>${vacio}</p>`;
 async function adminProductos(){productosAdmin=await api('/productos?incluir_inactivos=1');productosAdminLista.innerHTML=filas(productosAdmin,p=>`<div class="row"><span>${esc(p.codigo)} · ${esc(p.nombre)} · ${dinero.format(p.precio_venta)} · stock ${cantidad(p.stock)} · ${Number(p.proveedores_asociados||0)} proveedor(es) ${p.activo?'':'(INACTIVO)'}</span><span class="producto-admin-acciones"><button data-pe="${p.id}">Editar</button><button data-ps="${p.id}" data-on="${p.activo?0:1}">${p.activo?'Desactivar':'Activar'}</button><button data-pd="${p.id}" class="danger">Eliminar</button></span></div>`);}
 async function adminProveedores(){const buscar=encodeURIComponent(document.getElementById('buscarProveedor')?.value.trim()||''),estado=document.getElementById('estadoProveedor')?.value||'ACTIVOS';proveedoresAdmin=await api(`/proveedores?buscar=${buscar}&estado=${estado}`);const activos=estado==='ACTIVOS'&&!buscar?proveedoresAdmin:await api('/proveedores?estado=ACTIVOS');const options=activos.filter(p=>p.activo).map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('');productoProveedor.innerHTML='<option value="">Sin proveedor</option>'+options;compraProveedor.innerHTML='<option value="">Proveedor activo</option>'+options;proveedoresLista.innerHTML=`<table><thead><tr><th>Proveedor</th><th>Contacto</th><th>Teléfono</th><th>RFC</th><th>Productos</th><th>Última compra</th><th>Deuda</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${proveedoresAdmin.length?proveedoresAdmin.map(p=>`<tr><td><strong>${esc(p.nombre)}</strong><br><small>${esc(p.razon_social||'')}</small></td><td>${esc(p.contacto||'—')}<br><small>${esc(p.correo||'')}</small></td><td>${esc(p.telefono||'—')}</td><td>${esc(p.rfc||'—')}</td><td>${Number(p.productos||0)}</td><td>${p.ultima_compra?new Date(p.ultima_compra).toLocaleDateString('es-MX'):'—'}</td><td>${dinero.format(p.deuda_pendiente||0)}</td><td><span class="estado-chip ${p.activo?'ok':'error'}">${p.activo?'Activo':'Inactivo'}</span></td><td><span class="producto-admin-acciones"><button data-rv="${p.id}">Detalle</button><button data-re="${p.id}">Editar</button><button data-rs="${p.id}" data-on="${p.activo?0:1}">${p.activo?'Desactivar':'Activar'}</button><button data-rd="${p.id}" class="danger">Eliminar</button></span></td></tr>`).join(''):'<tr><td colspan="9">No hay proveedores con estos filtros.</td></tr>'}</tbody></table>`;}

@@ -5,6 +5,13 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
 
+async function obtenerSidWindows(ejecutar = execFileAsync) {
+  const { stdout = '' } = await ejecutar('whoami.exe', ['/user', '/fo', 'csv', '/nh'], { windowsHide: true });
+  const sid = String(stdout).match(/S-\d(?:-\d+)+/i)?.[0];
+  if (!sid) throw new Error('No se pudo identificar el SID de la cuenta del servicio');
+  return sid;
+}
+
 function escaparIni(valor) {
   return `"${String(valor ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '')}"`;
 }
@@ -30,12 +37,10 @@ async function crearCredencialesTemporales(config, opciones = {}) {
     const entornoPruebaAislado = process.env.NODE_ENV === 'test'
       && process.env.TEST_DATABASE === 'true' && /_test$/i.test(process.env.DB_NAME || '');
     if (process.platform === 'win32' && opciones.protegerWindows !== false && !entornoPruebaAislado) {
-      const cuenta = process.env.USERDOMAIN && process.env.USERNAME
-        ? `${process.env.USERDOMAIN}\\${process.env.USERNAME}`
-        : process.env.USERNAME;
-      if (!cuenta) throw new Error('No se pudo identificar la cuenta del servicio para proteger credenciales');
-      await (opciones.execFile || execFileAsync)('icacls.exe', [
-        ruta, '/inheritance:r', '/grant:r', `${cuenta}:(F)`
+      const ejecutar = opciones.execFile || execFileAsync;
+      const sid = await obtenerSidWindows(ejecutar);
+      await ejecutar('icacls.exe', [
+        ruta, '/inheritance:r', '/grant:r', `*${sid}:(F)`
       ], { windowsHide: true });
     }
     return { directorio, ruta };
@@ -58,4 +63,4 @@ async function eliminarCredencialesTemporales(credenciales, opciones = {}) {
   }
 }
 
-module.exports = { crearCredencialesTemporales, eliminarCredencialesTemporales };
+module.exports = { crearCredencialesTemporales, eliminarCredencialesTemporales, obtenerSidWindows };

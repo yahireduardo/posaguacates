@@ -9,38 +9,55 @@
 </head>
 <body>
   <div id="login">
-    <form class="login-card" id="loginForm">
-      <h1> INICIAR SESION 🥑</h1>
-      <input id="username" autocomplete="username" placeholder="Usuario" required>
-      <div class="password-field"><input id="password" type="password" autocomplete="current-password" placeholder="Contraseña" required><button id="toggleLoginPassword" type="button" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button></div>
-      <button class="primary" type="submit">Iniciar sesión</button>
-      <p id="loginError" class="muted"></p>
-    </form>
+    <div class="login-shell">
+      <section class="login-brand" aria-label="Aguacates HASS">
+        <div class="login-brand-copy">
+          <span class="login-brand-kicker">AGUACATES</span>
+          <strong>HASS</strong>
+          <span class="login-brand-tagline">DE CALIDAD SUPREMA</span>
+        </div>
+        <img class="login-mascot" src="./assets/aguacate-lentes.png" alt="Mascota de aguacate con lentes">
+        <div class="login-trust"><span aria-hidden="true"><img src="./assets/login/shield-check.png" alt=""></span><p><strong>Sistema de Punto de Venta</strong><small>Seguro · Confiable · Eficiente</small></p></div>
+      </section>
+      <section class="login-access">
+        <form class="login-card" id="loginForm">
+          <div class="login-leaf" aria-hidden="true"><img src="./assets/login/leaf.png" alt=""></div>
+          <h1>¡Bienvenido!</h1>
+          <p class="login-subtitle">Inicia sesión para continuar</p>
+          <div class="login-divider" aria-hidden="true"><span></span><i></i><span></span></div>
+          <label class="login-field" for="username"><span class="login-field-icon" aria-hidden="true"><img src="./assets/login/user.png" alt=""></span><input id="username" autocomplete="username" placeholder="Usuario" required></label>
+          <label class="login-field password-field" for="password"><span class="login-field-icon" aria-hidden="true"><img src="./assets/login/lock.png" alt=""></span><input id="password" type="password" autocomplete="current-password" placeholder="Contraseña" required><button id="toggleLoginPassword" type="button" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button></label>
+          <button class="primary login-submit" type="submit"><span aria-hidden="true"><img src="./assets/login/log-in.png" alt=""></span> Iniciar sesión</button>
+          <p id="loginError" class="login-error" role="alert"></p>
+        </form>
+      </section>
+    </div>
   </div>
 
   <div id="sistema" class="hidden">
-    <header><strong>HASS 🥑</strong><span><span id="sesion"></span> <button id="logout">Cerrar sesión</button></span></header>
+    <header><button id="alternarSidebar" class="app-header-menu" type="button" aria-label="Mostrar u ocultar menú" aria-expanded="true"><svg aria-hidden="true"><use href="./assets/lucide.svg#menu"></use></svg></button><span class="app-session"><span class="session-avatar" aria-hidden="true"><svg><use href="./assets/lucide.svg#user"></use></svg></span><span id="sesion"></span> <button id="logout"><svg aria-hidden="true"><use href="./assets/lucide.svg#log-out"></use></svg>Cerrar sesión</button></span></header>
     <div id="barraInstanciaEntregada" class="barra-entregada hidden" role="alert">
       Esta computadora entregó la base de datos y no puede registrar cambios.
       <button type="button" class="ir-respaldos">Abrir respaldo y traslado</button>
     </div>
     <nav class="tabs">
-      <button class="tab" data-section="pos">Punto de Venta</button>
-      <button class="tab" data-section="ordenes">Ordenes de Venta</button>
-      <button class="tab" data-section="cuentas">Cuentas</button>
-      <button class="tab" data-section="clientes">Clientes</button>
-      <button class="tab admin" data-section="inventario">Inventario</button>
-      <button class="tab admin" data-section="usuarios">Usuarios</button>
-      <button class="tab admin" data-section="reportesAdmin">Reportes</button>
-      <button class="tab admin" data-section="configuracion">Configuración</button>
-      <button class="tab" data-section="consultasLocales">Consultas</button>
-      <button class="tab" data-section="dashboard">Dashboard</button>
-      <button class="tab admin" data-section="respaldos">Respaldo y traslado</button>
+      <div class="sidebar-brand"><img src="./assets/aguacate-lentes.png" alt=""><p><span>AGUACATES</span><strong>HASS</strong><small>DE CALIDAD SUPREMA</small></p></div>
+      <button class="tab" data-section="pos"><svg aria-hidden="true"><use href="./assets/lucide.svg#shopping-cart"></use></svg>Punto de Venta</button>
+      <button class="tab" data-section="ordenes"><svg aria-hidden="true"><use href="./assets/lucide.svg#clipboard-list"></use></svg>Ordenes de Venta</button>
+      <button class="tab" data-section="cuentas"><svg aria-hidden="true"><use href="./assets/lucide.svg#wallet"></use></svg>Cuentas</button>
+      <button class="tab" data-section="clientes"><svg aria-hidden="true"><use href="./assets/lucide.svg#users"></use></svg>Clientes</button>
+      <button class="tab admin" data-section="inventario"><svg aria-hidden="true"><use href="./assets/lucide.svg#package"></use></svg>Inventario</button>
+      <button class="tab admin" data-section="usuarios"><svg aria-hidden="true"><use href="./assets/lucide.svg#user-cog"></use></svg>Usuarios</button>
+      <button class="tab admin" data-section="reportesAdmin"><svg aria-hidden="true"><use href="./assets/lucide.svg#chart"></use></svg>Reportes</button>
+      <button class="tab admin" data-section="configuracion"><svg aria-hidden="true"><use href="./assets/lucide.svg#settings"></use></svg>Configuración</button>
+      <button class="tab" data-section="consultasLocales"><svg aria-hidden="true"><use href="./assets/lucide.svg#search"></use></svg>Consultas</button>
+      <button class="tab" data-section="dashboard"><svg aria-hidden="true"><use href="./assets/lucide.svg#layout-dashboard"></use></svg>Dashboard</button>
+      <button class="tab admin" data-section="respaldos"><svg aria-hidden="true"><use href="./assets/lucide.svg#database"></use></svg>Respaldo y traslado</button>
     </nav>
 
     <main>
               <section id="pos" class="seccion activa">
-          <nav class="venta-tabs" aria-label="Punto de venta"><button class="activo" type="button" data-section="pos">Nueva venta</button><button type="button" data-section="ventas">Historial de ventas</button></nav>
+          <nav class="venta-tabs" aria-label="Punto de venta"><button class="activo" type="button" data-section="pos"><svg aria-hidden="true"><use href="./assets/lucide.svg#shopping-cart"></use></svg>Nueva venta</button><button type="button" data-section="ventas"><svg aria-hidden="true"><use href="./assets/lucide.svg#clock"></use></svg>Historial de ventas</button></nav>
 
           <div class="venta-layout">
 
@@ -53,13 +70,14 @@
               <div class="nota-header">
 
                 <div>
-                  <h2>Nueva nota de venta</h2>
+                  <h2>Nueva venta</h2>
                   <p class="muted">
                     Escribe el código o nombre del producto
                   </p>
                 </div>
 
                 <div class="contador-articulos">
+                  <svg aria-hidden="true"><use href="./assets/lucide.svg#shopping-bag"></use></svg>
                   <span>Artículos</span>
                   <strong id="cantidadArticulos">0.00</strong>
                 </div>
@@ -128,7 +146,7 @@
                     class="primary"
                     id="agregarCaptura"
                   >
-                    Agregar
+                    <svg aria-hidden="true"><use href="./assets/lucide.svg#plus"></use></svg>Agregar
                   </button>
 
                 </div>
@@ -163,7 +181,11 @@
                         colspan="7"
                         class="tabla-vacia"
                       >
-                        Todavía no hay productos en la nota
+                        <div class="estado-nota-vacia">
+                          <img src="./assets/nota-vacia.svg" alt="">
+                          <strong>Aún no hay productos en la venta</strong>
+                          <span>Agrega productos para comenzar</span>
+                        </div>
                       </td>
 
                     </tr>
@@ -182,22 +204,22 @@
 
             <aside class="panel cobro-panel">
 
-              <h2>Cobro</h2>
+              <h2 class="cobro-titulo"><svg aria-hidden="true"><use href="./assets/lucide.svg#credit-card"></use></svg>Cobro</h2>
 
               <label for="clienteVentaBuscar">
                 Cliente
               </label>
 
               <input id="clienteVenta" type="hidden">
-              <input id="clienteVentaBuscar" type="text" autocomplete="off"
-                placeholder="Escribe nombre, RFC o teléfono">
+              <div class="campo-con-icono"><svg aria-hidden="true"><use href="./assets/lucide.svg#user"></use></svg><input id="clienteVentaBuscar" type="text" autocomplete="off"
+                placeholder="Buscar cliente (RFC o nombre)"></div>
               <div id="resultadosClienteVenta" class="resultados-busqueda"></div>
 
               <label for="tipoPago">
                 Tipo de pago
               </label>
 
-              <select id="tipoPago">
+              <div class="campo-con-icono"><svg aria-hidden="true"><use href="./assets/lucide.svg#wallet"></use></svg><select id="tipoPago">
 
                 <option value="CONTADO">
                   Contado
@@ -207,10 +229,10 @@
                   Crédito
                 </option>
 
-              </select>
+              </select></div>
 
               <div id="metodosPagoVenta" class="panel">
-                <strong>Forma de cobro</strong>
+                <strong class="forma-cobro-titulo"><svg aria-hidden="true"><use href="./assets/lucide.svg#wallet"></use></svg>Forma de cobro</strong>
                 <div id="filasPagoVenta"></div>
                 <p id="saldoPagoVenta" class="money"></p>
                 <button id="agregarMetodoVenta" type="button" class="hidden">Agregar otro método</button>
@@ -245,7 +267,7 @@
                 class="primary boton-cobrar"
                 id="vender"
               >
-                Cobrar venta
+                <svg aria-hidden="true"><use href="./assets/lucide.svg#credit-card"></use></svg>Cobrar venta
               </button>
 
               <button
@@ -254,7 +276,7 @@
                 id="imprimir"
                 disabled
               >
-                Imprimir último ticket
+                <svg aria-hidden="true"><use href="./assets/lucide.svg#printer"></use></svg>Imprimir último ticket
               </button>
 
             </aside>
@@ -286,7 +308,7 @@
   id="ventas"
   class="seccion"
 >
-  <nav class="venta-tabs" aria-label="Punto de venta"><button type="button" data-section="pos">Nueva venta</button><button class="activo" type="button" data-section="ventas">Historial de ventas</button></nav>
+  <nav class="venta-tabs" aria-label="Punto de venta"><button type="button" data-section="pos"><svg aria-hidden="true"><use href="./assets/lucide.svg#shopping-cart"></use></svg>Nueva venta</button><button class="activo" type="button" data-section="ventas"><svg aria-hidden="true"><use href="./assets/lucide.svg#clock"></use></svg>Historial de ventas</button></nav>
 
   <div class="ventas-titulo">
 
@@ -872,5 +894,6 @@
   </div>
 
   <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/ia-dashboard.js"></script>
 </body>
 </html>
