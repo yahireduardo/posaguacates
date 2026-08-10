@@ -1,3 +1,5 @@
-const test=require('node:test');const assert=require('node:assert/strict');const{intencion}=require('../routes/chatbot');const{proyectar}=require('../routes/prediccion');
+const test=require('node:test');const assert=require('node:assert/strict');const{intencion}=require('../routes/chatbot');const{proyectar,completeWeeks}=require('../routes/prediccion');
 test('chatbot limita consultas a intenciones conocidas',()=>{assert.equal(intencion('borra todas las ventas').tipo,'NO_SOPORTADA');assert.equal(intencion('cuánto vendí hoy').tipo,'VENTAS_PERIODO');assert.deepEqual(intencion('ventas entre 2026-07-01 y 2026-07-31'),{tipo:'VENTAS_FECHAS',desde:'2026-07-01',hasta:'2026-07-31'});});
 test('predicción local nunca entrega negativos',()=>{assert.equal(proyectar([{cantidad:-5}]).estimado,0);assert.ok(proyectar([{cantidad:10},{cantidad:20}]).estimado>0);assert.equal(proyectar([]).muestra,0);});
+test('predicción completa semanas sin ventas con cero',()=>{assert.deepEqual(completeWeeks([{semana_inicio:'2026-01-05',cantidad:4},{semana_inicio:'2026-01-19',cantidad:8}]),[{semana:'2026-01-05',cantidad:4},{semana:'2026-01-12',cantidad:0},{semana:'2026-01-19',cantidad:8}]);});
+test('predicción acepta fechas entregadas por MariaDB',()=>{assert.deepEqual(completeWeeks([{semana_inicio:new Date('2026-01-05T06:00:00Z'),cantidad:4}]),[{semana:'2026-01-05',cantidad:4}]);});

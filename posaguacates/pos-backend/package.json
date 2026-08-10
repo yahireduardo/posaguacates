@@ -10,6 +10,7 @@
     "test:integration": "node scripts/testIntegration.js",
     "security:check": "node scripts/securityCheck.js",
     "db:migrate": "node scripts/migrate.js",
+    "demand:import": "node scripts/importHistoricalDemand.js",
     "service:install": "powershell -ExecutionPolicy Bypass -File scripts/install-service.ps1",
     "service:remove": "powershell -ExecutionPolicy Bypass -File scripts/remove-service.ps1",
     "windows:firewall": "powershell -ExecutionPolicy Bypass -File scripts/configure-firewall.ps1",

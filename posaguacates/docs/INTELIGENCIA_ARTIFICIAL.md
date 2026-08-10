@@ -11,6 +11,27 @@ POS Aguacates incluye una capa de inteligencia que no cambia la lógica de venta
 - Copiloto con preguntas libres en español.
 - Modo local sin internet ni costo, disponible aunque no se configure OpenAI.
 - Modo generativo opcional mediante OpenAI Responses API.
+- Comparación temporal de demanda entre promedio ponderado, regresión Ridge y bosque aleatorio con scikit-learn.
+
+## Predicción de demanda con scikit-learn
+
+Instale Python y, dentro de `pos-backend`, ejecute:
+
+```powershell
+python -m pip install -r ml/requirements.txt
+```
+
+El endpoint `GET /prediccion` completa las semanas sin ventas con cero, reserva las últimas semanas como evaluación retrospectiva y calcula MAE, RMSE y WAPE. Para evitar fuga de información, cada punto de evaluación se entrena exclusivamente con semanas anteriores. El método con menor MAE genera el pronóstico final; RMSE resuelve empates. Si existen menos de 12 semanas o Python no está disponible, se conserva el promedio ponderado local.
+
+Los libros históricos de remisiones proporcionados contienen importe, pero no unidades por producto. Los libros de inventario contienen cajas recibidas por clasificación; esto representa abastecimiento y no necesariamente demanda vendida. Para el producto `01` se definió como aproximación sumar todas las clasificaciones que contienen la palabra completa `GRANDE` o `GRANDES`, incluyendo variantes FL y B. Al acumular cuatro semanas completas de ventas reales, el POS sustituye la aproximación histórica en las semanas coincidentes para evitar sumar dos medidas distintas. La semana en curso y las hojas con fechas futuras siempre se excluyen.
+
+Importación idempotente de los libros autorizados:
+
+```powershell
+npm run demand:import -- "ruta\\02 INVENTARIO HASS 2025.xlsx" "ruta\\02 INVENTARIO HASS 2026.xlsx"
+```
+
+Cada lote conserva archivo, hoja y clasificaciones incluidas. Una clave SHA-256 evita duplicados si se ejecuta nuevamente.
 
 ## Activar el modo generativo
 
