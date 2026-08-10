@@ -13,4 +13,4 @@ Inventario integra existencias, movimientos, productos, proveedores y compras en
 
 Pruebas unitarias: `npm test`. Las pruebas de integración exigen una base separada terminada en `_test`; consulte [docs/PRUEBAS.md](docs/PRUEBAS.md).
 
-No incluye Electron, ejecutable ni instalador de escritorio.
+La entrega para Windows se genera como un único instalador offline; incluye MariaDB, Node.js, dependencias, servicio y frontend. Consulte `docs/EMPAQUETADO_WINDOWS.md`.

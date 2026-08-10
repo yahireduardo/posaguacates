@@ -6,7 +6,7 @@ const path = require('path');
 const { BackupService } = require('../services/backupService');
 const { extraerZipSeguro, validarNombre } = require('../utils/safeZip');
 const { hashFile } = require('../utils/hashFile');
-const { crearCredencialesTemporales, eliminarCredencialesTemporales } = require('../utils/tempCredentials');
+const { crearCredencialesTemporales, eliminarCredencialesTemporales, obtenerSidWindows } = require('../utils/tempCredentials');
 
 async function temporal(prefijo) {
   return fs.mkdtemp(path.join(os.tmpdir(), prefijo));
@@ -107,6 +107,16 @@ test('crea y elimina credenciales temporales', async () => {
   await eliminarCredencialesTemporales(credentials);
   await assert.rejects(fs.access(credentials.ruta));
   await fs.rm(base, { recursive: true, force: true });
+});
+
+test('resuelve el SID de Windows sin depender del nombre localizado de la cuenta', async () => {
+  const llamadas = [];
+  const sid = await obtenerSidWindows(async (programa, argumentos) => {
+    llamadas.push([programa, argumentos]);
+    return { stdout: '"NT AUTHORITY\\SYSTEM","S-1-5-18"\r\n' };
+  });
+  assert.equal(sid, 'S-1-5-18');
+  assert.deepEqual(llamadas, [['whoami.exe', ['/user', '/fo', 'csv', '/nh']]]);
 });
 
 test('rechaza nombres Zip Slip y contenido inesperado', () => {

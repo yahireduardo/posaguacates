@@ -653,7 +653,7 @@ router.post('/crear', async (req, res) => {
       Number(total.toFixed(2));
 
     if (tipoPago === 'CONTADO') {
-      desglosePago = normalizarMetodosPago(req.body, total, { metodo: 'metodo_pago', referencia: 'referencia_pago' });
+      desglosePago = normalizarMetodosPago(req.body, total, { metodo: 'metodo_pago', referencia: 'referencia_pago', permitirCambio: true });
       metodoPago = desglosePago.metodo_resumen;
       referenciaPago = desglosePago.referencia_resumen;
     }
@@ -886,6 +886,10 @@ router.post('/crear', async (req, res) => {
       total,
 
       metodos_pago: desglosePago?.metodos || [],
+
+      importe_recibido: desglosePago?.importe_recibido || total,
+
+      cambio: desglosePago?.cambio || 0,
 
       productos: detalle
 

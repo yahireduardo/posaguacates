@@ -125,7 +125,7 @@ class BackupService {
     } catch (error) {
       try {
         await this.audit.registrar({ usuarioId, accion: 'EXPORTAR', backupId, nombreArchivo: nombreZip,
-          resultado: 'FALLIDO', error: error.code || error.message });
+          resultado: 'FALLIDO', error: error.stderr || error.sqlMessage || error.message || error.code });
       } catch (_) { /* El error original tiene prioridad. */ }
       await fsp.rm(tempDir, { recursive: true, force: true });
       if (error.code === 'ENOENT') {

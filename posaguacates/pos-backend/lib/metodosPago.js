@@ -2,7 +2,7 @@ const METODOS = new Set(['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE']);
 
 function error(mensaje) { return Object.assign(new Error(mensaje), { status: 400 }); }
 
-function normalizarMetodosPago(body, total, { metodo = 'metodo_pago', referencia = 'referencia' } = {}) {
+function normalizarMetodosPago(body, total, { metodo = 'metodo_pago', referencia = 'referencia', permitirCambio = false } = {}) {
   const esperado = Number(Number(total).toFixed(2));
   const entrada = Array.isArray(body.metodos_pago) && body.metodos_pago.length
     ? body.metodos_pago
@@ -20,9 +20,15 @@ function normalizarMetodosPago(body, total, { metodo = 'metodo_pago', referencia
     return { metodo_pago: nombre, monto, referencia: ref };
   });
   const suma = Number(metodos.reduce((s, item) => s + item.monto, 0).toFixed(2));
-  if (Math.abs(suma - esperado) > 0.005) throw error('La suma de los métodos de pago debe coincidir con el total');
+  const cambio = Number((suma - esperado).toFixed(2));
+  if (cambio < -0.005) throw error('La suma de los métodos de pago debe coincidir con el total');
+  if (cambio > 0.005 && (!permitirCambio || !metodos.some(item => item.metodo_pago === 'EFECTIVO'))) {
+    throw error('Solo el efectivo recibido puede exceder el total para calcular cambio');
+  }
   return {
     metodos,
+    importe_recibido: suma,
+    cambio: Math.max(0, cambio),
     metodo_resumen: metodos.length > 1 ? 'MIXTO' : metodos[0].metodo_pago,
     referencia_resumen: metodos.length === 1 ? metodos[0].referencia : null
   };

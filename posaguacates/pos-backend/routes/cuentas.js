@@ -105,7 +105,6 @@ router.get('/cliente/:id', async (req, res) => {
 router.post('/pagos', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) => {
   const clienteId = Number(req.body.cliente_id);
   const monto = Number(req.body.monto_recibido);
-  const fecha = req.body.fecha || null;
   if (!idValido(clienteId) || !Number.isFinite(monto) || monto <= 0) return res.status(400).json({ error: 'Cliente y monto válidos son obligatorios' });
   let desglose;
   try { desglose = normalizarMetodosPago(req.body, monto); }
@@ -132,8 +131,8 @@ router.post('/pagos', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) =>
     const aplicaciones = construirAplicaciones(cuentas, req.body, monto);
     const [pago] = await connection.query(
       `INSERT INTO pagos (cuenta_id,monto,metodo_pago,fecha,cliente_id,monto_total,referencia,observaciones,usuario_id)
-       VALUES (NULL,NULL,?,COALESCE(?,NOW()),?,?,?,?,?)`,
-      [metodo, fecha, clienteId, monto, referencia, String(req.body.observaciones || '').trim() || null, req.usuario.id]
+       VALUES (NULL,NULL,?,NOW(),?,?,?,?,?)`,
+      [metodo, clienteId, monto, referencia, String(req.body.observaciones || '').trim() || null, req.usuario.id]
     );
     await insertarMetodosPago(connection, 'pago_formas_pago', 'pago_id', pago.insertId, desglose.metodos);
     const recibo = [];
@@ -154,8 +153,8 @@ router.post('/pagos', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) =>
       await connection.query(
         `INSERT INTO movimientos_cartera
          (cliente_id,venta_id,cuenta_id,pago_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
-         VALUES (?,?,?,?,COALESCE(?,NOW()),'COBRO',?,0,?,?,?,?)`,
-        [clienteId, a.cuenta.venta_id, a.cuenta.id, pago.insertId, fecha, `P-${pago.insertId}`,
+         VALUES (?,?,?,?,NOW(),'COBRO',?,0,?,?,?,?)`,
+        [clienteId, a.cuenta.venta_id, a.cuenta.id, pago.insertId, `P-${pago.insertId}`,
           a.monto, saldo.total, String(req.body.observaciones || '').trim() || 'Aplicación de pago', req.usuario.id]
       );
       recibo.push({ cuenta_id: a.cuenta.id, venta_id: a.cuenta.venta_id, monto_aplicado: a.monto, saldo_anterior: anterior, saldo_resultante: nuevo });
