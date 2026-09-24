@@ -40,5 +40,8 @@
     "mysql2": "^3.22.3",
     "pdfkit": "^0.18.0",
     "yauzl": "^3.4.0"
+  },
+  "devDependencies": {
+    "prettier": "3.8.2"
   }
 }

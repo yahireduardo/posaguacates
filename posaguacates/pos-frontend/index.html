@@ -1,118 +1,233 @@
 <!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>POS HASS</title>
-  <script src="/vendor/chart.js"></script>
-  <link rel="stylesheet" href="./css/styles.css">
-</head>
-<body>
-  <div id="login">
-    <div class="login-shell">
-      <section class="login-brand" aria-label="Aguacates HASS">
-        <div class="login-brand-copy">
-          <span class="login-brand-kicker">AGUACATES</span>
-          <strong>HASS</strong>
-          <span class="login-brand-tagline">DE CALIDAD SUPREMA</span>
-        </div>
-        <img class="login-mascot" src="./assets/aguacate-lentes.png" alt="Mascota de aguacate con lentes">
-        <div class="login-trust"><span aria-hidden="true"><img src="./assets/login/shield-check.png" alt=""></span><p><strong>Sistema de Punto de Venta</strong><small>Seguro · Confiable · Eficiente</small></p></div>
-      </section>
-      <section class="login-access">
-        <form class="login-card" id="loginForm">
-          <div class="login-leaf" aria-hidden="true"><img src="./assets/login/leaf.png" alt=""></div>
-          <h1>¡Bienvenido!</h1>
-          <p class="login-subtitle">Inicia sesión para continuar</p>
-          <div class="login-divider" aria-hidden="true"><span></span><i></i><span></span></div>
-          <label class="login-field" for="username"><span class="login-field-icon" aria-hidden="true"><img src="./assets/login/user.png" alt=""></span><input id="username" autocomplete="username" placeholder="Usuario" required></label>
-          <label class="login-field password-field" for="password"><span class="login-field-icon" aria-hidden="true"><img src="./assets/login/lock.png" alt=""></span><input id="password" type="password" autocomplete="current-password" placeholder="Contraseña" required><button id="toggleLoginPassword" type="button" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button></label>
-          <button class="primary login-submit" type="submit"><span aria-hidden="true"><img src="./assets/login/log-in.png" alt=""></span> Iniciar sesión</button>
-          <p id="loginError" class="login-error" role="alert"></p>
-        </form>
-      </section>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>POS HASS</title>
+    <script src="/vendor/chart.js"></script>
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+  <body>
+    <div id="login">
+      <div class="login-shell">
+        <section class="login-brand" aria-label="Aguacates HASS">
+          <div class="login-brand-copy">
+            <span class="login-brand-kicker">AGUACATES</span>
+            <strong>HASS</strong>
+            <span class="login-brand-tagline">DE CALIDAD SUPREMA</span>
+          </div>
+          <img
+            class="login-mascot"
+            src="./assets/aguacate-lentes.png"
+            alt="Mascota de aguacate con lentes"
+          />
+          <div class="login-trust">
+            <span aria-hidden="true"
+              ><img src="./assets/login/shield-check.png" alt=""
+            /></span>
+            <p>
+              <strong>Sistema de Punto de Venta</strong
+              ><small>Seguro · Confiable · Eficiente</small>
+            </p>
+          </div>
+        </section>
+        <section class="login-access">
+          <form class="login-card" id="loginForm">
+            <div class="login-leaf" aria-hidden="true">
+              <img src="./assets/login/leaf.png" alt="" />
+            </div>
+            <h1>¡Bienvenido!</h1>
+            <p class="login-subtitle">Inicia sesión para continuar</p>
+            <div class="login-divider" aria-hidden="true">
+              <span></span><i></i><span></span>
+            </div>
+            <label class="login-field" for="username"
+              ><span class="login-field-icon" aria-hidden="true"
+                ><img src="./assets/login/user.png" alt="" /></span
+              ><input
+                id="username"
+                autocomplete="username"
+                placeholder="Usuario"
+                required
+            /></label>
+            <label class="login-field password-field" for="password"
+              ><span class="login-field-icon" aria-hidden="true"
+                ><img src="./assets/login/lock.png" alt="" /></span
+              ><input
+                id="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Contraseña"
+                required
+              /><button
+                id="toggleLoginPassword"
+                type="button"
+                aria-label="Mostrar contraseña"
+                aria-pressed="false"
+              >
+                Mostrar
+              </button></label
+            >
+            <button class="primary login-submit" type="submit">
+              <span aria-hidden="true"
+                ><img src="./assets/login/log-in.png" alt=""
+              /></span>
+              Iniciar sesión
+            </button>
+            <p id="loginError" class="login-error" role="alert"></p>
+          </form>
+        </section>
+      </div>
     </div>
-  </div>
 
-  <div id="sistema" class="hidden">
-    <header><button id="alternarSidebar" class="app-header-menu" type="button" aria-label="Mostrar u ocultar menú" aria-expanded="true"><svg aria-hidden="true"><use href="./assets/lucide.svg#menu"></use></svg></button><span class="app-session"><span class="session-avatar" aria-hidden="true"><svg><use href="./assets/lucide.svg#user"></use></svg></span><span id="sesion"></span> <button id="logout"><svg aria-hidden="true"><use href="./assets/lucide.svg#log-out"></use></svg>Cerrar sesión</button></span></header>
-    <div id="barraInstanciaEntregada" class="barra-entregada hidden" role="alert">
-      Esta computadora entregó la base de datos y no puede registrar cambios.
-      <button type="button" class="ir-respaldos">Abrir respaldo y traslado</button>
-    </div>
-    <nav class="tabs">
-      <div class="sidebar-brand"><img src="./assets/aguacate-lentes.png" alt=""><p><span>AGUACATES</span><strong>HASS</strong><small>DE CALIDAD SUPREMA</small></p></div>
-      <button class="tab" data-section="pos"><svg aria-hidden="true"><use href="./assets/lucide.svg#shopping-cart"></use></svg>Punto de Venta</button>
-      <button class="tab" data-section="ordenes"><svg aria-hidden="true"><use href="./assets/lucide.svg#clipboard-list"></use></svg>Ordenes de Venta</button>
-      <button class="tab" data-section="cuentas"><svg aria-hidden="true"><use href="./assets/lucide.svg#wallet"></use></svg>Cuentas</button>
-      <button class="tab" data-section="clientes"><svg aria-hidden="true"><use href="./assets/lucide.svg#users"></use></svg>Clientes</button>
-      <button class="tab admin" data-section="inventario"><svg aria-hidden="true"><use href="./assets/lucide.svg#package"></use></svg>Inventario</button>
-      <button class="tab admin" data-section="usuarios"><svg aria-hidden="true"><use href="./assets/lucide.svg#user-cog"></use></svg>Usuarios</button>
-      <button class="tab admin" data-section="reportesAdmin"><svg aria-hidden="true"><use href="./assets/lucide.svg#chart"></use></svg>Reportes</button>
-      <button class="tab admin" data-section="configuracion"><svg aria-hidden="true"><use href="./assets/lucide.svg#settings"></use></svg>Configuración</button>
-      <button class="tab" data-section="consultasLocales"><svg aria-hidden="true"><use href="./assets/lucide.svg#search"></use></svg>Consultas</button>
-      <button class="tab" data-section="dashboard"><svg aria-hidden="true"><use href="./assets/lucide.svg#layout-dashboard"></use></svg>Dashboard</button>
-      <button class="tab admin" data-section="respaldos"><svg aria-hidden="true"><use href="./assets/lucide.svg#database"></use></svg>Respaldo y traslado</button>
-    </nav>
+    <div id="sistema" class="hidden">
+      <header>
+        <button
+          id="alternarSidebar"
+          class="app-header-menu"
+          type="button"
+          aria-label="Mostrar u ocultar menú"
+          aria-expanded="true"
+        >
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#menu"></use>
+          </svg></button
+        ><span class="app-session"
+          ><span class="session-avatar" aria-hidden="true"
+            ><svg><use href="./assets/lucide.svg#user"></use></svg></span
+          ><span id="sesion"></span>
+          <button id="logout">
+            <svg aria-hidden="true">
+              <use href="./assets/lucide.svg#log-out"></use></svg
+            >Cerrar sesión
+          </button></span
+        >
+      </header>
+      <div
+        id="barraInstanciaEntregada"
+        class="barra-entregada hidden"
+        role="alert"
+      >
+        Esta computadora entregó la base de datos y no puede registrar cambios.
+        <button type="button" class="ir-respaldos">
+          Abrir respaldo y traslado
+        </button>
+      </div>
+      <nav class="tabs">
+        <div class="sidebar-brand" aria-hidden="true"></div>
+        <button class="tab" data-section="pos">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#shopping-cart"></use></svg
+          >Punto de Venta
+        </button>
+        <button class="tab" data-section="ordenes">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#clipboard-list"></use></svg
+          >Ordenes de Venta
+        </button>
+        <button class="tab" data-section="cuentas">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#wallet"></use></svg
+          >Cuentas
+        </button>
+        <button class="tab" data-section="clientes">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#users"></use></svg
+          >Clientes
+        </button>
+        <button class="tab admin" data-section="inventario">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#package"></use></svg
+          >Inventario
+        </button>
+        <button class="tab admin" data-section="usuarios">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#user-cog"></use></svg
+          >Usuarios
+        </button>
+        <button class="tab admin" data-section="reportesAdmin">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#chart"></use></svg
+          >Reportes
+        </button>
+        <button class="tab admin" data-section="configuracion">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#settings"></use></svg
+          >Configuración
+        </button>
+        <button class="tab" data-section="consultasLocales">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#search"></use></svg
+          >Consultas
+        </button>
+        <button class="tab" data-section="dashboard">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#layout-dashboard"></use></svg
+          >Dashboard
+        </button>
+        <button class="tab admin" data-section="respaldos">
+          <svg aria-hidden="true">
+            <use href="./assets/lucide.svg#database"></use></svg
+          >Respaldo y traslado
+        </button>
+      </nav>
 
-    <main>
-              <section id="pos" class="seccion activa">
-          <nav class="venta-tabs" aria-label="Punto de venta"><button class="activo" type="button" data-section="pos"><svg aria-hidden="true"><use href="./assets/lucide.svg#shopping-cart"></use></svg>Nueva venta</button><button type="button" data-section="ventas"><svg aria-hidden="true"><use href="./assets/lucide.svg#clock"></use></svg>Historial de ventas</button></nav>
+      <main>
+        <section id="pos" class="seccion activa">
+          <nav class="venta-tabs" aria-label="Punto de venta">
+            <button class="activo" type="button" data-section="pos">
+              <svg aria-hidden="true">
+                <use href="./assets/lucide.svg#shopping-cart"></use></svg
+              >Nueva venta</button
+            ><button type="button" data-section="ventas">
+              <svg aria-hidden="true">
+                <use href="./assets/lucide.svg#clock"></use></svg
+              >Historial de ventas
+            </button>
+          </nav>
 
           <div class="venta-layout">
-
             <!-- =========================
                 CAPTURA DE PRODUCTOS
             ========================== -->
 
             <div class="panel nota-panel">
-
               <div class="nota-header">
-
                 <div>
                   <h2>Nueva venta</h2>
-                  <p class="muted">
-                    Escribe el código o nombre del producto
-                  </p>
+                  <p class="muted">Escribe el código o nombre del producto</p>
                 </div>
 
                 <div class="contador-articulos">
-                  <svg aria-hidden="true"><use href="./assets/lucide.svg#shopping-bag"></use></svg>
+                  <svg aria-hidden="true">
+                    <use href="./assets/lucide.svg#shopping-bag"></use>
+                  </svg>
                   <span>Artículos</span>
                   <strong id="cantidadArticulos">0.00</strong>
                 </div>
-
               </div>
 
               <!-- FILA DE CAPTURA -->
 
               <div class="captura-producto">
-
                 <div class="campo-codigo">
-
-                  <label for="buscarProducto">
-                    Código o producto
-                  </label>
+                  <label for="buscarProducto"> Código o producto </label>
 
                   <input
                     id="buscarProducto"
                     type="text"
                     autocomplete="off"
                     placeholder="Ej. 01 o Aguacate"
-                  >
+                  />
 
                   <div
                     id="resultadosProductos"
                     class="resultados-productos hidden"
                   ></div>
-
                 </div>
 
                 <div>
-
-                  <label for="cantidadCaptura">
-                    Cantidad
-                  </label>
+                  <label for="cantidadCaptura"> Cantidad </label>
 
                   <input
                     id="cantidadCaptura"
@@ -120,47 +235,29 @@
                     min="0.01"
                     step="0.01"
                     value="1"
-                  >
-
+                  />
                 </div>
 
                 <div>
+                  <label for="unidadCaptura"> Unidad </label>
 
-                  <label for="unidadCaptura">
-                    Unidad
-                  </label>
-
-                  <input
-  id="unidadCaptura"
-  type="text"
-  value="kg"
-  readonly
->
-
+                  <input id="unidadCaptura" type="text" value="kg" readonly />
                 </div>
 
                 <div class="captura-boton">
-
-                  <button
-                    type="button"
-                    class="primary"
-                    id="agregarCaptura"
-                  >
-                    <svg aria-hidden="true"><use href="./assets/lucide.svg#plus"></use></svg>Agregar
+                  <button type="button" class="primary" id="agregarCaptura">
+                    <svg aria-hidden="true">
+                      <use href="./assets/lucide.svg#plus"></use></svg
+                    >Agregar
                   </button>
-
                 </div>
-
               </div>
 
               <!-- TABLA DE LA NOTA -->
 
               <div class="tabla-contenedor">
-
                 <table class="tabla-venta">
-
                   <thead>
-
                     <tr>
                       <th>Código</th>
                       <th>Producto</th>
@@ -170,32 +267,21 @@
                       <th>Importe</th>
                       <th></th>
                     </tr>
-
                   </thead>
 
                   <tbody id="detalleVenta">
-
                     <tr id="filaVacia">
-
-                      <td
-                        colspan="7"
-                        class="tabla-vacia"
-                      >
+                      <td colspan="7" class="tabla-vacia">
                         <div class="estado-nota-vacia">
-                          <img src="./assets/nota-vacia.svg" alt="">
+                          <img src="./assets/nota-vacia.svg" alt="" />
                           <strong>Aún no hay productos en la venta</strong>
                           <span>Agrega productos para comenzar</span>
                         </div>
                       </td>
-
                     </tr>
-
                   </tbody>
-
                 </table>
-
               </div>
-
             </div>
 
             <!-- =========================
@@ -203,43 +289,56 @@
             ========================== -->
 
             <aside class="panel cobro-panel">
+              <h2 class="cobro-titulo">
+                <svg aria-hidden="true">
+                  <use href="./assets/lucide.svg#credit-card"></use></svg
+                >Cobro
+              </h2>
 
-              <h2 class="cobro-titulo"><svg aria-hidden="true"><use href="./assets/lucide.svg#credit-card"></use></svg>Cobro</h2>
+              <label for="clienteVentaBuscar"> Cliente </label>
 
-              <label for="clienteVentaBuscar">
-                Cliente
-              </label>
+              <input id="clienteVenta" type="hidden" />
+              <div class="campo-con-icono">
+                <svg aria-hidden="true">
+                  <use href="./assets/lucide.svg#user"></use></svg
+                ><input
+                  id="clienteVentaBuscar"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Buscar cliente (RFC o nombre)"
+                />
+              </div>
+              <div
+                id="resultadosClienteVenta"
+                class="resultados-busqueda"
+              ></div>
 
-              <input id="clienteVenta" type="hidden">
-              <div class="campo-con-icono"><svg aria-hidden="true"><use href="./assets/lucide.svg#user"></use></svg><input id="clienteVentaBuscar" type="text" autocomplete="off"
-                placeholder="Buscar cliente (RFC o nombre)"></div>
-              <div id="resultadosClienteVenta" class="resultados-busqueda"></div>
+              <label for="tipoPago"> Tipo de pago </label>
 
-              <label for="tipoPago">
-                Tipo de pago
-              </label>
+              <div class="campo-con-icono">
+                <svg aria-hidden="true">
+                  <use href="./assets/lucide.svg#wallet"></use></svg
+                ><select id="tipoPago">
+                  <option value="CONTADO">Contado</option>
 
-              <div class="campo-con-icono"><svg aria-hidden="true"><use href="./assets/lucide.svg#wallet"></use></svg><select id="tipoPago">
-
-                <option value="CONTADO">
-                  Contado
-                </option>
-
-                <option value="CREDITO">
-                  Crédito
-                </option>
-
-              </select></div>
+                  <option value="CREDITO">Crédito</option>
+                </select>
+              </div>
 
               <div id="metodosPagoVenta" class="panel">
-                <strong class="forma-cobro-titulo"><svg aria-hidden="true"><use href="./assets/lucide.svg#wallet"></use></svg>Forma de cobro</strong>
+                <strong class="forma-cobro-titulo"
+                  ><svg aria-hidden="true">
+                    <use href="./assets/lucide.svg#wallet"></use></svg
+                  >Forma de cobro</strong
+                >
                 <div id="filasPagoVenta"></div>
                 <p id="saldoPagoVenta" class="money"></p>
-                <button id="agregarMetodoVenta" type="button" class="hidden">Agregar otro método</button>
+                <button id="agregarMetodoVenta" type="button" class="hidden">
+                  Agregar otro método
+                </button>
               </div>
 
               <div class="resumen-venta">
-
                 <div>
                   <span>Productos</span>
                   <strong id="resumenProductos">0</strong>
@@ -249,25 +348,18 @@
                   <span>Cantidad total</span>
                   <strong id="resumenCantidad">0.00</strong>
                 </div>
-
               </div>
 
               <div class="total-cobro">
-
                 <span>Total</span>
 
-                <strong id="total">
-                  $0.00
-                </strong>
-
+                <strong id="total"> $0.00 </strong>
               </div>
 
-              <button
-                type="button"
-                class="primary boton-cobrar"
-                id="vender"
-              >
-                <svg aria-hidden="true"><use href="./assets/lucide.svg#credit-card"></use></svg>Cobrar venta
+              <button type="button" class="primary boton-cobrar" id="vender">
+                <svg aria-hidden="true">
+                  <use href="./assets/lucide.svg#credit-card"></use></svg
+                >Cobrar venta
               </button>
 
               <button
@@ -276,624 +368,1569 @@
                 id="imprimir"
                 disabled
               >
-                <svg aria-hidden="true"><use href="./assets/lucide.svg#printer"></use></svg>Imprimir último ticket
+                <svg aria-hidden="true">
+                  <use href="./assets/lucide.svg#printer"></use></svg
+                >Imprimir último ticket
               </button>
-
             </aside>
-
           </div>
-
         </section>
 
-      <section id="ordenes" class="seccion">
-        <div class="ventas-titulo"><div><h2>Órdenes de venta</h2><p class="muted">Crea y modifica notas sin afectar inventario.</p></div><button id="ordenNueva" type="button">Nueva orden</button></div>
-        <form id="editorOrden" class="panel orden-layout">
-          <input id="ordenEditandoId" type="hidden">
-          <div class="form-grid orden-seccion"><label>Cliente<input id="ordenEditorCliente" type="hidden"><input id="ordenEditorClienteBuscar" autocomplete="off" placeholder="Escribe nombre, RFC o teléfono" required><div id="resultadosClienteOrden" class="resultados-busqueda"></div></label><label>Observación<textarea id="ordenEditorObservaciones" maxlength="500" rows="3" placeholder="Indicaciones de la orden"></textarea></label></div>
-          <div class="captura-producto orden-seccion"><div><label>Producto</label><input id="ordenEditorProducto" type="hidden"><input id="ordenEditorProductoBuscar" autocomplete="off" placeholder="Escribe código o nombre"><div id="resultadosProductoOrden" class="resultados-busqueda"></div></div><div><label>Cantidad</label><input id="ordenEditorCantidad" type="number" min="0.01" step="0.01" value="1"></div><div><label>Precio unitario</label><input id="ordenEditorPrecio" type="number" min="1" step="1" placeholder="Precio entero"></div><button id="ordenAgregarProducto" type="button" class="primary">Agregar</button></div>
-          <div class="tabla-contenedor"><table><thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Unidad</th><th>Precio estimado</th><th>Subtotal</th><th></th></tr></thead><tbody id="ordenEditorDetalle"><tr><td colspan="7">Agrega productos a la orden</td></tr></tbody></table></div>
-          <div class="actions"><strong id="ordenEditorTotal" class="money">$0.00</strong><button id="ordenGuardar" type="submit" class="primary">Guardar orden pendiente</button><button id="ordenCerrarEditor" type="button">Limpiar</button></div>
-        </form>
-        <form id="filtrosOrdenes" class="panel form-grid"><input id="ordenFolio" placeholder="Folio"><input id="ordenCliente" placeholder="Cliente"><input id="ordenFecha" type="date"><select id="ordenEstado"><option value="">Todos</option><option>BORRADOR</option><option selected>PENDIENTE</option><option>CONVERTIDA</option><option>CANCELADA</option></select><button class="primary">Buscar</button></form>
-        <div class="panel tabla-contenedor"><table><thead><tr><th>Folio</th><th>Fecha</th><th>Cliente</th><th>Observaciones</th><th>Estado</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="listaOrdenes"></tbody></table></div>
-      </section>
+        <section id="ordenes" class="seccion">
+          <div class="ventas-titulo">
+            <div>
+              <h2>Órdenes de venta</h2>
+              <p class="muted">Crea y modifica notas sin afectar inventario.</p>
+            </div>
+            <button id="ordenNueva" type="button">Nueva orden</button>
+          </div>
+          <form id="editorOrden" class="panel orden-layout">
+            <input id="ordenEditandoId" type="hidden" />
+            <div class="form-grid orden-seccion">
+              <label
+                >Cliente<input id="ordenEditorCliente" type="hidden" /><input
+                  id="ordenEditorClienteBuscar"
+                  autocomplete="off"
+                  placeholder="Escribe nombre, RFC o teléfono"
+                  required />
+                <div
+                  id="resultadosClienteOrden"
+                  class="resultados-busqueda"
+                ></div></label
+              ><label
+                >Observación<textarea
+                  id="ordenEditorObservaciones"
+                  maxlength="500"
+                  rows="3"
+                  placeholder="Indicaciones de la orden"
+                ></textarea>
+              </label>
+            </div>
+            <div class="captura-producto orden-seccion">
+              <div>
+                <label>Producto</label
+                ><input id="ordenEditorProducto" type="hidden" /><input
+                  id="ordenEditorProductoBuscar"
+                  autocomplete="off"
+                  placeholder="Escribe código o nombre"
+                />
+                <div
+                  id="resultadosProductoOrden"
+                  class="resultados-busqueda"
+                ></div>
+              </div>
+              <div>
+                <label>Cantidad</label
+                ><input
+                  id="ordenEditorCantidad"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value="1"
+                />
+              </div>
+              <div>
+                <label>Precio unitario</label
+                ><input
+                  id="ordenEditorPrecio"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Precio entero"
+                />
+              </div>
+              <button id="ordenAgregarProducto" type="button" class="primary">
+                Agregar
+              </button>
+            </div>
+            <div class="tabla-contenedor">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Unidad</th>
+                    <th>Precio estimado</th>
+                    <th>Subtotal</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="ordenEditorDetalle">
+                  <tr>
+                    <td colspan="7">Agrega productos a la orden</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="actions">
+              <strong id="ordenEditorTotal" class="money">$0.00</strong
+              ><button id="ordenGuardar" type="submit" class="primary">
+                Guardar orden pendiente</button
+              ><button id="ordenCerrarEditor" type="button">Limpiar</button>
+            </div>
+          </form>
+          <form id="filtrosOrdenes" class="panel form-grid">
+            <input id="ordenFolio" placeholder="Folio" /><input
+              id="ordenCliente"
+              placeholder="Cliente"
+            /><input id="ordenFecha" type="date" /><select id="ordenEstado">
+              <option value="">Todos</option>
+              <option>BORRADOR</option>
+              <option selected>PENDIENTE</option>
+              <option>CONVERTIDA</option>
+              <option>CANCELADA</option></select
+            ><button class="primary">Buscar</button>
+          </form>
+          <div class="panel tabla-contenedor">
+            <table>
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Fecha</th>
+                  <th>Cliente</th>
+                  <th>Observaciones</th>
+                  <th>Estado</th>
+                  <th>Total</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="listaOrdenes"></tbody>
+            </table>
+          </div>
+        </section>
 
-      <section id="clientes" class="seccion"><h2>Clientes</h2><form id="clienteForm" class="panel"><input type="hidden" id="clienteId"><div class="form-grid"><input id="nombreRazon" placeholder="Nombre o razón social" required><input id="rfc" placeholder="RFC" maxlength="13"><input id="telefono" placeholder="Teléfono"><input id="correo" type="email" placeholder="Correo electrónico"></div><div class="actions"><button class="primary" type="submit">Guardar cliente</button><button type="button" id="cancelarEdicion" class="hidden">Cancelar edición</button></div></form><div class="panel"><input id="buscarCliente" class="input-ancho" placeholder="Buscar por nombre, RFC o teléfono"><nav id="indiceClientes" class="indice-alfabetico" aria-label="Índice alfabético"></nav></div><div id="listaClientes"></div><div id="resumenCliente" class="panel hidden"></div></section>
+        <section id="clientes" class="seccion">
+          <h2>Clientes</h2>
+          <form id="clienteForm" class="panel">
+            <input type="hidden" id="clienteId" />
+            <div class="form-grid">
+              <input
+                id="nombreRazon"
+                placeholder="Nombre o razón social"
+                required
+              /><input id="rfc" placeholder="RFC" maxlength="13" /><input
+                id="telefono"
+                placeholder="Teléfono"
+              /><input
+                id="correo"
+                type="email"
+                placeholder="Correo electrónico"
+              />
+            </div>
+            <div class="actions">
+              <button class="primary" type="submit">Guardar cliente</button
+              ><button type="button" id="cancelarEdicion" class="hidden">
+                Cancelar edición
+              </button>
+            </div>
+          </form>
+          <div class="panel">
+            <input
+              id="buscarCliente"
+              class="input-ancho"
+              placeholder="Buscar por nombre, RFC o teléfono"
+            />
+            <nav
+              id="indiceClientes"
+              class="indice-alfabetico"
+              aria-label="Índice alfabético"
+            ></nav>
+          </div>
+          <div id="listaClientes"></div>
+          <div id="resumenCliente" class="panel hidden"></div>
+        </section>
 
-      <section id="cuentas" class="seccion"><h2>Cobros de cuentas por cobrar</h2><div class="panel"><label for="buscarClienteCuenta">Buscar cliente</label><div class="busqueda-cuenta"><input id="buscarClienteCuenta" class="input-ancho" placeholder="Nombre, RFC, teléfono o correo"><button id="ejecutarBusquedaCuenta" type="button">Buscar</button></div><div id="resultadosClienteCuenta"></div></div><button id="abrirPago" class="primary">Aplicar pago</button><div id="listaCuentas" class="grid"></div><div id="detalleCuenta" class="panel hidden" style="margin-top:16px"></div></section>
+        <section id="cuentas" class="seccion">
+          <h2>Cobros de cuentas por cobrar</h2>
+          <div class="panel">
+            <label for="buscarClienteCuenta">Buscar cliente</label>
+            <div class="busqueda-cuenta">
+              <input
+                id="buscarClienteCuenta"
+                class="input-ancho"
+                placeholder="Nombre, RFC, teléfono o correo"
+              /><button id="ejecutarBusquedaCuenta" type="button">
+                Buscar
+              </button>
+            </div>
+            <div id="resultadosClienteCuenta"></div>
+          </div>
+          <button id="abrirPago" class="primary">Aplicar pago</button>
+          <div id="listaCuentas" class="grid"></div>
+          <div
+            id="detalleCuenta"
+            class="panel hidden"
+            style="margin-top: 16px"
+          ></div>
+        </section>
 
-      <section id="inventario" class="seccion"><div class="inventario-encabezado"><div><h2>Inventario</h2><p class="muted">Existencias, movimientos, productos, proveedores y entradas.</p></div></div><nav class="inventario-tabs" aria-label="Apartados de inventario"><button class="activo" type="button" data-section="inventario" data-inventory-view="existencias">Existencias</button><button type="button" data-section="inventario" data-inventory-view="movimientos">Movimientos</button><button type="button" data-section="productosAdmin">Productos</button><button type="button" data-section="compras">Compras / Entradas</button><button type="button" data-section="proveedores">Proveedores</button></nav><div data-inventory-panel="existencias"><div id="existenciasInventario" class="panel tabla-contenedor"></div></div><div data-inventory-panel="movimientos" class="hidden"><h3>Registrar movimiento</h3><form id="movimientoForm" class="panel form-grid"><div class="campo-busqueda-compra"><input id="productoMovimiento" type="hidden"><input id="productoMovimientoBuscar" autocomplete="off" placeholder="Buscar producto por código o nombre" required><div id="resultadosProductoMovimiento" class="resultados-busqueda hidden"></div></div><select id="tipoMovimiento"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida / merma</option></select><input id="cantidadMovimiento" type="number" min="0.01" step="0.01" placeholder="Cantidad" required><input id="motivoMovimiento" placeholder="Motivo" required><button class="primary">Registrar</button></form><h3>Movimientos recientes</h3><div id="movimientos" style="margin-top:16px"></div></div></section>
+        <section id="inventario" class="seccion">
+          <div class="inventario-encabezado">
+            <div>
+              <h2>Inventario</h2>
+              <p class="muted">
+                Existencias, movimientos, productos, proveedores y entradas.
+              </p>
+            </div>
+          </div>
+          <nav class="inventario-tabs" aria-label="Apartados de inventario">
+            <button
+              class="activo"
+              type="button"
+              data-section="inventario"
+              data-inventory-view="existencias"
+            >
+              Existencias</button
+            ><button
+              type="button"
+              data-section="inventario"
+              data-inventory-view="movimientos"
+            >
+              Movimientos</button
+            ><button type="button" data-section="productosAdmin">
+              Productos</button
+            ><button type="button" data-section="compras">
+              Compras / Entradas</button
+            ><button type="button" data-section="proveedores">
+              Proveedores
+            </button>
+          </nav>
+          <div data-inventory-panel="existencias">
+            <div
+              id="existenciasInventario"
+              class="panel tabla-contenedor"
+            ></div>
+          </div>
+          <div data-inventory-panel="movimientos" class="hidden">
+            <h3>Registrar movimiento</h3>
+            <form id="movimientoForm" class="panel form-grid">
+              <div class="campo-busqueda-compra">
+                <input id="productoMovimiento" type="hidden" /><input
+                  id="productoMovimientoBuscar"
+                  autocomplete="off"
+                  placeholder="Buscar producto por código o nombre"
+                  required
+                />
+                <div
+                  id="resultadosProductoMovimiento"
+                  class="resultados-busqueda hidden"
+                ></div>
+              </div>
+              <select id="tipoMovimiento">
+                <option value="ENTRADA">Entrada</option>
+                <option value="SALIDA">Salida / merma</option></select
+              ><input
+                id="cantidadMovimiento"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Cantidad"
+                required
+              /><input
+                id="motivoMovimiento"
+                placeholder="Motivo"
+                required
+              /><button class="primary">Registrar</button>
+            </form>
+            <h3>Movimientos recientes</h3>
+            <div id="movimientos" style="margin-top: 16px"></div>
+          </div>
+        </section>
 
-<section
-  id="ventas"
-  class="seccion"
->
-  <nav class="venta-tabs" aria-label="Punto de venta"><button type="button" data-section="pos"><svg aria-hidden="true"><use href="./assets/lucide.svg#shopping-cart"></use></svg>Nueva venta</button><button class="activo" type="button" data-section="ventas"><svg aria-hidden="true"><use href="./assets/lucide.svg#clock"></use></svg>Historial de ventas</button></nav>
+        <section id="ventas" class="seccion">
+          <nav class="venta-tabs" aria-label="Punto de venta">
+            <button type="button" data-section="pos">
+              <svg aria-hidden="true">
+                <use href="./assets/lucide.svg#shopping-cart"></use></svg
+              >Nueva venta</button
+            ><button class="activo" type="button" data-section="ventas">
+              <svg aria-hidden="true">
+                <use href="./assets/lucide.svg#clock"></use></svg
+              >Historial de ventas
+            </button>
+          </nav>
 
-  <div class="ventas-titulo">
+          <div class="ventas-titulo">
+            <div>
+              <h2>Ventas de mostrador</h2>
 
-    <div>
-      <h2>Ventas de mostrador</h2>
+              <p class="muted">Consulta notas actuales y ventas anteriores</p>
+            </div>
 
-      <p class="muted">
-        Consulta notas actuales y ventas anteriores
-      </p>
-    </div>
+            <button type="button" class="primary" id="actualizarVentas">
+              Actualizar
+            </button>
+          </div>
 
-    <button
-      type="button"
-      class="primary"
-      id="actualizarVentas"
-    >
-      Actualizar
-    </button>
-
-  </div>
-
-  <!-- =========================
+          <!-- =========================
        FILTROS
   ========================== -->
 
-  <form
-    id="filtrosVentas"
-    class="panel filtros-ventas"
-  >
+          <form id="filtrosVentas" class="panel filtros-ventas">
+            <div>
+              <label for="filtroFolio"> Folio </label>
 
-    <div>
+              <input id="filtroFolio" type="text" placeholder="Ej. 125" />
+            </div>
 
-      <label for="filtroFolio">
-        Folio
-      </label>
+            <div>
+              <label for="filtroCliente"> Cliente </label>
 
-      <input
-        id="filtroFolio"
-        type="text"
-        placeholder="Ej. 125"
-      >
+              <input
+                id="filtroCliente"
+                type="text"
+                placeholder="Nombre del cliente"
+              />
+            </div>
 
-    </div>
+            <div>
+              <label for="filtroFechaInicio"> Desde </label>
 
-    <div>
+              <input id="filtroFechaInicio" type="date" />
+            </div>
 
-      <label for="filtroCliente">
-        Cliente
-      </label>
+            <div>
+              <label for="filtroFechaFin"> Hasta </label>
 
-      <input
-        id="filtroCliente"
-        type="text"
-        placeholder="Nombre del cliente"
-      >
+              <input id="filtroFechaFin" type="date" />
+            </div>
 
-    </div>
+            <div>
+              <label for="filtroTipoPago"> Tipo de pago </label>
 
-    <div>
+              <select id="filtroTipoPago">
+                <option value="">Todos</option>
 
-      <label for="filtroFechaInicio">
-        Desde
-      </label>
+                <option value="CONTADO">Contado</option>
 
-      <input
-        id="filtroFechaInicio"
-        type="date"
-      >
+                <option value="CREDITO">Crédito</option>
+              </select>
+            </div>
 
-    </div>
+            <div>
+              <label for="filtroEstadoVenta"> Estado </label>
 
-    <div>
+              <select id="filtroEstadoVenta">
+                <option value="">Todas</option>
 
-      <label for="filtroFechaFin">
-        Hasta
-      </label>
+                <option value="ACTIVA">Activas</option>
 
-      <input
-        id="filtroFechaFin"
-        type="date"
-      >
+                <option value="CANCELADA">Canceladas</option>
+              </select>
+            </div>
 
-    </div>
+            <div class="acciones-filtros">
+              <button type="submit" class="primary">Buscar</button>
 
-    <div>
+              <button type="button" id="limpiarFiltrosVentas">Limpiar</button>
+            </div>
+          </form>
 
-      <label for="filtroTipoPago">
-        Tipo de pago
-      </label>
-
-      <select id="filtroTipoPago">
-
-        <option value="">
-          Todos
-        </option>
-
-        <option value="CONTADO">
-          Contado
-        </option>
-
-        <option value="CREDITO">
-          Crédito
-        </option>
-
-      </select>
-
-    </div>
-
-    <div>
-
-      <label for="filtroEstadoVenta">
-        Estado
-      </label>
-
-      <select id="filtroEstadoVenta">
-
-        <option value="">
-          Todas
-        </option>
-
-        <option value="ACTIVA">
-          Activas
-        </option>
-
-        <option value="CANCELADA">
-          Canceladas
-        </option>
-
-      </select>
-
-    </div>
-
-    <div class="acciones-filtros">
-
-      <button
-        type="submit"
-        class="primary"
-      >
-        Buscar
-      </button>
-
-      <button
-        type="button"
-        id="limpiarFiltrosVentas"
-      >
-        Limpiar
-      </button>
-
-    </div>
-
-  </form>
-
-  <!-- =========================
+          <!-- =========================
        RESUMEN
   ========================== -->
 
-  <div class="resumen-ventas">
+          <div class="resumen-ventas">
+            <div class="panel">
+              <span>Ventas encontradas</span>
 
-    <div class="panel">
+              <strong id="ventasEncontradas"> 0 </strong>
+            </div>
 
-      <span>Ventas encontradas</span>
+            <div class="panel">
+              <span>Importe total</span>
 
-      <strong id="ventasEncontradas">
-        0
-      </strong>
+              <strong id="importeVentas" class="money"> $0.00 </strong>
+            </div>
+          </div>
 
-    </div>
-
-    <div class="panel">
-
-      <span>Importe total</span>
-
-      <strong
-        id="importeVentas"
-        class="money"
-      >
-        $0.00
-      </strong>
-
-    </div>
-
-  </div>
-
-  <!-- =========================
+          <!-- =========================
        TABLA
   ========================== -->
 
-  <div class="panel tabla-ventas-contenedor">
+          <div class="panel tabla-ventas-contenedor">
+            <table class="tabla-ventas">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Folio</th>
+                  <th>Cliente</th>
+                  <th>Importe total</th>
+                  <th>Tipo de pago</th>
+                  <th>Estado</th>
+                  <th>Cajero</th>
+                  <th>Hora</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
 
-    <table class="tabla-ventas">
-
-      <thead>
-
-        <tr>
-          <th>Fecha</th>
-          <th>Folio</th>
-          <th>Cliente</th>
-          <th>Importe total</th>
-          <th>Tipo de pago</th>
-          <th>Estado</th>
-          <th>Cajero</th>
-          <th>Hora</th>
-          <th>Acciones</th>
-        </tr>
-
-      </thead>
-
-      <tbody id="listaVentas">
-
-        <tr>
-
-          <td
-            colspan="9"
-            class="tabla-vacia"
-          >
-            Cargando ventas...
-          </td>
-
-        </tr>
-
-      </tbody>
-
-    </table>
-
-  </div>
-
-</section>
-
-      <section id="respaldos" class="seccion admin" aria-labelledby="tituloRespaldos">
-        <div class="respaldo-encabezado">
-          <div>
-            <h2 id="tituloRespaldos">Respaldo y traslado de datos</h2>
-            <p class="muted">Mueva la información completa entre computadoras usando un solo archivo ZIP.</p>
-          </div>
-          <button id="actualizarEstadoRespaldos" type="button">Actualizar estado</button>
-        </div>
-
-        <div id="mensajeRespaldos" class="mensaje-respaldo hidden" role="status" aria-live="polite"></div>
-        <div id="avisoReinicioRespaldo" class="mensaje-respaldo advertencia hidden" role="alert">
-          <strong>La restauración terminó y la aplicación necesita volver a comprobar el sistema.</strong>
-          <p>No cierre el equipo ni intente registrar operaciones hasta completar la comprobación.</p>
-          <button id="comprobarSistemaRespaldo" type="button" class="primary">Volver a comprobar el sistema</button>
-        </div>
-
-        <div class="respaldo-grid">
-          <article class="panel respaldo-tarjeta">
-            <h3>Estado de esta computadora</h3>
-            <dl class="estado-instancia">
-              <div><dt>Estado</dt><dd><span id="estadoInstancia" class="estado-chip">Consultando…</span></dd></div>
-              <div><dt>Equipo</dt><dd id="hostnameInstancia">—</dd></div>
-              <div><dt>Instalación</dt><dd id="instanceIdInstancia">—</dd></div>
-              <div><dt>Último respaldo generado</dt><dd id="ultimoGeneradoInstancia">—</dd></div>
-              <div><dt>Último respaldo restaurado</dt><dd id="ultimoRestauradoInstancia">—</dd></div>
-            </dl>
-          </article>
-
-          <article class="panel respaldo-tarjeta">
-            <h3>Exportar respaldo</h3>
-            <p>Descargue el ZIP y elija la memoria USB en la ventana de guardado del navegador.</p>
-            <button id="generarRespaldo" type="button" class="primary">Generar respaldo</button>
-            <div id="progresoExportacion" class="progreso-respaldo hidden"><span class="spinner"></span> Generando el respaldo…</div>
-            <dl id="datosExportacion" class="estado-instancia hidden">
-              <div><dt>Archivo</dt><dd id="nombreExportacion">—</dd></div>
-              <div><dt>Fecha</dt><dd id="fechaExportacion">—</dd></div>
-              <div><dt>Tamaño</dt><dd id="tamanoExportacion">—</dd></div>
-            </dl>
-            <button id="abrirConfirmacionEntrega" type="button" class="danger hidden">Marcar esta computadora como entregada</button>
-          </article>
-        </div>
-
-        <article class="panel respaldo-tarjeta">
-          <h3>Restaurar respaldo</h3>
-          <p>Seleccionar o analizar un archivo no modifica la base de datos.</p>
-          <div id="zonaArchivoRespaldo" class="zona-archivo" tabindex="0" role="button" aria-controls="archivoRespaldo">
-            <strong>Arrastre aquí el ZIP o SQL</strong>
-            <span>o haga clic para seleccionar el archivo</span>
-            <input id="archivoRespaldo" type="file" accept=".zip,.sql,application/zip,application/sql" class="hidden">
-          </div>
-          <p id="datosArchivoRespaldo" class="muted">Ningún archivo seleccionado.</p>
-          <div class="actions">
-            <button id="analizarRespaldo" type="button" class="primary" disabled>Analizar respaldo</button>
-          </div>
-          <div id="progresoAnalisis" class="progreso-respaldo hidden"><span class="spinner"></span> Revisando el archivo…</div>
-
-          <div id="resultadoAnalisis" class="resultado-analisis hidden">
-            <h4>Resultado del análisis</h4>
-            <dl class="estado-instancia">
-              <div><dt>Fecha del respaldo</dt><dd id="analisisFecha">—</dd></div>
-              <div><dt>Equipo de origen</dt><dd id="analisisEquipo">—</dd></div>
-              <div><dt>Versión</dt><dd id="analisisVersion">—</dd></div>
-              <div><dt>Tamaño SQL</dt><dd id="analisisTamano">—</dd></div>
-              <div><dt>Última venta</dt><dd id="analisisUltimaVenta">—</dd></div>
-              <div><dt>Comparación</dt><dd><span id="analisisComparacion" class="estado-chip">—</span></dd></div>
-            </dl>
-            <div id="advertenciasAnalisis"></div>
-
-            <div class="confirmacion-restauracion">
-              <label>Escriba <strong>RESTAURAR</strong>
-                <input id="textoConfirmarRestauracion" autocomplete="off">
-              </label>
-              <label>Contraseña del administrador
-                <input id="passwordRestauracion" type="password" autocomplete="current-password">
-              </label>
-              <label id="grupoConfirmarAntiguo" class="confirmacion-riesgo hidden">
-                <input id="confirmarRespaldoAntiguo" type="checkbox">
-                Entiendo que este respaldo es más antiguo y que se perderán cambios locales posteriores.
-              </label>
-              <button id="restaurarRespaldo" type="button" class="danger" disabled>Restaurar respaldo</button>
-            </div>
-          </div>
-        </article>
-
-        <article id="panelReactivarInstancia" class="panel respaldo-tarjeta riesgo hidden">
-          <h3>Reactivación de emergencia</h3>
-          <p><strong>Riesgo:</strong> use esta opción solo si no puede recuperar el respaldo de la otra computadora. Podrían quedar dos bases diferentes.</p>
-          <div class="form-grid">
-            <label>Motivo de reactivación
-              <textarea id="motivoReactivacion" maxlength="500" rows="3"></textarea>
-            </label>
-            <label>Contraseña del administrador
-              <input id="passwordReactivacion" type="password" autocomplete="current-password">
-            </label>
-          </div>
-          <button id="reactivarInstancia" type="button" class="danger" disabled>Reactivar bajo mi responsabilidad</button>
-        </article>
-
-        <article class="panel respaldo-tarjeta">
-          <div class="respaldo-encabezado">
-            <div><h3>Historial</h3><p class="muted">Generaciones, análisis, restauraciones y reactivaciones.</p></div>
-            <button id="actualizarHistorialRespaldos" type="button">Actualizar historial</button>
-          </div>
-          <div class="tabla-contenedor">
-            <table>
-              <thead><tr><th>Fecha</th><th>Acción</th><th>Archivo</th><th>Equipo</th><th>Usuario</th><th>Resultado</th></tr></thead>
-              <tbody id="historialRespaldos"><tr><td colspan="6">Sin operaciones registradas.</td></tr></tbody>
+              <tbody id="listaVentas">
+                <tr>
+                  <td colspan="9" class="tabla-vacia">Cargando ventas...</td>
+                </tr>
+              </tbody>
             </table>
           </div>
-        </article>
+        </section>
 
-        <div class="guia-traslado">
-          <article class="panel"><h3>Computadora de origen</h3><ol><li>Finalice las ventas.</li><li>Genere el respaldo.</li><li>Guarde el ZIP en la USB.</li><li>Marque la computadora como entregada.</li><li>Expulse la USB.</li></ol></article>
-          <article class="panel"><h3>Computadora de destino</h3><ol><li>Inserte la USB.</li><li>Seleccione el ZIP.</li><li>Analice el respaldo.</li><li>Verifique que sea el más reciente.</li><li>Confirme la restauración.</li><li>Continúe trabajando.</li></ol></article>
+        <section
+          id="respaldos"
+          class="seccion admin"
+          aria-labelledby="tituloRespaldos"
+        >
+          <div class="respaldo-encabezado">
+            <div>
+              <h2 id="tituloRespaldos">Respaldo y traslado de datos</h2>
+              <p class="muted">
+                Mueva la información completa entre computadoras usando un solo
+                archivo ZIP.
+              </p>
+            </div>
+            <button id="actualizarEstadoRespaldos" type="button">
+              Actualizar estado
+            </button>
+          </div>
+
+          <div
+            id="mensajeRespaldos"
+            class="mensaje-respaldo hidden"
+            role="status"
+            aria-live="polite"
+          ></div>
+          <div
+            id="avisoReinicioRespaldo"
+            class="mensaje-respaldo advertencia hidden"
+            role="alert"
+          >
+            <strong
+              >La restauración terminó y la aplicación necesita volver a
+              comprobar el sistema.</strong
+            >
+            <p>
+              No cierre el equipo ni intente registrar operaciones hasta
+              completar la comprobación.
+            </p>
+            <button id="comprobarSistemaRespaldo" type="button" class="primary">
+              Volver a comprobar el sistema
+            </button>
+          </div>
+
+          <div class="respaldo-grid">
+            <article class="panel respaldo-tarjeta">
+              <h3>Estado de esta computadora</h3>
+              <dl class="estado-instancia">
+                <div>
+                  <dt>Estado</dt>
+                  <dd>
+                    <span id="estadoInstancia" class="estado-chip"
+                      >Consultando…</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>Equipo</dt>
+                  <dd id="hostnameInstancia">—</dd>
+                </div>
+                <div>
+                  <dt>Instalación</dt>
+                  <dd id="instanceIdInstancia">—</dd>
+                </div>
+                <div>
+                  <dt>Último respaldo generado</dt>
+                  <dd id="ultimoGeneradoInstancia">—</dd>
+                </div>
+                <div>
+                  <dt>Último respaldo restaurado</dt>
+                  <dd id="ultimoRestauradoInstancia">—</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article class="panel respaldo-tarjeta">
+              <h3>Exportar respaldo</h3>
+              <p>
+                Descargue el ZIP y elija la memoria USB en la ventana de
+                guardado del navegador.
+              </p>
+              <button id="generarRespaldo" type="button" class="primary">
+                Generar respaldo
+              </button>
+              <div id="progresoExportacion" class="progreso-respaldo hidden">
+                <span class="spinner"></span> Generando el respaldo…
+              </div>
+              <dl id="datosExportacion" class="estado-instancia hidden">
+                <div>
+                  <dt>Archivo</dt>
+                  <dd id="nombreExportacion">—</dd>
+                </div>
+                <div>
+                  <dt>Fecha</dt>
+                  <dd id="fechaExportacion">—</dd>
+                </div>
+                <div>
+                  <dt>Tamaño</dt>
+                  <dd id="tamanoExportacion">—</dd>
+                </div>
+              </dl>
+              <button
+                id="abrirConfirmacionEntrega"
+                type="button"
+                class="danger hidden"
+              >
+                Marcar esta computadora como entregada
+              </button>
+            </article>
+          </div>
+
+          <article class="panel respaldo-tarjeta">
+            <h3>Restaurar respaldo</h3>
+            <p>
+              Seleccionar o analizar un archivo no modifica la base de datos.
+            </p>
+            <div
+              id="zonaArchivoRespaldo"
+              class="zona-archivo"
+              tabindex="0"
+              role="button"
+              aria-controls="archivoRespaldo"
+            >
+              <strong>Arrastre aquí el ZIP o SQL</strong>
+              <span>o haga clic para seleccionar el archivo</span>
+              <input
+                id="archivoRespaldo"
+                type="file"
+                accept=".zip,.sql,application/zip,application/sql"
+                class="hidden"
+              />
+            </div>
+            <p id="datosArchivoRespaldo" class="muted">
+              Ningún archivo seleccionado.
+            </p>
+            <div class="actions">
+              <button
+                id="analizarRespaldo"
+                type="button"
+                class="primary"
+                disabled
+              >
+                Analizar respaldo
+              </button>
+            </div>
+            <div id="progresoAnalisis" class="progreso-respaldo hidden">
+              <span class="spinner"></span> Revisando el archivo…
+            </div>
+
+            <div id="resultadoAnalisis" class="resultado-analisis hidden">
+              <h4>Resultado del análisis</h4>
+              <dl class="estado-instancia">
+                <div>
+                  <dt>Fecha del respaldo</dt>
+                  <dd id="analisisFecha">—</dd>
+                </div>
+                <div>
+                  <dt>Equipo de origen</dt>
+                  <dd id="analisisEquipo">—</dd>
+                </div>
+                <div>
+                  <dt>Versión</dt>
+                  <dd id="analisisVersion">—</dd>
+                </div>
+                <div>
+                  <dt>Tamaño SQL</dt>
+                  <dd id="analisisTamano">—</dd>
+                </div>
+                <div>
+                  <dt>Última venta</dt>
+                  <dd id="analisisUltimaVenta">—</dd>
+                </div>
+                <div>
+                  <dt>Comparación</dt>
+                  <dd>
+                    <span id="analisisComparacion" class="estado-chip">—</span>
+                  </dd>
+                </div>
+              </dl>
+              <div id="advertenciasAnalisis"></div>
+
+              <div class="confirmacion-restauracion">
+                <label
+                  >Escriba <strong>RESTAURAR</strong>
+                  <input id="textoConfirmarRestauracion" autocomplete="off" />
+                </label>
+                <label
+                  >Contraseña del administrador
+                  <input
+                    id="passwordRestauracion"
+                    type="password"
+                    autocomplete="current-password"
+                  />
+                </label>
+                <label
+                  id="grupoConfirmarAntiguo"
+                  class="confirmacion-riesgo hidden"
+                >
+                  <input id="confirmarRespaldoAntiguo" type="checkbox" />
+                  Entiendo que este respaldo es más antiguo y que se perderán
+                  cambios locales posteriores.
+                </label>
+                <button
+                  id="restaurarRespaldo"
+                  type="button"
+                  class="danger"
+                  disabled
+                >
+                  Restaurar respaldo
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article
+            id="panelReactivarInstancia"
+            class="panel respaldo-tarjeta riesgo hidden"
+          >
+            <h3>Reactivación de emergencia</h3>
+            <p>
+              <strong>Riesgo:</strong> use esta opción solo si no puede
+              recuperar el respaldo de la otra computadora. Podrían quedar dos
+              bases diferentes.
+            </p>
+            <div class="form-grid">
+              <label
+                >Motivo de reactivación
+                <textarea
+                  id="motivoReactivacion"
+                  maxlength="500"
+                  rows="3"
+                ></textarea>
+              </label>
+              <label
+                >Contraseña del administrador
+                <input
+                  id="passwordReactivacion"
+                  type="password"
+                  autocomplete="current-password"
+                />
+              </label>
+            </div>
+            <button
+              id="reactivarInstancia"
+              type="button"
+              class="danger"
+              disabled
+            >
+              Reactivar bajo mi responsabilidad
+            </button>
+          </article>
+
+          <article class="panel respaldo-tarjeta">
+            <div class="respaldo-encabezado">
+              <div>
+                <h3>Historial</h3>
+                <p class="muted">
+                  Generaciones, análisis, restauraciones y reactivaciones.
+                </p>
+              </div>
+              <button id="actualizarHistorialRespaldos" type="button">
+                Actualizar historial
+              </button>
+            </div>
+            <div class="tabla-contenedor">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                    <th>Archivo</th>
+                    <th>Equipo</th>
+                    <th>Usuario</th>
+                    <th>Resultado</th>
+                  </tr>
+                </thead>
+                <tbody id="historialRespaldos">
+                  <tr>
+                    <td colspan="6">Sin operaciones registradas.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <div class="guia-traslado">
+            <article class="panel">
+              <h3>Computadora de origen</h3>
+              <ol>
+                <li>Finalice las ventas.</li>
+                <li>Genere el respaldo.</li>
+                <li>Guarde el ZIP en la USB.</li>
+                <li>Marque la computadora como entregada.</li>
+                <li>Expulse la USB.</li>
+              </ol>
+            </article>
+            <article class="panel">
+              <h3>Computadora de destino</h3>
+              <ol>
+                <li>Inserte la USB.</li>
+                <li>Seleccione el ZIP.</li>
+                <li>Analice el respaldo.</li>
+                <li>Verifique que sea el más reciente.</li>
+                <li>Confirme la restauración.</li>
+                <li>Continúe trabajando.</li>
+              </ol>
+            </article>
+          </div>
+        </section>
+
+        <section id="productosAdmin" class="seccion">
+          <h2>Inventario · Productos</h2>
+          <nav class="inventario-tabs" aria-label="Apartados de inventario">
+            <button type="button" data-section="inventario">
+              Existencias y movimientos</button
+            ><button class="activo" type="button" data-section="productosAdmin">
+              Productos</button
+            ><button type="button" data-section="compras">
+              Compras / Entradas</button
+            ><button type="button" data-section="proveedores">
+              Proveedores
+            </button>
+          </nav>
+          <form id="productoAdminForm" class="panel">
+            <input id="productoAdminId" type="hidden" />
+            <div class="form-grid">
+              <input id="productoCodigo" placeholder="Código" required /><input
+                id="productoNombre"
+                placeholder="Nombre"
+                required
+              /><input
+                id="productoDescripcion"
+                placeholder="Descripción"
+              /><input
+                id="productoPrecio"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="Precio de venta"
+                title="Importe al que vendes el producto"
+                required
+              /><input
+                id="productoCosto"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="Costo de compra"
+                title="Importe que te cuesta adquirir el producto"
+                required
+              /><select id="productoUnidad">
+                <option>KG</option>
+                <option>CAJA</option></select
+              ><input
+                id="productoMinimo"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Stock mínimo"
+              /><label
+                >Proveedor<select id="productoProveedor">
+                  <option value="">Sin proveedor</option>
+                </select></label
+              >
+            </div>
+            <p class="muted">
+              <strong>Precio de venta:</strong> lo que cobras al cliente.
+              <strong>Costo de compra:</strong> lo que te cuesta adquirir el
+              producto. La cantidad se registra en Movimientos o Compras /
+              Entradas; las cajas avanzan de 0.5 en 0.5 y los kilos permiten
+              decimales.
+            </p>
+            <button class="primary">Guardar</button>
+          </form>
+          <div id="productosAdminLista" class="panel"></div>
+        </section>
+        <section id="proveedores" class="seccion">
+          <div class="inventario-encabezado">
+            <div>
+              <h2>Inventario · Proveedores</h2>
+              <p class="muted">
+                Administra proveedores y consulta sus productos y compras.
+              </p>
+            </div>
+            <button id="nuevoProveedor" type="button" class="primary">
+              Nuevo proveedor
+            </button>
+          </div>
+          <nav class="inventario-tabs" aria-label="Apartados de inventario">
+            <button type="button" data-section="inventario">
+              Existencias y movimientos</button
+            ><button type="button" data-section="productosAdmin">
+              Productos</button
+            ><button type="button" data-section="compras">
+              Compras / Entradas</button
+            ><button class="activo" type="button" data-section="proveedores">
+              Proveedores
+            </button>
+          </nav>
+          <div class="panel proveedor-filtros">
+            <input
+              id="buscarProveedor"
+              class="input-ancho"
+              placeholder="Buscar nombre, contacto, teléfono, RFC o correo"
+            /><select id="estadoProveedor">
+              <option value="ACTIVOS">Activos</option>
+              <option value="INACTIVOS">Inactivos</option>
+              <option value="TODOS">Todos</option>
+            </select>
+          </div>
+          <form id="proveedorForm" class="panel hidden">
+            <input id="proveedorId" type="hidden" />
+            <h3 id="proveedorFormTitulo">Nuevo proveedor</h3>
+            <div class="form-grid">
+              <label
+                >Nombre comercial *<input
+                  id="proveedorNombre"
+                  required
+                  maxlength="180" /></label
+              ><label
+                >Razón social<input
+                  id="proveedorRazonSocial"
+                  maxlength="180" /></label
+              ><label
+                >Contacto<input id="proveedorContacto" maxlength="150" /></label
+              ><label
+                >Teléfono<input id="proveedorTelefono" maxlength="30" /></label
+              ><label
+                >Correo<input
+                  id="proveedorCorreo"
+                  type="email"
+                  maxlength="180" /></label
+              ><label>RFC<input id="proveedorRfc" maxlength="13" /></label
+              ><label
+                >Dirección<input
+                  id="proveedorDireccion"
+                  maxlength="500" /></label
+              ><label
+                >Notas<textarea
+                  id="proveedorNotas"
+                  maxlength="1000"
+                  rows="3"
+                ></textarea>
+              </label>
+            </div>
+            <div
+              id="proveedorMensaje"
+              class="mensaje-form hidden"
+              role="status"
+            ></div>
+            <div class="actions">
+              <button id="guardarProveedor" class="primary">Guardar</button
+              ><button id="cancelarProveedor" type="button">Cancelar</button>
+            </div>
+          </form>
+          <div id="proveedoresLista" class="panel tabla-contenedor"></div>
+          <div id="proveedorDetalle" class="panel hidden"></div>
+        </section>
+        <section id="compras" class="seccion">
+          <h2>Inventario · Compras / Entradas</h2>
+          <nav class="inventario-tabs" aria-label="Apartados de inventario">
+            <button type="button" data-section="inventario">
+              Existencias y movimientos</button
+            ><button type="button" data-section="productosAdmin">
+              Productos</button
+            ><button class="activo" type="button" data-section="compras">
+              Compras / Entradas</button
+            ><button type="button" data-section="proveedores">
+              Proveedores
+            </button>
+          </nav>
+          <form id="compraForm" class="panel">
+            <input id="compraEditandoId" type="hidden" />
+            <h3 id="compraFormTitulo">Nueva compra</h3>
+            <div class="form-grid">
+              <select id="compraProveedor" required>
+                <option value="">Proveedor activo</option></select
+              ><input id="compraFolio" placeholder="Folio" /><input
+                id="compraReferencia"
+                placeholder="Referencia"
+              /><input id="compraObservaciones" placeholder="Observaciones" />
+              <div class="campo-busqueda-compra">
+                <input id="compraProducto" type="hidden" /><input
+                  id="compraProductoBuscar"
+                  autocomplete="off"
+                  placeholder="Buscar producto por código o nombre"
+                />
+                <div
+                  id="resultadosProductoCompra"
+                  class="resultados-busqueda hidden"
+                ></div>
+              </div>
+              <input
+                id="compraCantidad"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Cantidad"
+              /><input
+                id="compraCosto"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="Costo unitario entero"
+              />
+            </div>
+            <p id="productoCompraSeleccionado" class="muted">
+              Escribe para buscar un producto.
+            </p>
+            <button id="agregarCompraProducto" type="button">
+              Agregar producto
+            </button>
+            <div id="compraDetalle"></div>
+            <div class="actions">
+              <button id="confirmarCompra" class="primary">
+                Confirmar compra</button
+              ><button id="cancelarEdicionCompra" type="button" class="hidden">
+                Cancelar edición
+              </button>
+            </div>
+          </form>
+          <div id="comprasLista" class="panel"></div>
+        </section>
+        <section id="usuarios" class="seccion">
+          <h2>Usuarios</h2>
+          <form id="usuarioAdminForm" class="panel">
+            <input id="usuarioAdminId" type="hidden" />
+            <div class="form-grid">
+              <input id="usuarioNombre" placeholder="Nombre" required /><input
+                id="usuarioUsername"
+                placeholder="Usuario (3 a 50 caracteres)"
+                pattern="[A-Za-z0-9._-]{3,50}"
+                minlength="3"
+                maxlength="50"
+                required
+              /><input
+                id="usuarioPassword"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                maxlength="128"
+                placeholder="Contraseña (mínimo 8 caracteres)"
+                required
+              /><select id="usuarioRol">
+                <option>CAJERO</option>
+                <option>ADMON_GRAL</option>
+              </select>
+            </div>
+            <p class="muted">
+              El usuario solo admite letras, números, punto, guion y guion bajo.
+              Al editar, deja la contraseña vacía para conservarla.
+            </p>
+            <button class="primary">Guardar</button>
+          </form>
+          <div id="usuariosLista" class="panel"></div>
+        </section>
+        <section id="reportesAdmin" class="seccion">
+          <h2>Reportes locales</h2>
+          <div class="panel grid" id="reportesDescargas"></div>
+          <section class="panel">
+            <h3>Compras por proveedor</h3>
+            <form id="filtroComprasProveedor" class="form-grid">
+              <label
+                >Desde<input id="reporteProveedorInicio" type="date" /></label
+              ><label>Hasta<input id="reporteProveedorFin" type="date" /></label
+              ><button class="primary" type="submit">Consultar</button
+              ><button id="exportarComprasProveedor" type="button">
+                Exportar CSV
+              </button>
+            </form>
+            <div id="resumenComprasProveedor" class="detalle-resumen"></div>
+            <div id="tablaComprasProveedor" class="tabla-contenedor"></div>
+          </section>
+        </section>
+        <section id="configuracion" class="seccion">
+          <h2>Configuración ticket</h2>
+          <form id="configuracionForm" class="panel">
+            <div class="form-grid">
+              <input
+                id="configNombre"
+                placeholder="Nombre comercial"
+                required
+              /><input id="configRazon" placeholder="Razón social" /><input
+                id="configDireccion"
+                placeholder="Dirección"
+              /><input id="configTelefono" placeholder="Teléfono" /><input
+                id="configRfc"
+                placeholder="RFC"
+              /><input id="configMensaje" placeholder="Mensaje ticket" /><select
+                id="configPapel"
+              >
+                <option value="80">80 mm</option>
+                <option value="58">58 mm</option></select
+              ><input
+                id="configStockMinimo"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Stock mínimo"
+              /><input
+                id="configVencimiento"
+                type="number"
+                min="0"
+                placeholder="Días vencimiento"
+              /><input id="configPolitica" placeholder="Política crédito" />
+            </div>
+            <button class="primary">Guardar</button>
+          </form>
+        </section>
+        <section id="consultasLocales" class="seccion">
+          <h2>Consultas locales</h2>
+          <div class="panel ayuda-consultas">
+            <h3>Preguntas disponibles</h3>
+            <p class="muted">
+              Haz clic en una pregunta para consultarla. En el rango de fechas
+              puedes cambiar las fechas después de seleccionarla.
+            </p>
+            <div id="preguntasConsultaLocal" class="preguntas-consulta">
+              <button type="button" data-pregunta="¿Cuánto vendí hoy?">
+                ¿Cuánto vendí hoy?</button
+              ><button type="button" data-pregunta="¿Cuánto vendí esta semana?">
+                ¿Cuánto vendí esta semana?</button
+              ><button type="button" data-pregunta="¿Cuánto vendí este mes?">
+                ¿Cuánto vendí este mes?</button
+              ><button
+                type="button"
+                data-pregunta="Ventas entre 2026-08-01 y 2026-08-31"
+              >
+                Ventas entre dos fechas</button
+              ><button type="button" data-pregunta="¿Cuál es la deuda total?">
+                ¿Cuál es la deuda total?</button
+              ><button type="button" data-pregunta="¿Quién tiene deuda?">
+                ¿Quién tiene deuda?</button
+              ><button
+                type="button"
+                data-pregunta="¿Qué productos tienen poco stock?"
+              >
+                ¿Qué productos tienen poco stock?</button
+              ><button
+                type="button"
+                data-pregunta="¿Qué producto se vendió más este mes?"
+              >
+                ¿Qué producto se vendió más este mes?</button
+              ><button
+                type="button"
+                data-pregunta="¿Qué cliente compró más este mes?"
+              >
+                ¿Qué cliente compró más este mes?</button
+              ><button type="button" data-pregunta="Compras por proveedor">
+                Compras por proveedor
+              </button>
+            </div>
+          </div>
+          <form id="consultaLocalForm" class="panel">
+            <label for="consultaLocalPregunta"
+              ><strong>Escribe tu pregunta</strong></label
+            ><input
+              id="consultaLocalPregunta"
+              class="input-ancho"
+              placeholder="¿Cuánto vendí hoy?"
+              required
+            /><button class="primary">Consultar</button>
+            <div id="consultaLocalRespuesta"></div>
+          </form>
+          <div class="panel">
+            <h3>Predicción y comparación de demanda</h3>
+            <p>
+              Compara el promedio ponderado actual con regresión Ridge y bosque
+              aleatorio de scikit-learn. La evaluación avanza en el tiempo: cada
+              semana se predice usando solamente semanas anteriores.
+            </p>
+            <p class="muted">
+              El ganador es el método con menor MAE sobre semanas no utilizadas
+              para ajustar esa predicción. Se requieren al menos 12 semanas; de
+              lo contrario se conserva el método local.
+            </p>
+            <button id="cargarPredicciones" type="button">
+              Comparar y predecir próxima semana
+            </button>
+            <div id="prediccionesLista"></div>
+          </div>
+        </section>
+
+        <section id="dashboard" class="seccion">
+          <h2>Dashboard</h2>
+          <div id="metricas" class="grid"></div>
+          <div class="panel">
+            <h3>Ventas de los últimos 7 días</h3>
+            <canvas id="graficaSemanal"></canvas>
+          </div>
+          <section class="panel admin">
+            <h3>Histórico global de productos y clientes</h3>
+            <form id="filtrosProductosCliente" class="form-grid">
+              <label>Desde<input id="rpcInicio" type="date" /></label
+              ><label>Hasta<input id="rpcFin" type="date" /></label
+              ><select id="rpcCliente">
+                <option value="">Todos los clientes</option></select
+              ><select id="rpcProducto">
+                <option value="">Todos los productos</option></select
+              ><select id="rpcPago">
+                <option value="">Todos los pagos</option>
+                <option>CONTADO</option>
+                <option>CREDITO</option></select
+              ><label
+                ><input id="rpcCanceladas" type="checkbox" /> Incluir
+                canceladas</label
+              ><button class="primary">Consultar</button>
+            </form>
+            <div id="productoMasVendido"></div>
+            <h3>Cantidad histórica vendida por producto</h3>
+            <canvas id="graficaProductos"></canvas>
+            <h3>Compras acumuladas por cliente</h3>
+            <canvas id="graficaClientes"></canvas>
+            <div id="tablaProductosCliente"></div>
+            <button id="exportarProductosCsv">Exportar CSV</button>
+          </section>
+          <section class="panel admin">
+            <h3>Compras acumuladas por proveedor</h3>
+            <p class="muted">
+              Importes históricos de compras activas. Consulta el detalle y
+              filtra por fechas en el módulo Reportes.
+            </p>
+            <canvas id="graficaProveedores"></canvas>
+          </section>
+          <div class="actions">
+            <button class="secondary" id="reporte">Abrir reporte PDF</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="modalDetalleVenta" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2 id="tituloDetalleVenta">Detalle de venta</h2>
+
+          <button type="button" id="cerrarDetalleVenta" class="danger">
+            ×
+          </button>
         </div>
-      </section>
 
-      <section id="productosAdmin" class="seccion"><h2>Inventario · Productos</h2><nav class="inventario-tabs" aria-label="Apartados de inventario"><button type="button" data-section="inventario">Existencias y movimientos</button><button class="activo" type="button" data-section="productosAdmin">Productos</button><button type="button" data-section="compras">Compras / Entradas</button><button type="button" data-section="proveedores">Proveedores</button></nav><form id="productoAdminForm" class="panel"><input id="productoAdminId" type="hidden"><div class="form-grid"><input id="productoCodigo" placeholder="Código" required><input id="productoNombre" placeholder="Nombre" required><input id="productoDescripcion" placeholder="Descripción"><input id="productoPrecio" type="number" min="0" step="1" placeholder="Precio de venta" title="Importe al que vendes el producto" required><input id="productoCosto" type="number" min="0" step="1" placeholder="Costo de compra" title="Importe que te cuesta adquirir el producto" required><select id="productoUnidad"><option>KG</option><option>CAJA</option></select><input id="productoMinimo" type="number" min="0" step="0.01" placeholder="Stock mínimo"><label>Proveedor<select id="productoProveedor"><option value="">Sin proveedor</option></select></label></div><p class="muted"><strong>Precio de venta:</strong> lo que cobras al cliente. <strong>Costo de compra:</strong> lo que te cuesta adquirir el producto. La cantidad se registra en Movimientos o Compras / Entradas; las cajas avanzan de 0.5 en 0.5 y los kilos permiten decimales.</p><button class="primary">Guardar</button></form><div id="productosAdminLista" class="panel"></div></section>
-      <section id="proveedores" class="seccion"><div class="inventario-encabezado"><div><h2>Inventario · Proveedores</h2><p class="muted">Administra proveedores y consulta sus productos y compras.</p></div><button id="nuevoProveedor" type="button" class="primary">Nuevo proveedor</button></div><nav class="inventario-tabs" aria-label="Apartados de inventario"><button type="button" data-section="inventario">Existencias y movimientos</button><button type="button" data-section="productosAdmin">Productos</button><button type="button" data-section="compras">Compras / Entradas</button><button class="activo" type="button" data-section="proveedores">Proveedores</button></nav><div class="panel proveedor-filtros"><input id="buscarProveedor" class="input-ancho" placeholder="Buscar nombre, contacto, teléfono, RFC o correo"><select id="estadoProveedor"><option value="ACTIVOS">Activos</option><option value="INACTIVOS">Inactivos</option><option value="TODOS">Todos</option></select></div><form id="proveedorForm" class="panel hidden"><input id="proveedorId" type="hidden"><h3 id="proveedorFormTitulo">Nuevo proveedor</h3><div class="form-grid"><label>Nombre comercial *<input id="proveedorNombre" required maxlength="180"></label><label>Razón social<input id="proveedorRazonSocial" maxlength="180"></label><label>Contacto<input id="proveedorContacto" maxlength="150"></label><label>Teléfono<input id="proveedorTelefono" maxlength="30"></label><label>Correo<input id="proveedorCorreo" type="email" maxlength="180"></label><label>RFC<input id="proveedorRfc" maxlength="13"></label><label>Dirección<input id="proveedorDireccion" maxlength="500"></label><label>Notas<textarea id="proveedorNotas" maxlength="1000" rows="3"></textarea></label></div><div id="proveedorMensaje" class="mensaje-form hidden" role="status"></div><div class="actions"><button id="guardarProveedor" class="primary">Guardar</button><button id="cancelarProveedor" type="button">Cancelar</button></div></form><div id="proveedoresLista" class="panel tabla-contenedor"></div><div id="proveedorDetalle" class="panel hidden"></div></section>
-      <section id="compras" class="seccion"><h2>Inventario · Compras / Entradas</h2><nav class="inventario-tabs" aria-label="Apartados de inventario"><button type="button" data-section="inventario">Existencias y movimientos</button><button type="button" data-section="productosAdmin">Productos</button><button class="activo" type="button" data-section="compras">Compras / Entradas</button><button type="button" data-section="proveedores">Proveedores</button></nav><form id="compraForm" class="panel"><input id="compraEditandoId" type="hidden"><h3 id="compraFormTitulo">Nueva compra</h3><div class="form-grid"><select id="compraProveedor" required><option value="">Proveedor activo</option></select><input id="compraFolio" placeholder="Folio"><input id="compraReferencia" placeholder="Referencia"><input id="compraObservaciones" placeholder="Observaciones"><div class="campo-busqueda-compra"><input id="compraProducto" type="hidden"><input id="compraProductoBuscar" autocomplete="off" placeholder="Buscar producto por código o nombre"><div id="resultadosProductoCompra" class="resultados-busqueda hidden"></div></div><input id="compraCantidad" type="number" min="0.01" step="0.01" placeholder="Cantidad"><input id="compraCosto" type="number" min="0" step="1" placeholder="Costo unitario entero"></div><p id="productoCompraSeleccionado" class="muted">Escribe para buscar un producto.</p><button id="agregarCompraProducto" type="button">Agregar producto</button><div id="compraDetalle"></div><div class="actions"><button id="confirmarCompra" class="primary">Confirmar compra</button><button id="cancelarEdicionCompra" type="button" class="hidden">Cancelar edición</button></div></form><div id="comprasLista" class="panel"></div></section>
-      <section id="usuarios" class="seccion"><h2>Usuarios</h2><form id="usuarioAdminForm" class="panel"><input id="usuarioAdminId" type="hidden"><div class="form-grid"><input id="usuarioNombre" placeholder="Nombre" required><input id="usuarioUsername" placeholder="Usuario (3 a 50 caracteres)" pattern="[A-Za-z0-9._-]{3,50}" minlength="3" maxlength="50" required><input id="usuarioPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Contraseña (mínimo 8 caracteres)" required><select id="usuarioRol"><option>CAJERO</option><option>ADMON_GRAL</option></select></div><p class="muted">El usuario solo admite letras, números, punto, guion y guion bajo. Al editar, deja la contraseña vacía para conservarla.</p><button class="primary">Guardar</button></form><div id="usuariosLista" class="panel"></div></section>
-      <section id="reportesAdmin" class="seccion"><h2>Reportes locales</h2><div class="panel grid" id="reportesDescargas"></div><section class="panel"><h3>Compras por proveedor</h3><form id="filtroComprasProveedor" class="form-grid"><label>Desde<input id="reporteProveedorInicio" type="date"></label><label>Hasta<input id="reporteProveedorFin" type="date"></label><button class="primary" type="submit">Consultar</button><button id="exportarComprasProveedor" type="button">Exportar CSV</button></form><div id="resumenComprasProveedor" class="detalle-resumen"></div><div id="tablaComprasProveedor" class="tabla-contenedor"></div></section></section>
-      <section id="configuracion" class="seccion"><h2>Configuración ticket</h2><form id="configuracionForm" class="panel"><div class="form-grid"><input id="configNombre" placeholder="Nombre comercial" required><input id="configRazon" placeholder="Razón social"><input id="configDireccion" placeholder="Dirección"><input id="configTelefono" placeholder="Teléfono"><input id="configRfc" placeholder="RFC"><input id="configMensaje" placeholder="Mensaje ticket"><select id="configPapel"><option value="80">80 mm</option><option value="58">58 mm</option></select><input id="configStockMinimo" type="number" min="0" step="0.01" placeholder="Stock mínimo"><input id="configVencimiento" type="number" min="0" placeholder="Días vencimiento"><input id="configPolitica" placeholder="Política crédito"></div><button class="primary">Guardar</button></form></section>
-      <section id="consultasLocales" class="seccion"><h2>Consultas locales</h2><div class="panel ayuda-consultas"><h3>Preguntas disponibles</h3><p class="muted">Haz clic en una pregunta para consultarla. En el rango de fechas puedes cambiar las fechas después de seleccionarla.</p><div id="preguntasConsultaLocal" class="preguntas-consulta"><button type="button" data-pregunta="¿Cuánto vendí hoy?">¿Cuánto vendí hoy?</button><button type="button" data-pregunta="¿Cuánto vendí esta semana?">¿Cuánto vendí esta semana?</button><button type="button" data-pregunta="¿Cuánto vendí este mes?">¿Cuánto vendí este mes?</button><button type="button" data-pregunta="Ventas entre 2026-08-01 y 2026-08-31">Ventas entre dos fechas</button><button type="button" data-pregunta="¿Cuál es la deuda total?">¿Cuál es la deuda total?</button><button type="button" data-pregunta="¿Quién tiene deuda?">¿Quién tiene deuda?</button><button type="button" data-pregunta="¿Qué productos tienen poco stock?">¿Qué productos tienen poco stock?</button><button type="button" data-pregunta="¿Qué producto se vendió más este mes?">¿Qué producto se vendió más este mes?</button><button type="button" data-pregunta="¿Qué cliente compró más este mes?">¿Qué cliente compró más este mes?</button><button type="button" data-pregunta="Compras por proveedor">Compras por proveedor</button></div></div><form id="consultaLocalForm" class="panel"><label for="consultaLocalPregunta"><strong>Escribe tu pregunta</strong></label><input id="consultaLocalPregunta" class="input-ancho" placeholder="¿Cuánto vendí hoy?" required><button class="primary">Consultar</button><div id="consultaLocalRespuesta"></div></form><div class="panel"><h3>Predicción y comparación de demanda</h3><p>Compara el promedio ponderado actual con regresión Ridge y bosque aleatorio de scikit-learn. La evaluación avanza en el tiempo: cada semana se predice usando solamente semanas anteriores.</p><p class="muted">El ganador es el método con menor MAE sobre semanas no utilizadas para ajustar esa predicción. Se requieren al menos 12 semanas; de lo contrario se conserva el método local.</p><button id="cargarPredicciones" type="button">Comparar y predecir próxima semana</button><div id="prediccionesLista"></div></div></section>
-
-      <section id="dashboard" class="seccion"><h2>Dashboard</h2><div id="metricas" class="grid"></div><div class="panel"><h3>Ventas de los últimos 7 días</h3><canvas id="graficaSemanal"></canvas></div><section class="panel admin"><h3>Histórico global de productos y clientes</h3><form id="filtrosProductosCliente" class="form-grid"><label>Desde<input id="rpcInicio" type="date"></label><label>Hasta<input id="rpcFin" type="date"></label><select id="rpcCliente"><option value="">Todos los clientes</option></select><select id="rpcProducto"><option value="">Todos los productos</option></select><select id="rpcPago"><option value="">Todos los pagos</option><option>CONTADO</option><option>CREDITO</option></select><label><input id="rpcCanceladas" type="checkbox"> Incluir canceladas</label><button class="primary">Consultar</button></form><div id="productoMasVendido"></div><h3>Cantidad histórica vendida por producto</h3><canvas id="graficaProductos"></canvas><h3>Compras acumuladas por cliente</h3><canvas id="graficaClientes"></canvas><div id="tablaProductosCliente"></div><button id="exportarProductosCsv">Exportar CSV</button></section><section class="panel admin"><h3>Compras acumuladas por proveedor</h3><p class="muted">Importes históricos de compras activas. Consulta el detalle y filtra por fechas en el módulo Reportes.</p><canvas id="graficaProveedores"></canvas></section><div class="actions"><button class="secondary" id="reporte">Abrir reporte PDF</button></div></section>
-    </main>
-  </div>
-
-  
-  <div
-  id="modalDetalleVenta"
-  class="modal hidden"
->
-
-  <div class="modal-contenido">
-
-    <div class="modal-encabezado">
-
-      <h2 id="tituloDetalleVenta">
-        Detalle de venta
-      </h2>
-
-      <button
-        type="button"
-        id="cerrarDetalleVenta"
-        class="danger"
-      >
-        ×
-      </button>
-
-    </div>
-
-    <div id="contenidoDetalleVenta">
-    </div>
-    <div class="actions"><button id="reimprimirDetalle" type="button">Reimprimir ticket</button></div>
-
-  </div>
-
-</div>
-
-
-  <div id="modalPago" class="modal hidden"><div class="modal-contenido"><div class="modal-encabezado"><h2>Aplicar pago</h2><button id="cerrarPago" class="danger">×</button></div><input id="buscarClientePago" class="input-ancho" placeholder="Buscar cliente"><div id="resultadosClientePago"></div><form id="formPago" class="hidden"><input id="pagoClienteId" type="hidden"><h3 id="pagoClienteNombre"></h3><div id="notasPago"></div><div class="form-grid"><label>Monto recibido<input id="pagoMonto" type="number" min="0.01" step="0.01" readonly required></label><label>Fecha<input id="pagoFecha" type="date" required></label><label>Observaciones<input id="pagoObservaciones" maxlength="500"></label></div><div class="panel"><strong>Forma de pago</strong><div id="filasPagoCliente"></div><p id="saldoPagoCliente" class="money"></p><button id="agregarMetodoCliente" type="button" class="hidden">Agregar otro método</button></div><div id="resumenPago"></div><button id="confirmarPago" class="primary">Confirmar pago</button></form></div></div>
-
-  <div id="modalEliminarCliente" class="modal hidden">
-    <div class="modal-contenido">
-      <div class="modal-encabezado">
-        <h2>Eliminar cliente de prueba</h2>
-        <button id="cerrarEliminarCliente" type="button" class="danger">×</button>
-      </div>
-      <div id="resumenEliminarCliente"></div>
-      <form id="formEliminarCliente">
-        <input id="eliminarClienteId" type="hidden">
-        <label>Motivo
-          <textarea id="motivoEliminarCliente" maxlength="255" required></textarea>
-        </label>
-        <label>Escribe <strong>ELIMINAR CLIENTE</strong> para confirmar
-          <input id="confirmacionEliminarCliente" autocomplete="off" required>
-        </label>
+        <div id="contenidoDetalleVenta"></div>
         <div class="actions">
-          <button id="confirmarEliminarCliente" type="submit" class="danger">Eliminar cliente</button>
+          <button id="reimprimirDetalle" type="button">
+            Reimprimir ticket
+          </button>
         </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="modalEliminarProducto" class="modal hidden">
-    <div class="modal-contenido">
-      <div class="modal-encabezado">
-        <h2>Confirmar eliminación</h2>
-        <button id="cerrarEliminarProducto" type="button" class="danger">×</button>
-      </div>
-      <p id="textoEliminarProducto"></p>
-      <p class="muted">Solo se podrá eliminar si nunca ha tenido movimientos de inventario ni historial comercial relacionado.</p>
-      <input id="eliminarProductoId" type="hidden">
-      <div class="actions">
-        <button id="confirmarEliminarProducto" type="button" class="danger">Sí, eliminar producto</button>
-        <button id="cancelarEliminarProducto" type="button">No, conservar</button>
       </div>
     </div>
-  </div>
 
-  <div id="modalEliminarProveedor" class="modal hidden">
-    <div class="modal-contenido">
-      <div class="modal-encabezado">
-        <h2>Confirmar eliminación</h2>
-        <button id="cerrarEliminarProveedor" type="button" class="danger">×</button>
-      </div>
-      <p id="textoEliminarProveedor"></p>
-      <p class="muted">Solo se podrá eliminar si no tiene ninguna compra asociada. Los productos permanecerán registrados, pero dejarán de tener este proveedor asignado.</p>
-      <input id="eliminarProveedorId" type="hidden">
-      <div class="actions">
-        <button id="confirmarEliminarProveedor" type="button" class="danger">Sí, eliminar proveedor</button>
-        <button id="cancelarEliminarProveedor" type="button">No, conservar</button>
+    <div id="modalPago" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2>Aplicar pago</h2>
+          <button id="cerrarPago" class="danger">×</button>
+        </div>
+        <input
+          id="buscarClientePago"
+          class="input-ancho"
+          placeholder="Buscar cliente"
+        />
+        <div id="resultadosClientePago"></div>
+        <form id="formPago" class="hidden">
+          <input id="pagoClienteId" type="hidden" />
+          <h3 id="pagoClienteNombre"></h3>
+          <div id="notasPago"></div>
+          <div class="form-grid">
+            <label
+              >Monto recibido<input
+                id="pagoMonto"
+                type="number"
+                min="0.01"
+                step="0.01"
+                readonly
+                required /></label
+            ><label>Fecha<input id="pagoFecha" type="date" required /></label
+            ><label
+              >Observaciones<input id="pagoObservaciones" maxlength="500"
+            /></label>
+          </div>
+          <div class="panel">
+            <strong>Forma de pago</strong>
+            <div id="filasPagoCliente"></div>
+            <p id="saldoPagoCliente" class="money"></p>
+            <button id="agregarMetodoCliente" type="button" class="hidden">
+              Agregar otro método
+            </button>
+          </div>
+          <div id="resumenPago"></div>
+          <button id="confirmarPago" class="primary">Confirmar pago</button>
+        </form>
       </div>
     </div>
-  </div>
 
-  <div id="modalAutorizacionCancelacion" class="modal hidden">
-    <div class="modal-contenido">
-      <div class="modal-encabezado">
-        <h2 id="tituloAutorizacionCancelacion">Confirmar cancelación</h2>
-        <button id="cerrarAutorizacionCancelacion" type="button" class="danger">×</button>
-      </div>
-      <form id="formAutorizacionCancelacion">
-        <p id="textoAutorizacionCancelacion"></p>
-        <div id="camposAdministradorCancelacion" class="form-grid hidden">
-          <label>Usuario administrador
-            <input id="usuarioAdminCancelacion" autocomplete="username">
+    <div id="modalEliminarCliente" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2>Eliminar cliente de prueba</h2>
+          <button id="cerrarEliminarCliente" type="button" class="danger">
+            ×
+          </button>
+        </div>
+        <div id="resumenEliminarCliente"></div>
+        <form id="formEliminarCliente">
+          <input id="eliminarClienteId" type="hidden" />
+          <label
+            >Motivo
+            <textarea
+              id="motivoEliminarCliente"
+              maxlength="255"
+              required
+            ></textarea>
           </label>
-          <label>Contraseña
-            <input id="passwordAdminCancelacion" type="password" autocomplete="current-password">
+          <label
+            >Escribe <strong>ELIMINAR CLIENTE</strong> para confirmar
+            <input
+              id="confirmacionEliminarCliente"
+              autocomplete="off"
+              required
+            />
           </label>
+          <div class="actions">
+            <button id="confirmarEliminarCliente" type="submit" class="danger">
+              Eliminar cliente
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="modalEliminarProducto" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2>Confirmar eliminación</h2>
+          <button id="cerrarEliminarProducto" type="button" class="danger">
+            ×
+          </button>
         </div>
-        <label>Motivo de cancelación
-          <textarea id="motivoAutorizacionCancelacion" maxlength="255" required></textarea>
+        <p id="textoEliminarProducto"></p>
+        <p class="muted">
+          Solo se podrá eliminar si nunca ha tenido movimientos de inventario ni
+          historial comercial relacionado.
+        </p>
+        <input id="eliminarProductoId" type="hidden" />
+        <div class="actions">
+          <button id="confirmarEliminarProducto" type="button" class="danger">
+            Sí, eliminar producto
+          </button>
+          <button id="cancelarEliminarProducto" type="button">
+            No, conservar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalEliminarProveedor" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2>Confirmar eliminación</h2>
+          <button id="cerrarEliminarProveedor" type="button" class="danger">
+            ×
+          </button>
+        </div>
+        <p id="textoEliminarProveedor"></p>
+        <p class="muted">
+          Solo se podrá eliminar si no tiene ninguna compra asociada. Los
+          productos permanecerán registrados, pero dejarán de tener este
+          proveedor asignado.
+        </p>
+        <input id="eliminarProveedorId" type="hidden" />
+        <div class="actions">
+          <button id="confirmarEliminarProveedor" type="button" class="danger">
+            Sí, eliminar proveedor
+          </button>
+          <button id="cancelarEliminarProveedor" type="button">
+            No, conservar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalAutorizacionCancelacion" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2 id="tituloAutorizacionCancelacion">Confirmar cancelación</h2>
+          <button
+            id="cerrarAutorizacionCancelacion"
+            type="button"
+            class="danger"
+          >
+            ×
+          </button>
+        </div>
+        <form id="formAutorizacionCancelacion">
+          <p id="textoAutorizacionCancelacion"></p>
+          <div id="camposAdministradorCancelacion" class="form-grid hidden">
+            <label
+              >Usuario administrador
+              <input id="usuarioAdminCancelacion" autocomplete="username" />
+            </label>
+            <label
+              >Contraseña
+              <input
+                id="passwordAdminCancelacion"
+                type="password"
+                autocomplete="current-password"
+              />
+            </label>
+          </div>
+          <label
+            >Motivo de cancelación
+            <textarea
+              id="motivoAutorizacionCancelacion"
+              maxlength="255"
+              required
+            ></textarea>
+          </label>
+          <div class="actions">
+            <button
+              id="confirmarAutorizacionCancelacion"
+              type="submit"
+              class="danger"
+            >
+              Confirmar cancelación
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="modalConfirmarEntrega" class="modal hidden">
+      <div class="modal-contenido modal-respaldo">
+        <div class="modal-encabezado">
+          <h2>Marcar computadora como entregada</h2>
+          <button id="cerrarConfirmacionEntrega" type="button" class="danger">
+            ×
+          </button>
+        </div>
+        <div class="mensaje-respaldo advertencia">
+          Después de confirmar se bloquearán ventas, pagos, órdenes, clientes,
+          inventario y cualquier otro cambio. Las consultas y el módulo de
+          respaldos seguirán disponibles.
+        </div>
+        <label
+          >Contraseña del administrador
+          <input
+            id="passwordEntrega"
+            type="password"
+            autocomplete="current-password"
+          />
+        </label>
+        <label class="confirmacion-riesgo">
+          <input id="confirmarEntrega" type="checkbox" />
+          Confirmo que el ZIP fue guardado correctamente y que esta computadora
+          dejará de trabajar.
         </label>
         <div class="actions">
-          <button id="confirmarAutorizacionCancelacion" type="submit" class="danger">Confirmar cancelación</button>
+          <button id="marcarEntregada" type="button" class="danger" disabled>
+            Marcar como entregada
+          </button>
         </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="modalConfirmarEntrega" class="modal hidden">
-    <div class="modal-contenido modal-respaldo">
-      <div class="modal-encabezado">
-        <h2>Marcar computadora como entregada</h2>
-        <button id="cerrarConfirmacionEntrega" type="button" class="danger">×</button>
-      </div>
-      <div class="mensaje-respaldo advertencia">
-        Después de confirmar se bloquearán ventas, pagos, órdenes, clientes, inventario y cualquier otro cambio.
-        Las consultas y el módulo de respaldos seguirán disponibles.
-      </div>
-      <label>Contraseña del administrador
-        <input id="passwordEntrega" type="password" autocomplete="current-password">
-      </label>
-      <label class="confirmacion-riesgo">
-        <input id="confirmarEntrega" type="checkbox">
-        Confirmo que el ZIP fue guardado correctamente y que esta computadora dejará de trabajar.
-      </label>
-      <div class="actions">
-        <button id="marcarEntregada" type="button" class="danger" disabled>Marcar como entregada</button>
       </div>
     </div>
-  </div>
 
-  <div id="modalAccionUsuario" class="modal hidden">
-    <div class="modal-contenido">
-      <div class="modal-encabezado">
-        <h2 id="tituloAccionUsuario">Actualizar usuario</h2>
-        <button id="cerrarAccionUsuario" type="button" class="danger" aria-label="Cerrar">×</button>
-      </div>
-      <p id="textoAccionUsuario"></p>
-      <form id="formAccionUsuario">
-        <input id="accionUsuarioId" type="hidden">
-        <input id="accionUsuarioTipo" type="hidden">
-        <label id="grupoMotivoUsuario">Motivo
-          <textarea id="motivoAccionUsuario" maxlength="255"></textarea>
-        </label>
-        <label id="grupoPasswordUsuario">Nueva contraseña
-          <input id="passwordAccionUsuario" type="password" autocomplete="new-password" minlength="8" maxlength="128">
-        </label>
-        <div class="actions">
-          <button id="confirmarAccionUsuario" type="submit" class="primary">Confirmar</button>
-          <button id="cancelarAccionUsuario" type="button">Cancelar</button>
+    <div id="modalAccionUsuario" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2 id="tituloAccionUsuario">Actualizar usuario</h2>
+          <button
+            id="cerrarAccionUsuario"
+            type="button"
+            class="danger"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
         </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="modalPagoProveedor" class="modal hidden">
-    <div class="modal-contenido modal-respaldo">
-      <div class="modal-encabezado"><h2>Pago a proveedores</h2><button id="cerrarPagoProveedor" type="button" class="danger" aria-label="Cerrar">×</button></div>
-      <div id="resumenDeudaProveedores"></div>
-      <form id="formPagoProveedor">
-        <input id="proveedorPagoId" type="hidden">
-        <label class="campo-busqueda-proveedor">Proveedor
-          <input id="buscarProveedorPago" type="text" autocomplete="off" placeholder="Escribe nombre, RFC, teléfono o contacto">
-          <div id="resultadosProveedorPago" class="resultados-busqueda hidden"></div>
-        </label>
-        <label>Compra pendiente
-          <select id="cuentaPagoProveedor" required disabled><option value="">Busca y selecciona un proveedor</option></select>
-        </label>
-        <div class="form-grid">
-          <label>Monto<input id="montoPagoProveedor" type="number" min="0.01" step="0.01" required></label>
-          <label>Método<select id="metodoPagoProveedor"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>CHEQUE</option></select></label>
-          <label id="grupoReferenciaProveedor" class="hidden">Referencia<input id="referenciaPagoProveedor" maxlength="100"></label>
-          <label>Observaciones<input id="observacionesPagoProveedor" maxlength="500"></label>
-        </div>
-        <button id="confirmarPagoProveedor" class="primary" type="submit">Registrar pago</button>
-      </form>
-      <h3>Pagos recientes</h3><div id="historialPagosProveedores"></div>
-    </div>
-  </div>
-
-  <div id="modalCancelarCompra" class="modal hidden">
-    <div class="modal-contenido">
-      <div class="modal-encabezado">
-        <h2>Eliminar compra</h2>
-        <button id="cerrarCancelarCompra" type="button" class="danger" aria-label="Cerrar">×</button>
+        <p id="textoAccionUsuario"></p>
+        <form id="formAccionUsuario">
+          <input id="accionUsuarioId" type="hidden" />
+          <input id="accionUsuarioTipo" type="hidden" />
+          <label id="grupoMotivoUsuario"
+            >Motivo
+            <textarea id="motivoAccionUsuario" maxlength="255"></textarea>
+          </label>
+          <label id="grupoPasswordUsuario"
+            >Nueva contraseña
+            <input
+              id="passwordAccionUsuario"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              maxlength="128"
+            />
+          </label>
+          <div class="actions">
+            <button id="confirmarAccionUsuario" type="submit" class="primary">
+              Confirmar
+            </button>
+            <button id="cancelarAccionUsuario" type="button">Cancelar</button>
+          </div>
+        </form>
       </div>
-      <p>Esta eliminación administrativa descontará del inventario los productos recibidos, anulará la deuda y conservará el registro como cancelado en auditoría.</p>
-      <form id="formCancelarCompra">
-        <input id="cancelarCompraId" type="hidden">
-        <label>Motivo de eliminación
-          <textarea id="motivoCancelarCompra" minlength="5" maxlength="500" rows="3" required></textarea>
-        </label>
-        <div class="actions">
-          <button id="confirmarCancelarCompra" type="submit" class="danger">Eliminar compra</button>
-          <button id="cancelarCancelarCompra" type="button">Volver</button>
-        </div>
-      </form>
     </div>
-  </div>
 
-  <div id="modalCancelarPagoProveedor" class="modal hidden">
-    <div class="modal-contenido">
-      <div class="modal-encabezado">
-        <h2>Eliminar pago a proveedor</h2>
-        <button id="cerrarCancelarPagoProveedor" type="button" class="danger" aria-label="Cerrar">×</button>
+    <div id="modalPagoProveedor" class="modal hidden">
+      <div class="modal-contenido modal-respaldo">
+        <div class="modal-encabezado">
+          <h2>Pago a proveedores</h2>
+          <button
+            id="cerrarPagoProveedor"
+            type="button"
+            class="danger"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+        </div>
+        <div id="resumenDeudaProveedores"></div>
+        <form id="formPagoProveedor">
+          <input id="proveedorPagoId" type="hidden" />
+          <label class="campo-busqueda-proveedor"
+            >Proveedor
+            <input
+              id="buscarProveedorPago"
+              type="text"
+              autocomplete="off"
+              placeholder="Escribe nombre, RFC, teléfono o contacto"
+            />
+            <div
+              id="resultadosProveedorPago"
+              class="resultados-busqueda hidden"
+            ></div>
+          </label>
+          <label
+            >Compra pendiente
+            <select id="cuentaPagoProveedor" required disabled>
+              <option value="">Busca y selecciona un proveedor</option>
+            </select>
+          </label>
+          <div class="form-grid">
+            <label
+              >Monto<input
+                id="montoPagoProveedor"
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+            /></label>
+            <label
+              >Método<select id="metodoPagoProveedor">
+                <option>EFECTIVO</option>
+                <option>TRANSFERENCIA</option>
+                <option>CHEQUE</option>
+              </select></label
+            >
+            <label id="grupoReferenciaProveedor" class="hidden"
+              >Referencia<input id="referenciaPagoProveedor" maxlength="100"
+            /></label>
+            <label
+              >Observaciones<input
+                id="observacionesPagoProveedor"
+                maxlength="500"
+            /></label>
+          </div>
+          <button id="confirmarPagoProveedor" class="primary" type="submit">
+            Registrar pago
+          </button>
+        </form>
+        <h3>Pagos recientes</h3>
+        <div id="historialPagosProveedores"></div>
       </div>
-      <p>El pago quedará cancelado en el historial y su importe regresará al saldo pendiente de la compra.</p>
-      <form id="formCancelarPagoProveedor">
-        <input id="cancelarPagoProveedorId" type="hidden">
-        <label>Motivo de eliminación
-          <textarea id="motivoCancelarPagoProveedor" minlength="5" maxlength="500" rows="3" required></textarea>
-        </label>
-        <div class="actions">
-          <button id="confirmarCancelarPagoProveedor" type="submit" class="danger">Eliminar pago</button>
-          <button id="volverCancelarPagoProveedor" type="button">Volver</button>
-        </div>
-      </form>
     </div>
-  </div>
 
-  <script type="module" src="./js/app.js"></script>
-  <script type="module" src="./js/ia-dashboard.js"></script>
-</body>
+    <div id="modalCancelarCompra" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2>Eliminar compra</h2>
+          <button
+            id="cerrarCancelarCompra"
+            type="button"
+            class="danger"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+        </div>
+        <p>
+          Esta eliminación administrativa descontará del inventario los
+          productos recibidos, anulará la deuda y conservará el registro como
+          cancelado en auditoría.
+        </p>
+        <form id="formCancelarCompra">
+          <input id="cancelarCompraId" type="hidden" />
+          <label
+            >Motivo de eliminación
+            <textarea
+              id="motivoCancelarCompra"
+              minlength="5"
+              maxlength="500"
+              rows="3"
+              required
+            ></textarea>
+          </label>
+          <div class="actions">
+            <button id="confirmarCancelarCompra" type="submit" class="danger">
+              Eliminar compra
+            </button>
+            <button id="cancelarCancelarCompra" type="button">Volver</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="modalCancelarPagoProveedor" class="modal hidden">
+      <div class="modal-contenido">
+        <div class="modal-encabezado">
+          <h2>Eliminar pago a proveedor</h2>
+          <button
+            id="cerrarCancelarPagoProveedor"
+            type="button"
+            class="danger"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+        </div>
+        <p>
+          El pago quedará cancelado en el historial y su importe regresará al
+          saldo pendiente de la compra.
+        </p>
+        <form id="formCancelarPagoProveedor">
+          <input id="cancelarPagoProveedorId" type="hidden" />
+          <label
+            >Motivo de eliminación
+            <textarea
+              id="motivoCancelarPagoProveedor"
+              minlength="5"
+              maxlength="500"
+              rows="3"
+              required
+            ></textarea>
+          </label>
+          <div class="actions">
+            <button
+              id="confirmarCancelarPagoProveedor"
+              type="submit"
+              class="danger"
+            >
+              Eliminar pago
+            </button>
+            <button id="volverCancelarPagoProveedor" type="button">
+              Volver
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="./js/app.js"></script>
+    <script type="module" src="./js/ia-dashboard.js"></script>
+  </body>
 </html>

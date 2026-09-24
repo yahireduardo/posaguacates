@@ -8,6 +8,8 @@ POS Aguacates incluye una capa de inteligencia que no cambia la lógica de venta
 - Alertas explicables de inventario con existencia, mínimo y venta semanal reciente.
 - Sugerencias de reabasto para cubrir aproximadamente dos semanas, sin crear compras automáticamente.
 - Detección de productos cuya demanda bajó al menos 15% contra los 30 días anteriores.
+- Priorización por riesgo, semanas de cobertura y nivel de confianza visible.
+- Comparación de ingresos contra los 30 días anteriores y alertas de cobranza.
 - Copiloto con preguntas libres en español.
 - Modo local sin internet ni costo, disponible aunque no se configure OpenAI.
 - Modo generativo opcional mediante OpenAI Responses API.

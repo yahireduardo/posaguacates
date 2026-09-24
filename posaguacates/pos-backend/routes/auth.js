@@ -1,17 +1,19 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const db = require('../db/conexion');
-const { autenticar, validarSesion, jwtSecret } = require('../middleware/auth');
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const db = require("../db/conexion");
+const { autenticar, validarSesion, jwtSecret } = require("../middleware/auth");
 
 const router = express.Router();
 
-router.post('/login', async (req, res) => {
-  const username = String(req.body.username || '').trim();
-  const password = String(req.body.password || '');
+router.post("/login", async (req, res) => {
+  const username = String(req.body.username || "").trim();
+  const password = String(req.body.password || "");
 
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username y contraseña son obligatorios' });
+    return res
+      .status(400)
+      .json({ error: "Username y contraseña son obligatorios" });
   }
 
   try {
@@ -20,46 +22,57 @@ router.post('/login', async (req, res) => {
        FROM usuarios
        WHERE username = ? AND activo = 1
        LIMIT 1`,
-      [username]
+      [username],
     );
 
     if (!usuarios.length) {
-      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+      return res
+        .status(401)
+        .json({ error: "Usuario o contraseña incorrectos" });
     }
 
     const usuario = usuarios[0];
-    if (!['ADMON_GRAL', 'CAJERO'].includes(usuario.rol)) {
-      return res.status(403).json({ error: 'El rol del usuario no está autorizado' });
+    if (!["ADMON_GRAL", "CAJERO"].includes(usuario.rol)) {
+      return res
+        .status(403)
+        .json({ error: "El rol del usuario no está autorizado" });
     }
 
-    const passwordValido = usuario.password_hash
-      && await bcrypt.compare(password, usuario.password_hash);
+    const passwordValido =
+      usuario.password_hash &&
+      (await bcrypt.compare(password, usuario.password_hash));
 
     if (!passwordValido) {
-      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+      return res
+        .status(401)
+        .json({ error: "Usuario o contraseña incorrectos" });
     }
 
     const payload = {
       id: usuario.id,
       username: usuario.username,
-      rol: usuario.rol
+      rol: usuario.rol,
     };
     const token = jwt.sign(payload, jwtSecret(), {
-      algorithm: 'HS256',
-      expiresIn: process.env.JWT_EXPIRES_IN || '8h'
+      algorithm: "HS256",
+      expiresIn: process.env.JWT_EXPIRES_IN || "8h",
     });
 
     return res.json({
       token,
-      usuario: { ...payload, nombre: usuario.nombre }
+      usuario: { ...payload, nombre: usuario.nombre },
     });
   } catch (error) {
-    console.error('Error en login:', error);
-    return res.status(500).json({ error: 'No fue posible iniciar sesión' });
+    console.error("Error en login:", error);
+    return res.status(500).json({ error: "No fue posible iniciar sesión" });
   }
 });
 
-router.get('/me', autenticar, validarSesion, (req, res) => res.json({ usuario: req.usuario }));
-router.post('/logout', autenticar, (req, res) => res.json({ ok: true, mensaje: 'Sesión cerrada' }));
+router.get("/me", autenticar, validarSesion, (req, res) =>
+  res.json({ usuario: req.usuario }),
+);
+router.post("/logout", autenticar, (req, res) =>
+  res.json({ ok: true, mensaje: "Sesión cerrada" }),
+);
 
 module.exports = router;

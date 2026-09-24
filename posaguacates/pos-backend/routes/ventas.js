@@ -1,17 +1,18 @@
-const express = require('express');
-const db = require('../db/conexion');
+const express = require("express");
+const db = require("../db/conexion");
 
-const {
-  permitirRoles
-} = require('../middleware/auth');
-const { esCantidadValida, mensajeCantidad } = require('../lib/cantidades');
+const { permitirRoles } = require("../middleware/auth");
+const { esCantidadValida, mensajeCantidad } = require("../lib/cantidades");
 const {
   resolverAutorizacionAdmin,
-  registrarAuditoriaSiExiste
-} = require('../lib/autorizacionAdmin');
-const jwt = require('jsonwebtoken');
-const { jwtSecret } = require('../middleware/auth');
-const { normalizarMetodosPago, insertarMetodosPago } = require('../lib/metodosPago');
+  registrarAuditoriaSiExiste,
+} = require("../lib/autorizacionAdmin");
+const jwt = require("jsonwebtoken");
+const { jwtSecret } = require("../middleware/auth");
+const {
+  normalizarMetodosPago,
+  insertarMetodosPago,
+} = require("../lib/metodosPago");
 
 const router = express.Router();
 
@@ -20,166 +21,115 @@ const router = express.Router();
    Administrador General y Cajero
 ========================================================= */
 
-router.get(
-  '/',
-  permitirRoles('ADMON_GRAL', 'CAJERO'),
-  async (req, res) => {
+router.get("/", permitirRoles("ADMON_GRAL", "CAJERO"), async (req, res) => {
+  try {
+    const folio = String(req.query.folio || "").trim();
 
-    try {
+    const cliente = String(req.query.cliente || "").trim();
 
-      const folio =
-        String(req.query.folio || '').trim();
+    const fechaInicio = String(req.query.fecha_inicio || "").trim();
 
-      const cliente =
-        String(req.query.cliente || '').trim();
+    const fechaFin = String(req.query.fecha_fin || "").trim();
 
-      const fechaInicio =
-        String(req.query.fecha_inicio || '').trim();
+    const estadoVenta = String(req.query.estado_venta || "").trim();
 
-      const fechaFin =
-        String(req.query.fecha_fin || '').trim();
+    const tipoPago = String(req.query.tipo_pago || "").trim();
 
-      const estadoVenta =
-        String(req.query.estado_venta || '').trim();
+    const limiteSolicitado = Number(req.query.limite || 100);
 
-      const tipoPago =
-        String(req.query.tipo_pago || '').trim();
+    const limite = Number.isInteger(limiteSolicitado)
+      ? Math.min(Math.max(limiteSolicitado, 1), 500)
+      : 100;
 
-      const limiteSolicitado =
-        Number(req.query.limite || 100);
+    const paginaSolicitada = Number(req.query.pagina || 1);
+    const pagina =
+      Number.isInteger(paginaSolicitada) && paginaSolicitada > 0
+        ? paginaSolicitada
+        : 1;
+    const offset = (pagina - 1) * limite;
 
-      const limite =
-        Number.isInteger(limiteSolicitado)
-          ? Math.min(
-              Math.max(limiteSolicitado, 1),
-              500
-            )
-          : 100;
+    const fechaValida = (valor) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(valor) &&
+      !Number.isNaN(Date.parse(`${valor}T00:00:00Z`));
+    if (
+      (fechaInicio && !fechaValida(fechaInicio)) ||
+      (fechaFin && !fechaValida(fechaFin)) ||
+      (fechaInicio && fechaFin && fechaInicio > fechaFin)
+    ) {
+      return res.status(400).json({ error: "Rango de fechas inválido" });
+    }
 
-      const paginaSolicitada = Number(req.query.pagina || 1);
-      const pagina = Number.isInteger(paginaSolicitada) && paginaSolicitada > 0
-        ? paginaSolicitada : 1;
-      const offset = (pagina - 1) * limite;
+    const condiciones = [];
+    const parametros = [];
 
-      const fechaValida = valor => /^\d{4}-\d{2}-\d{2}$/.test(valor) &&
-        !Number.isNaN(Date.parse(`${valor}T00:00:00Z`));
-      if ((fechaInicio && !fechaValida(fechaInicio)) || (fechaFin && !fechaValida(fechaFin)) ||
-          (fechaInicio && fechaFin && fechaInicio > fechaFin)) {
-        return res.status(400).json({ error: 'Rango de fechas inválido' });
-      }
-
-      const condiciones = [];
-      const parametros = [];
-
-      /* =========================
+    /* =========================
          FILTRO POR FOLIO
       ========================= */
 
-      if (folio) {
-
-        if (/^\d+$/.test(folio)) {
-          condiciones.push('v.id = ?');
-          parametros.push(Number(folio));
-        } else {
-          return res.status(400).json({ error: 'El folio debe ser numérico' });
-        }
-
+    if (folio) {
+      if (/^\d+$/.test(folio)) {
+        condiciones.push("v.id = ?");
+        parametros.push(Number(folio));
+      } else {
+        return res.status(400).json({ error: "El folio debe ser numérico" });
       }
+    }
 
-      /* =========================
+    /* =========================
          FILTRO POR CLIENTE
       ========================= */
 
-      if (cliente) {
+    if (cliente) {
+      condiciones.push("c.nombre_razon_social LIKE ?");
 
-        condiciones.push(
-          'c.nombre_razon_social LIKE ?'
-        );
+      parametros.push(`%${cliente}%`);
+    }
 
-        parametros.push(
-          `%${cliente}%`
-        );
-
-      }
-
-      /* =========================
+    /* =========================
          FILTRO FECHA INICIAL
       ========================= */
 
-      if (fechaInicio) {
+    if (fechaInicio) {
+      condiciones.push("DATE(v.fecha) >= ?");
 
-        condiciones.push(
-          'DATE(v.fecha) >= ?'
-        );
+      parametros.push(fechaInicio);
+    }
 
-        parametros.push(
-          fechaInicio
-        );
-
-      }
-
-      /* =========================
+    /* =========================
          FILTRO FECHA FINAL
       ========================= */
 
-      if (fechaFin) {
+    if (fechaFin) {
+      condiciones.push("DATE(v.fecha) <= ?");
 
-        condiciones.push(
-          'DATE(v.fecha) <= ?'
-        );
+      parametros.push(fechaFin);
+    }
 
-        parametros.push(
-          fechaFin
-        );
-
-      }
-
-      /* =========================
+    /* =========================
          FILTRO ESTADO
       ========================= */
 
-      if (
-        ['ACTIVA', 'CANCELADA']
-          .includes(estadoVenta)
-      ) {
+    if (["ACTIVA", "CANCELADA"].includes(estadoVenta)) {
+      condiciones.push("v.estado_venta = ?");
 
-        condiciones.push(
-          'v.estado_venta = ?'
-        );
+      parametros.push(estadoVenta);
+    }
 
-        parametros.push(
-          estadoVenta
-        );
-
-      }
-
-      /* =========================
+    /* =========================
          FILTRO TIPO DE PAGO
       ========================= */
 
-      if (
-        ['CONTADO', 'CREDITO']
-          .includes(tipoPago)
-      ) {
+    if (["CONTADO", "CREDITO"].includes(tipoPago)) {
+      condiciones.push("v.tipo_pago = ?");
 
-        condiciones.push(
-          'v.tipo_pago = ?'
-        );
+      parametros.push(tipoPago);
+    }
 
-        parametros.push(
-          tipoPago
-        );
+    const where =
+      condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
 
-      }
-
-      const where =
-        condiciones.length > 0
-          ? `WHERE ${condiciones.join(' AND ')}`
-          : '';
-
-      const [ventas] =
-        await db.promise.query(
-          `
+    const [ventas] = await db.promise.query(
+      `
             SELECT
               v.id,
               v.fecha,
@@ -214,61 +164,35 @@ router.get(
 
             LIMIT ? OFFSET ?
           `,
-          [
-            ...parametros,
-            limite,
-            offset
-          ]
-        );
+      [...parametros, limite, offset],
+    );
 
-      return res.json(ventas);
+    return res.json(ventas);
+  } catch (error) {
+    console.error("Error consultando ventas:", error);
 
-    } catch (error) {
-
-      console.error(
-        'Error consultando ventas:',
-        error
-      );
-
-      return res.status(500).json({
-        error:
-          'No fue posible consultar las ventas'
-      });
-
-    }
-
+    return res.status(500).json({
+      error: "No fue posible consultar las ventas",
+    });
   }
-);
-
-
+});
 
 /* =========================================================
    DETALLE DE UNA VENTA
 ========================================================= */
 
-router.get(
-  '/:ventaId/detalle',
-  async (req, res) => {
+router.get("/:ventaId/detalle", async (req, res) => {
+  try {
+    const ventaId = Number(req.params.ventaId);
 
-    try {
+    if (!Number.isInteger(ventaId) || ventaId <= 0) {
+      return res.status(400).json({
+        error: "ID de venta inválido",
+      });
+    }
 
-      const ventaId =
-        Number(req.params.ventaId);
-
-      if (
-        !Number.isInteger(ventaId) ||
-        ventaId <= 0
-      ) {
-
-        return res.status(400).json({
-          error: 'ID de venta inválido'
-        });
-
-      }
-
-      const [ventas] =
-        await db.promise.query(
-          `
+    const [ventas] = await db.promise.query(
+      `
             SELECT
               v.id,
               v.fecha,
@@ -303,20 +227,17 @@ router.get(
 
             LIMIT 1
           `,
-          [ventaId]
-        );
+      [ventaId],
+    );
 
-      if (!ventas.length) {
+    if (!ventas.length) {
+      return res.status(404).json({
+        error: "Venta no encontrada",
+      });
+    }
 
-        return res.status(404).json({
-          error: 'Venta no encontrada'
-        });
-
-      }
-
-      const [productos] =
-        await db.promise.query(
-          `
+    const [productos] = await db.promise.query(
+      `
             SELECT
               dv.producto_id,
               p.codigo,
@@ -335,93 +256,71 @@ router.get(
 
             ORDER BY dv.id
           `,
-          [ventaId]
-        );
+      [ventaId],
+    );
 
-      return res.json({
-        venta: ventas[0],
-        productos
-      });
+    return res.json({
+      venta: ventas[0],
+      productos,
+    });
+  } catch (error) {
+    console.error("Error consultando detalle:", error);
 
-    } catch (error) {
-
-      console.error(
-        'Error consultando detalle:',
-        error
-      );
-
-      return res.status(500).json({
-        error:
-          'No fue posible consultar el detalle'
-      });
-
-    }
-
+    return res.status(500).json({
+      error: "No fue posible consultar el detalle",
+    });
   }
-);
-
+});
 
 /* =========================================================
    CREAR VENTA
    Administrador y Cajero
 ========================================================= */
 
-router.post('/crear', async (req, res) => {
+router.post("/crear", async (req, res) => {
+  const clienteId = Number(req.body.cliente_id);
 
-  const clienteId =
-    Number(req.body.cliente_id);
+  const tipoPago = String(req.body.tipo_pago || "").toUpperCase();
 
-  const tipoPago =
-    String(
-      req.body.tipo_pago || ''
-    ).toUpperCase();
-
-  const metodoPagoCapturado = String(req.body.metodo_pago || '').toUpperCase();
-  let metodoPago = tipoPago === 'CREDITO' ? null : (metodoPagoCapturado || 'EFECTIVO');
-  let referenciaPago = tipoPago === 'CREDITO' ? null : (String(req.body.referencia_pago || '').trim() || null);
+  const metodoPagoCapturado = String(req.body.metodo_pago || "").toUpperCase();
+  let metodoPago =
+    tipoPago === "CREDITO" ? null : metodoPagoCapturado || "EFECTIVO";
+  let referenciaPago =
+    tipoPago === "CREDITO"
+      ? null
+      : String(req.body.referencia_pago || "").trim() || null;
   let desglosePago = null;
-  const idempotencyKey = String(req.get('Idempotency-Key') || req.body.idempotency_key || '').trim();
+  const idempotencyKey = String(
+    req.get("Idempotency-Key") || req.body.idempotency_key || "",
+  ).trim();
 
-  const productos =
-    Array.isArray(req.body.productos)
-      ? req.body.productos
-      : [];
+  const productos = Array.isArray(req.body.productos) ? req.body.productos : [];
 
   /* =========================
      VALIDACIONES
   ========================= */
 
-  if (
-    !Number.isInteger(clienteId) ||
-    clienteId <= 0
-  ) {
-
+  if (!Number.isInteger(clienteId) || clienteId <= 0) {
     return res.status(400).json({
-      error: 'Cliente inválido'
+      error: "Cliente inválido",
     });
-
   }
 
-  if (
-    !['CONTADO', 'CREDITO']
-      .includes(tipoPago)
-  ) {
-
+  if (!["CONTADO", "CREDITO"].includes(tipoPago)) {
     return res.status(400).json({
-      error: 'Tipo de pago inválido'
+      error: "Tipo de pago inválido",
     });
-
   }
 
   if (!/^[A-Za-z0-9._:-]{8,80}$/.test(idempotencyKey)) {
-    return res.status(400).json({ error: 'Idempotency-Key inválido o ausente' });
+    return res
+      .status(400)
+      .json({ error: "Idempotency-Key inválido o ausente" });
   }
   if (productos.length === 0) {
-
     return res.status(400).json({
-      error: 'No hay productos en la venta'
+      error: "No hay productos en la venta",
     });
-
   }
 
   /*
@@ -434,71 +333,74 @@ router.post('/crear', async (req, res) => {
   const preciosCapturados = new Map();
 
   for (const item of productos) {
+    const productoId = Number(item.producto_id);
 
-    const productoId =
-      Number(item.producto_id);
+    const cantidad = Number(item.cantidad);
 
-    const cantidad =
-      Number(item.cantidad);
-
-    const precioCapturado = item.precio_unitario == null ? null : Number(item.precio_unitario);
+    const precioCapturado =
+      item.precio_unitario == null ? null : Number(item.precio_unitario);
 
     if (
       !Number.isInteger(productoId) ||
       productoId <= 0 ||
       !Number.isFinite(cantidad) ||
       cantidad <= 0 ||
-      (precioCapturado !== null && (!Number.isInteger(precioCapturado) || precioCapturado <= 0 || precioCapturado > 99999999))
+      (precioCapturado !== null &&
+        (!Number.isInteger(precioCapturado) ||
+          precioCapturado <= 0 ||
+          precioCapturado > 99999999))
     ) {
-
       return res.status(400).json({
-        error: 'Producto, cantidad o precio entero inválido'
+        error: "Producto, cantidad o precio entero inválido",
       });
-
     }
 
     cantidades.set(
       productoId,
 
-      (
-        cantidades.get(productoId) || 0
-      ) + cantidad
+      (cantidades.get(productoId) || 0) + cantidad,
     );
     if (precioCapturado !== null) {
       const anterior = preciosCapturados.get(productoId);
       if (anterior !== undefined && anterior !== precioCapturado) {
-        return res.status(400).json({ error: 'Un producto repetido no puede tener precios diferentes' });
+        return res
+          .status(400)
+          .json({
+            error: "Un producto repetido no puede tener precios diferentes",
+          });
       }
       preciosCapturados.set(productoId, precioCapturado);
     }
-
   }
 
   let connection;
 
   try {
-
-    connection =
-      await db.promise.getConnection();
+    connection = await db.promise.getConnection();
 
     await connection.beginTransaction();
 
     const [[ventaRepetida]] = await connection.query(
-      'SELECT id,total FROM ventas WHERE idempotency_key=? FOR UPDATE', [idempotencyKey]
+      "SELECT id,total FROM ventas WHERE idempotency_key=? FOR UPDATE",
+      [idempotencyKey],
     );
     if (ventaRepetida) {
       await connection.rollback();
-      return res.json({ mensaje: 'Venta ya registrada', venta_id: ventaRepetida.id,
-        folio: ventaRepetida.id, total: Number(ventaRepetida.total), repetida: true });
+      return res.json({
+        mensaje: "Venta ya registrada",
+        venta_id: ventaRepetida.id,
+        folio: ventaRepetida.id,
+        total: Number(ventaRepetida.total),
+        repetida: true,
+      });
     }
 
     /* =========================
        VALIDAR CLIENTE
     ========================= */
 
-    const [clientes] =
-      await connection.query(
-        `
+    const [clientes] = await connection.query(
+      `
           SELECT id,nombre_razon_social,permite_credito
 
           FROM clientes
@@ -508,22 +410,24 @@ router.post('/crear', async (req, res) => {
 
           LIMIT 1
         `,
-        [clienteId]
-      );
+      [clienteId],
+    );
 
     if (clientes.length === 0) {
-
-      const error =
-        new Error('Cliente no encontrado');
+      const error = new Error("Cliente no encontrado");
 
       error.status = 404;
 
       throw error;
-
     }
-    if (tipoPago === 'CREDITO' && (!Number(clientes[0].permite_credito) ||
-        /p[uú]blico\s+general/i.test(clientes[0].nombre_razon_social))) {
-      const error = new Error('El cliente seleccionado no tiene crédito autorizado');
+    if (
+      tipoPago === "CREDITO" &&
+      (!Number(clientes[0].permite_credito) ||
+        /p[uú]blico\s+general/i.test(clientes[0].nombre_razon_social))
+    ) {
+      const error = new Error(
+        "El cliente seleccionado no tiene crédito autorizado",
+      );
       error.status = 409;
       throw error;
     }
@@ -532,15 +436,12 @@ router.post('/crear', async (req, res) => {
        BLOQUEAR PRODUCTOS
     ========================= */
 
-    const ids =
-      [...cantidades.keys()];
+    const ids = [...cantidades.keys()];
 
-    const placeholders =
-      ids.map(() => '?').join(',');
+    const placeholders = ids.map(() => "?").join(",");
 
-    const [catalogo] =
-      await connection.query(
-        `
+    const [catalogo] = await connection.query(
+      `
           SELECT
             id,
             codigo,
@@ -558,20 +459,15 @@ router.post('/crear', async (req, res) => {
 
           FOR UPDATE
         `,
-        ids
-      );
+      ids,
+    );
 
     if (catalogo.length !== ids.length) {
-
-      const error =
-        new Error(
-          'Uno o más productos no existen'
-        );
+      const error = new Error("Uno o más productos no existen");
 
       error.status = 404;
 
       throw error;
-
     }
 
     /* =========================
@@ -583,14 +479,9 @@ router.post('/crear', async (req, res) => {
     const detalle = [];
 
     for (const producto of catalogo) {
+      const cantidad = Number(cantidades.get(producto.id));
 
-      const cantidad =
-        Number(
-          cantidades.get(producto.id)
-        );
-
-      const stockDisponible =
-        Number(producto.stock);
+      const stockDisponible = Number(producto.stock);
 
       if (!esCantidadValida(cantidad, producto.unidad)) {
         const error = new Error(mensajeCantidad(producto.unidad));
@@ -598,44 +489,33 @@ router.post('/crear', async (req, res) => {
         throw error;
       }
 
-      if (
-        stockDisponible < cantidad
-      ) {
-
-        const error =
-          new Error(
-            `Stock insuficiente para ${producto.nombre}. Disponible: ${stockDisponible}`
-          );
+      if (stockDisponible < cantidad) {
+        const error = new Error(
+          `Stock insuficiente para ${producto.nombre}. Disponible: ${stockDisponible}`,
+        );
 
         error.status = 409;
 
         throw error;
-
       }
 
       const precioCatalogo = Number(producto.precio_venta);
-      const precio = Number((preciosCapturados.get(producto.id) ?? precioCatalogo).toFixed(2));
+      const precio = Number(
+        (preciosCapturados.get(producto.id) ?? precioCatalogo).toFixed(2),
+      );
 
-      const subtotal =
-        Number(
-          (cantidad * precio).toFixed(2)
-        );
+      const subtotal = Number((cantidad * precio).toFixed(2));
 
       total += subtotal;
 
       detalle.push({
+        producto_id: producto.id,
 
-        producto_id:
-          producto.id,
+        codigo: producto.codigo,
 
-        codigo:
-          producto.codigo,
+        nombre: producto.nombre,
 
-        nombre:
-          producto.nombre,
-
-        unidad:
-          producto.unidad,
+        unidad: producto.unidad,
 
         cantidad,
 
@@ -643,17 +523,18 @@ router.post('/crear', async (req, res) => {
 
         subtotal,
         precio_catalogo: precioCatalogo,
-        precio_modificado: precio !== precioCatalogo
-
+        precio_modificado: precio !== precioCatalogo,
       });
-
     }
 
-    total =
-      Number(total.toFixed(2));
+    total = Number(total.toFixed(2));
 
-    if (tipoPago === 'CONTADO') {
-      desglosePago = normalizarMetodosPago(req.body, total, { metodo: 'metodo_pago', referencia: 'referencia_pago', permitirCambio: true });
+    if (tipoPago === "CONTADO") {
+      desglosePago = normalizarMetodosPago(req.body, total, {
+        metodo: "metodo_pago",
+        referencia: "referencia_pago",
+        permitirCambio: true,
+      });
       metodoPago = desglosePago.metodo_resumen;
       referenciaPago = desglosePago.referencia_resumen;
     }
@@ -662,14 +543,10 @@ router.post('/crear', async (req, res) => {
        INSERTAR VENTA
     ========================= */
 
-    const estadoPago =
-      tipoPago === 'CONTADO'
-        ? 'PAGADO'
-        : 'PENDIENTE';
+    const estadoPago = tipoPago === "CONTADO" ? "PAGADO" : "PENDIENTE";
 
-    const [ventaResult] =
-      await connection.query(
-        `
+    const [ventaResult] = await connection.query(
+      `
           INSERT INTO ventas
           (
             cliente_id,
@@ -698,23 +575,28 @@ router.post('/crear', async (req, res) => {
             0
           )
         `,
-        [
-          clienteId,
-          req.usuario.id,
-          total,
-          tipoPago,
-          metodoPago,
-          referenciaPago,
-          idempotencyKey,
-          estadoPago
-        ]
+      [
+        clienteId,
+        req.usuario.id,
+        total,
+        tipoPago,
+        metodoPago,
+        referenciaPago,
+        idempotencyKey,
+        estadoPago,
+      ],
+    );
+
+    const ventaId = ventaResult.insertId;
+
+    if (tipoPago === "CONTADO") {
+      await insertarMetodosPago(
+        connection,
+        "venta_formas_pago",
+        "venta_id",
+        ventaId,
+        desglosePago.metodos,
       );
-
-    const ventaId =
-      ventaResult.insertId;
-
-    if (tipoPago === 'CONTADO') {
-      await insertarMetodosPago(connection, 'venta_formas_pago', 'venta_id', ventaId, desglosePago.metodos);
     }
 
     /* =========================
@@ -722,7 +604,6 @@ router.post('/crear', async (req, res) => {
     ========================= */
 
     for (const item of detalle) {
-
       await connection.query(
         `
           INSERT INTO detalle_venta
@@ -736,13 +617,7 @@ router.post('/crear', async (req, res) => {
 
           VALUES (?, ?, ?, ?, ?)
         `,
-        [
-          ventaId,
-          item.producto_id,
-          item.cantidad,
-          item.precio,
-          item.subtotal
-        ]
+        [ventaId, item.producto_id, item.cantidad, item.precio, item.subtotal],
       );
 
       /*
@@ -750,9 +625,8 @@ router.post('/crear', async (req, res) => {
        * evita existencias negativas.
        */
 
-      const [stockResult] =
-        await connection.query(
-          `
+      const [stockResult] = await connection.query(
+        `
             UPDATE productos
 
             SET stock = stock - ?
@@ -760,26 +634,15 @@ router.post('/crear', async (req, res) => {
             WHERE id = ?
               AND stock >= ?
           `,
-          [
-            item.cantidad,
-            item.producto_id,
-            item.cantidad
-          ]
-        );
+        [item.cantidad, item.producto_id, item.cantidad],
+      );
 
-      if (
-        stockResult.affectedRows === 0
-      ) {
-
-        const error =
-          new Error(
-            `Stock insuficiente para ${item.nombre}`
-          );
+      if (stockResult.affectedRows === 0) {
+        const error = new Error(`Stock insuficiente para ${item.nombre}`);
 
         error.status = 409;
 
         throw error;
-
       }
 
       await connection.query(
@@ -813,21 +676,20 @@ router.post('/crear', async (req, res) => {
         [
           item.producto_id,
           item.cantidad,
-          Number(catalogo.find(p => p.id === item.producto_id).stock),
-          Number(catalogo.find(p => p.id === item.producto_id).stock) - item.cantidad,
+          Number(catalogo.find((p) => p.id === item.producto_id).stock),
+          Number(catalogo.find((p) => p.id === item.producto_id).stock) -
+            item.cantidad,
           ventaId,
-          req.usuario.id
-        ]
+          req.usuario.id,
+        ],
       );
-
     }
 
     /* =========================
        CUENTA POR COBRAR
     ========================= */
 
-    if (tipoPago === 'CREDITO') {
-
+    if (tipoPago === "CREDITO") {
       const [cuentaResult] = await connection.query(
         `
           INSERT INTO cuentas_por_cobrar
@@ -848,36 +710,42 @@ router.post('/crear', async (req, res) => {
             'PENDIENTE'
           )
         `,
-        [
-          ventaId,
-          clienteId,
-          total,
-          total
-        ]
+        [ventaId, clienteId, total, total],
       );
 
       await connection.query(
         `INSERT INTO movimientos_cartera
          (cliente_id,venta_id,cuenta_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
          VALUES (?,?,?,NOW(),'VENTA_CREDITO',?,?,0,?,'Venta a crédito',?)`,
-        [clienteId, ventaId, cuentaResult.insertId, ventaId, total, total, req.usuario.id]
+        [
+          clienteId,
+          ventaId,
+          cuentaResult.insertId,
+          ventaId,
+          total,
+          total,
+          req.usuario.id,
+        ],
       );
-
-    }
-    else {
+    } else {
       const [pagoContado] = await connection.query(
         `INSERT INTO pagos (cliente_id,cuenta_id,monto,monto_total,metodo_pago,referencia,
           observaciones,usuario_id,fecha,estado) VALUES (?,NULL,?,?,?,?,'Pago de venta de contado',?,NOW(),'ACTIVO')`,
-        [clienteId,total,total,metodoPago,referenciaPago,req.usuario.id]
+        [clienteId, total, total, metodoPago, referenciaPago, req.usuario.id],
       );
-      await insertarMetodosPago(connection, 'pago_formas_pago', 'pago_id', pagoContado.insertId, desglosePago.metodos);
+      await insertarMetodosPago(
+        connection,
+        "pago_formas_pago",
+        "pago_id",
+        pagoContado.insertId,
+        desglosePago.metodos,
+      );
     }
 
     await connection.commit();
 
     return res.status(201).json({
-
-      mensaje: 'Venta registrada',
+      mensaje: "Venta registrada",
 
       venta_id: ventaId,
 
@@ -891,40 +759,23 @@ router.post('/crear', async (req, res) => {
 
       cambio: desglosePago?.cambio || 0,
 
-      productos: detalle
-
+      productos: detalle,
     });
-
   } catch (error) {
-
     if (connection) {
       await connection.rollback();
     }
 
-    console.error(
-      'Error creando venta:',
-      error
-    );
+    console.error("Error creando venta:", error);
 
-    return res
-      .status(error.status || 500)
-      .json({
-
-        error:
-          error.status
-            ? error.message
-            : 'No fue posible registrar la venta'
-
-      });
-
+    return res.status(error.status || 500).json({
+      error: error.status ? error.message : "No fue posible registrar la venta",
+    });
   } finally {
-
     if (connection) {
       connection.release();
     }
-
   }
-
 });
 
 /* =========================================================
@@ -933,117 +784,130 @@ router.post('/crear', async (req, res) => {
    Reautenticación obligatoria del Administrador General
 ========================================================= */
 
-router.get('/:ventaId/cancelacion-validacion', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) => {
-  const ventaId = Number(req.params.ventaId);
-  if (!Number.isInteger(ventaId) || ventaId <= 0) return res.status(400).json({ error: 'ID de venta inválido' });
-  try {
-    const [[venta]] = await db.promise.query(
-      `SELECT v.id,v.estado_venta,v.tipo_pago,cxc.id cuenta_id,
+router.get(
+  "/:ventaId/cancelacion-validacion",
+  permitirRoles("ADMON_GRAL", "CAJERO"),
+  async (req, res) => {
+    const ventaId = Number(req.params.ventaId);
+    if (!Number.isInteger(ventaId) || ventaId <= 0)
+      return res.status(400).json({ error: "ID de venta inválido" });
+    try {
+      const [[venta]] = await db.promise.query(
+        `SELECT v.id,v.estado_venta,v.tipo_pago,cxc.id cuenta_id,
               COALESCE((SELECT SUM(p.monto) FROM pagos p WHERE p.cuenta_id=cxc.id AND p.estado='ACTIVO'),0)
               + COALESCE((SELECT SUM(ap.monto_aplicado)
                           FROM aplicaciones_pago ap JOIN pagos p ON p.id=ap.pago_id
                           WHERE ap.cuenta_id=cxc.id AND p.estado='ACTIVO'),0) total_abonado
-       FROM ventas v LEFT JOIN cuentas_por_cobrar cxc ON cxc.venta_id=v.id WHERE v.id=?`, [ventaId]
-    );
-    if (!venta) return res.status(404).json({ error: 'Venta no encontrada' });
-    if (venta.estado_venta === 'CANCELADA') return res.json({ puede_cancelar: false, motivo: 'La venta ya está cancelada' });
-    const totalAbonado = Number(venta.total_abonado);
-    if (totalAbonado > 0) {
-      return res.json({
-        puede_cancelar: false,
-        motivo: `La venta tiene ${totalAbonado.toFixed(2)} en pagos aplicados. Cancela primero el pago desde Cuentas`
+       FROM ventas v LEFT JOIN cuentas_por_cobrar cxc ON cxc.venta_id=v.id WHERE v.id=?`,
+        [ventaId],
+      );
+      if (!venta) return res.status(404).json({ error: "Venta no encontrada" });
+      if (venta.estado_venta === "CANCELADA")
+        return res.json({
+          puede_cancelar: false,
+          motivo: "La venta ya está cancelada",
+        });
+      const totalAbonado = Number(venta.total_abonado);
+      if (totalAbonado > 0) {
+        return res.json({
+          puede_cancelar: false,
+          motivo: `La venta tiene ${totalAbonado.toFixed(2)} en pagos aplicados. Cancela primero el pago desde Cuentas`,
+        });
+      }
+      return res.json({ puede_cancelar: true });
+    } catch (error) {
+      console.error("Error validando cancelación:", {
+        ventaId,
+        code: error.code,
+        message: error.message,
       });
+      return res
+        .status(500)
+        .json({ error: "No fue posible validar la cancelación" });
     }
-    return res.json({ puede_cancelar: true });
-  } catch (error) {
-    console.error('Error validando cancelación:', { ventaId, code: error.code, message: error.message });
-    return res.status(500).json({ error: 'No fue posible validar la cancelación' });
-  }
-});
+  },
+);
 
-router.post('/:ventaId/ticket-url', async (req, res) => {
+router.post("/:ventaId/ticket-url", async (req, res) => {
   const ventaId = Number(req.params.ventaId);
   if (!Number.isInteger(ventaId) || ventaId <= 0) {
-    return res.status(400).json({ error: 'ID de venta inválido' });
+    return res.status(400).json({ error: "ID de venta inválido" });
   }
   try {
     const [[venta]] = await db.promise.query(
-      'SELECT id,estado_venta FROM ventas WHERE id=? LIMIT 1', [ventaId]
+      "SELECT id,estado_venta FROM ventas WHERE id=? LIMIT 1",
+      [ventaId],
     );
-    if (!venta) return res.status(404).json({ error: 'Venta no encontrada' });
-    if (venta.estado_venta === 'CANCELADA') {
-      return res.status(409).json({ error: 'No se puede imprimir una venta cancelada' });
+    if (!venta) return res.status(404).json({ error: "Venta no encontrada" });
+    if (venta.estado_venta === "CANCELADA") {
+      return res
+        .status(409)
+        .json({ error: "No se puede imprimir una venta cancelada" });
     }
     const ticketToken = jwt.sign(
-      { proposito: 'TICKET', venta_id: ventaId, usuario_id: req.usuario.id },
+      { proposito: "TICKET", venta_id: ventaId, usuario_id: req.usuario.id },
       jwtSecret(),
-      { algorithm: 'HS256', expiresIn: '2m' }
+      { algorithm: "HS256", expiresIn: "2m" },
     );
-    return res.json({ url: `/tickets/${ventaId}?token=${encodeURIComponent(ticketToken)}` });
+    return res.json({
+      url: `/tickets/${ventaId}?token=${encodeURIComponent(ticketToken)}`,
+    });
   } catch (error) {
-    console.error('Error generando URL de ticket:', { ventaId, code: error.code, message: error.message });
-    return res.status(500).json({ error: 'No fue posible preparar la impresión' });
+    console.error("Error generando URL de ticket:", {
+      ventaId,
+      code: error.code,
+      message: error.message,
+    });
+    return res
+      .status(500)
+      .json({ error: "No fue posible preparar la impresión" });
   }
 });
 
 router.post(
-  '/:ventaId/cancelar',
+  "/:ventaId/cancelar",
 
-  permitirRoles('ADMON_GRAL', 'CAJERO'),
+  permitirRoles("ADMON_GRAL", "CAJERO"),
 
   async (req, res) => {
+    const ventaId = Number(req.params.ventaId);
 
-    const ventaId =
-      Number(req.params.ventaId);
+    const motivo = String(req.body.motivo || "").trim();
 
-    const motivo =
-      String(
-        req.body.motivo || ''
-      ).trim();
-
-    if (
-      !Number.isInteger(ventaId) ||
-      ventaId <= 0
-    ) {
-
+    if (!Number.isInteger(ventaId) || ventaId <= 0) {
       return res.status(400).json({
-        error: 'ID de venta inválido'
+        error: "ID de venta inválido",
       });
-
     }
 
     if (!motivo) {
-
       return res.status(400).json({
-        error:
-          'El motivo de cancelación es obligatorio'
+        error: "El motivo de cancelación es obligatorio",
       });
-
     }
 
     let connection;
 
     try {
-      console.info('Cancelación de venta solicitada', {
+      console.info("Cancelación de venta solicitada", {
         ventaId,
         usuarioId: req.usuario.id,
-        rol: req.usuario.rol
+        rol: req.usuario.rol,
       });
       const autorizacion = await resolverAutorizacionAdmin({
         usuario: req.usuario,
         body: req.body,
-        buscarAdministrador: async username => {
+        buscarAdministrador: async (username) => {
           const [[administrador]] = await db.promise.query(
             `SELECT id,password_hash FROM usuarios
              WHERE username=? AND rol='ADMON_GRAL' AND activo=1 LIMIT 1`,
-            [username]
+            [username],
           );
           return administrador;
-        }
+        },
       });
 
-      connection =
-        await db.promise.getConnection();
+      connection = await db.promise.getConnection();
 
       await connection.beginTransaction();
 
@@ -1051,9 +915,8 @@ router.post(
          BLOQUEAR VENTA
       ========================= */
 
-      const [ventas] =
-        await connection.query(
-          `
+      const [ventas] = await connection.query(
+        `
             SELECT
               id,
               cliente_id,
@@ -1067,51 +930,38 @@ router.post(
 
             FOR UPDATE
           `,
-          [ventaId]
-        );
+        [ventaId],
+      );
 
       if (ventas.length === 0) {
-
-        const error =
-          new Error('Venta no encontrada');
+        const error = new Error("Venta no encontrada");
 
         error.status = 404;
 
         throw error;
-
       }
 
-      const venta =
-        ventas[0];
-      console.info('Venta bloqueada para cancelación', {
+      const venta = ventas[0];
+      console.info("Venta bloqueada para cancelación", {
         ventaId,
         estado: venta.estado_venta,
-        tipoPago: venta.tipo_pago
+        tipoPago: venta.tipo_pago,
       });
 
-      if (
-        venta.estado_venta ===
-        'CANCELADA'
-      ) {
-
-        const error =
-          new Error(
-            'La venta ya está cancelada'
-          );
+      if (venta.estado_venta === "CANCELADA") {
+        const error = new Error("La venta ya está cancelada");
 
         error.status = 409;
 
         throw error;
-
       }
 
       /* =========================
          VALIDAR ABONOS
       ========================= */
 
-      const [cuentas] =
-        await connection.query(
-          `
+      const [cuentas] = await connection.query(
+        `
             SELECT
               id,
               total_deuda,
@@ -1124,17 +974,14 @@ router.post(
 
             FOR UPDATE
           `,
-          [ventaId]
-        );
+        [ventaId],
+      );
 
       if (cuentas.length > 0) {
+        const cuenta = cuentas[0];
 
-        const cuenta =
-          cuentas[0];
-
-        const [pagos] =
-          await connection.query(
-            `
+        const [pagos] = await connection.query(
+          `
               SELECT COALESCE(
                 (SELECT SUM(p.monto) FROM pagos p WHERE p.cuenta_id = ? AND p.estado = 'ACTIVO'),
                 0
@@ -1145,27 +992,25 @@ router.post(
                 0
               ) AS total_abonado
             `,
-            [cuenta.id, cuenta.id]
-          );
+          [cuenta.id, cuenta.id],
+        );
 
         const totalAbonado = Number(pagos[0].total_abonado);
         if (totalAbonado > 0) {
           const error = new Error(
-            'No se puede cancelar una venta a crédito con pagos aplicados. Cancela primero el pago desde Cuentas'
+            "No se puede cancelar una venta a crédito con pagos aplicados. Cancela primero el pago desde Cuentas",
           );
           error.status = 409;
           throw error;
         }
-
       }
 
       /* =========================
          RESTAURAR INVENTARIO
       ========================= */
 
-      const [detalle] =
-        await connection.query(
-          `
+      const [detalle] = await connection.query(
+        `
             SELECT
               producto_id,
               cantidad
@@ -1174,11 +1019,10 @@ router.post(
 
             WHERE venta_id = ?
           `,
-          [ventaId]
-        );
+        [ventaId],
+      );
 
       for (const item of detalle) {
-
         await connection.query(
           `
             UPDATE productos
@@ -1187,10 +1031,7 @@ router.post(
 
             WHERE id = ?
           `,
-          [
-            item.cantidad,
-            item.producto_id
-          ]
+          [item.cantidad, item.producto_id],
         );
 
         await connection.query(
@@ -1219,14 +1060,13 @@ router.post(
             item.producto_id,
             item.cantidad,
             ventaId,
-            autorizacion.solicitadoPor
-          ]
+            autorizacion.solicitadoPor,
+          ],
         );
-
       }
-      console.info('Inventario restaurado por cancelación', {
+      console.info("Inventario restaurado por cancelación", {
         ventaId,
-        productosRestaurados: detalle.length
+        productosRestaurados: detalle.length,
       });
 
       /* =========================
@@ -1245,11 +1085,7 @@ router.post(
 
           WHERE id = ?
         `,
-        [
-          autorizacion.autorizadoPor,
-          motivo,
-          ventaId
-        ]
+        [autorizacion.autorizadoPor, motivo, ventaId],
       );
 
       /* =========================
@@ -1266,74 +1102,71 @@ router.post(
 
           WHERE venta_id = ?
         `,
-        [ventaId]
+        [ventaId],
       );
-      console.info('Cuenta por cobrar actualizada por cancelación', {
+      console.info("Cuenta por cobrar actualizada por cancelación", {
         ventaId,
-        cuentasActualizadas: cuentas.length
+        cuentasActualizadas: cuentas.length,
       });
 
       if (cuentas.length) {
         const [[saldoCliente]] = await connection.query(
           "SELECT COALESCE(SUM(saldo_pendiente),0) total FROM cuentas_por_cobrar WHERE cliente_id=? AND estado='PENDIENTE'",
-          [venta.cliente_id]
+          [venta.cliente_id],
         );
         await connection.query(
           `INSERT INTO movimientos_cartera
            (cliente_id,venta_id,cuenta_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
            VALUES (?,?,?,NOW(),'CANCELACION',?,0,?,?,?,?)`,
-          [venta.cliente_id, ventaId, cuentas[0].id, `V-${ventaId}`, cuentas[0].saldo_pendiente,
-            saldoCliente.total, `Cancelación: ${motivo}`, autorizacion.solicitadoPor]
+          [
+            venta.cliente_id,
+            ventaId,
+            cuentas[0].id,
+            `V-${ventaId}`,
+            cuentas[0].saldo_pendiente,
+            saldoCliente.total,
+            `Cancelación: ${motivo}`,
+            autorizacion.solicitadoPor,
+          ],
         );
       }
 
       const auditoriaRegistrada = await registrarAuditoriaSiExiste(connection, {
-        accion: 'CANCELAR_VENTA',
-        recursoTipo: 'VENTA',
+        accion: "CANCELAR_VENTA",
+        recursoTipo: "VENTA",
         recursoId: ventaId,
         solicitadoPor: autorizacion.solicitadoPor,
         autorizadoPor: autorizacion.autorizadoPor,
-        motivo
+        motivo,
       });
       await connection.commit();
-      console.info('Cancelación de venta confirmada', { ventaId, usuarioId: req.usuario.id });
-
-      return res.json({
-        mensaje: 'Venta cancelada e inventario restaurado',
-        auditoria_registrada: auditoriaRegistrada
+      console.info("Cancelación de venta confirmada", {
+        ventaId,
+        usuarioId: req.usuario.id,
       });
 
+      return res.json({
+        mensaje: "Venta cancelada e inventario restaurado",
+        auditoria_registrada: auditoriaRegistrada,
+      });
     } catch (error) {
-
       if (connection) {
         await connection.rollback();
       }
 
-      console.error(
-        'Error cancelando venta:',
-        error
-      );
+      console.error("Error cancelando venta:", error);
 
-      return res
-        .status(error.status || 500)
-        .json({
-
-          error:
-            error.status
-              ? error.message
-              : 'No fue posible cancelar la venta'
-
-        });
-
+      return res.status(error.status || 500).json({
+        error: error.status
+          ? error.message
+          : "No fue posible cancelar la venta",
+      });
     } finally {
-
       if (connection) {
         connection.release();
       }
-
     }
-
-  }
+  },
 );
 
 /* =========================================================
@@ -1342,41 +1175,29 @@ router.post(
    Siguientes: COPIA
 ========================================================= */
 
-router.post(
-  '/:ventaId/imprimir',
-  async (req, res) => {
+router.post("/:ventaId/imprimir", async (req, res) => {
+  const ventaId = Number(req.params.ventaId);
 
-    const ventaId =
-      Number(req.params.ventaId);
+  if (!Number.isInteger(ventaId) || ventaId <= 0) {
+    return res.status(400).json({
+      error: "ID de venta inválido",
+    });
+  }
 
-    if (
-      !Number.isInteger(ventaId) ||
-      ventaId <= 0
-    ) {
+  let connection;
 
-      return res.status(400).json({
-        error: 'ID de venta inválido'
-      });
+  try {
+    connection = await db.promise.getConnection();
 
-    }
+    await connection.beginTransaction();
 
-    let connection;
+    /*
+     * FOR UPDATE evita que dos impresiones
+     * simultáneas reciban ambas ORIGINAL.
+     */
 
-    try {
-
-      connection =
-        await db.promise.getConnection();
-
-      await connection.beginTransaction();
-
-      /*
-       * FOR UPDATE evita que dos impresiones
-       * simultáneas reciban ambas ORIGINAL.
-       */
-
-      const [ventas] =
-        await connection.query(
-          `
+    const [ventas] = await connection.query(
+      `
             SELECT
               id,
               impresiones,
@@ -1388,49 +1209,33 @@ router.post(
 
             FOR UPDATE
           `,
-          [ventaId]
-        );
+      [ventaId],
+    );
 
-      if (ventas.length === 0) {
+    if (ventas.length === 0) {
+      const error = new Error("Venta no encontrada");
 
-        const error =
-          new Error('Venta no encontrada');
+      error.status = 404;
 
-        error.status = 404;
+      throw error;
+    }
 
-        throw error;
+    const venta = ventas[0];
 
-      }
+    if (venta.estado_venta === "CANCELADA") {
+      const error = new Error("No se puede imprimir una venta cancelada");
 
-      const venta =
-        ventas[0];
+      error.status = 409;
 
-      if (
-        venta.estado_venta ===
-        'CANCELADA'
-      ) {
+      throw error;
+    }
 
-        const error =
-          new Error(
-            'No se puede imprimir una venta cancelada'
-          );
+    const numeroImpresion = Number(venta.impresiones) + 1;
 
-        error.status = 409;
+    const leyenda = numeroImpresion === 1 ? "ORIGINAL" : "COPIA";
 
-        throw error;
-
-      }
-
-      const numeroImpresion =
-        Number(venta.impresiones) + 1;
-
-      const leyenda =
-        numeroImpresion === 1
-          ? 'ORIGINAL'
-          : 'COPIA';
-
-      await connection.query(
-        `
+    await connection.query(
+      `
           UPDATE ventas
 
           SET
@@ -1439,56 +1244,33 @@ router.post(
 
           WHERE id = ?
         `,
-        [
-          numeroImpresion,
-          ventaId
-        ]
-      );
+      [numeroImpresion, ventaId],
+    );
 
-      await connection.commit();
+    await connection.commit();
 
-      return res.json({
+    return res.json({
+      venta_id: ventaId,
 
-        venta_id: ventaId,
+      leyenda,
 
-        leyenda,
-
-        numero_impresion:
-          numeroImpresion
-
-      });
-
-    } catch (error) {
-
-      if (connection) {
-        await connection.rollback();
-      }
-
-      console.error(
-        'Error preparando ticket:',
-        error
-      );
-
-      return res
-        .status(error.status || 500)
-        .json({
-
-          error:
-            error.status
-              ? error.message
-              : 'No fue posible preparar el ticket'
-
-        });
-
-    } finally {
-
-      if (connection) {
-        connection.release();
-      }
-
+      numero_impresion: numeroImpresion,
+    });
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
     }
 
+    console.error("Error preparando ticket:", error);
+
+    return res.status(error.status || 500).json({
+      error: error.status ? error.message : "No fue posible preparar el ticket",
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
-);
+});
 
 module.exports = router;

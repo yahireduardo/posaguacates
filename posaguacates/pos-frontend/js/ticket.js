@@ -1,8 +1,11 @@
 function imprimirCuandoEsteListo() {
   const imagenes = [...document.images];
-  imagenes.filter(imagen => imagen.complete && imagen.naturalWidth === 0)
-    .forEach(imagen => { imagen.style.display = 'none'; });
-  const pendientes = imagenes.filter(imagen => !imagen.complete);
+  imagenes
+    .filter((imagen) => imagen.complete && imagen.naturalWidth === 0)
+    .forEach((imagen) => {
+      imagen.style.display = "none";
+    });
+  const pendientes = imagenes.filter((imagen) => !imagen.complete);
   if (!pendientes.length) {
     window.focus();
     window.print();
@@ -16,14 +19,18 @@ function imprimirCuandoEsteListo() {
       window.print();
     }
   };
-  pendientes.forEach(imagen => {
-    imagen.addEventListener('load', terminar, { once: true });
-    imagen.addEventListener('error', () => {
-      imagen.style.display = 'none';
-      terminar();
-    }, { once: true });
+  pendientes.forEach((imagen) => {
+    imagen.addEventListener("load", terminar, { once: true });
+    imagen.addEventListener(
+      "error",
+      () => {
+        imagen.style.display = "none";
+        terminar();
+      },
+      { once: true },
+    );
   });
 }
 
-window.addEventListener('load', imprimirCuandoEsteListo, { once: true });
-window.addEventListener('afterprint', () => window.close(), { once: true });
+window.addEventListener("load", imprimirCuandoEsteListo, { once: true });
+window.addEventListener("afterprint", () => window.close(), { once: true });

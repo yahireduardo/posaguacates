@@ -1,5 +1,9 @@
 function validarConfirmacionProveedor(confirmacion) {
-  return String(confirmacion || '').trim().toUpperCase() === 'ELIMINAR PROVEEDOR';
+  return (
+    String(confirmacion || "")
+      .trim()
+      .toUpperCase() === "ELIMINAR PROVEEDOR"
+  );
 }
 
 function proveedorTieneCompras(uso = {}) {

@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs');
+const bcrypt = require("bcryptjs");
 
 async function passwordAdminValida(password, passwordHash) {
   if (!password || !passwordHash) return false;

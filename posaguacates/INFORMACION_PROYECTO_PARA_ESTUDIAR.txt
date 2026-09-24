@@ -1,0 +1,165 @@
+POS AGUACATES - GUIA FACIL PARA ESTUDIAR Y EXPONER
+Version 1.2.0
+
+1. ¿QUE ES?
+
+Es un punto de venta para un negocio de aguacates. Es como una libreta
+grande, ordenada y segura dentro de la computadora. Permite iniciar sesión,
+registrar ventas de contado o crédito, calcular cambio, imprimir tickets,
+administrar productos, inventario, clientes, proveedores, compras, órdenes,
+deudas, pagos, usuarios, reportes y respaldos.
+
+2. ¿COMO ESTA CONSTRUIDO?
+
+Piensa en un restaurante:
+
+- El frontend es el mesero: la pantalla que usa la persona. Utiliza HTML,
+  CSS y JavaScript.
+- El backend es la cocina: revisa permisos, aplica reglas y hace cálculos.
+  Utiliza Node.js y Express.
+- MariaDB es la despensa y libreta: guarda los datos ordenadamente.
+- La API es el idioma con el que el mesero habla con la cocina. Tiene rutas
+  como /ventas, /productos, /clientes, /ia y /prediccion.
+
+Flujo básico:
+Usuario -> pantalla -> API -> reglas -> base de datos -> respuesta.
+
+Las transacciones aseguran que una operación se complete entera o no se
+guarde. Así se evita guardar una venta sin descontar correctamente el stock.
+
+3. MODULOS IMPORTANTES
+
+- Autenticación: comprueba usuario, contraseña, rol y sesión.
+- Ventas: registra productos, cantidades, precio, pago, cambio y ticket.
+- Clientes y cartera: controla créditos, abonos y saldos pendientes.
+- Inventario: guarda stock, stock mínimo y movimientos de producto.
+- Proveedores y compras: registra de quién se compra, cantidad y costo.
+- Reportes: resume la información para ayudar a decidir.
+- Respaldos y auditoría: permiten recuperar datos y saber qué ocurrió.
+
+4. INTELIGENCIA ARTIFICIAL IMPLEMENTADA
+
+A) Inteligencia local explicable (funciona sin internet)
+
+- Resume ventas, ingresos y ticket promedio de los últimos 30 días.
+- Compara los ingresos con los 30 días anteriores.
+- Detecta productos agotados o con poca existencia.
+- Calcula cobertura: stock dividido entre venta semanal reciente.
+- Sugiere reabasto para dos semanas y media de cobertura.
+- Marca prioridad crítica, alta o media.
+- Muestra confianza alta, media o baja y la evidencia utilizada.
+- Detecta caídas de demanda de 15 por ciento o más.
+- Recuerda la cartera pendiente por cobrar.
+
+B) Asistente generativo opcional
+
+Con una clave de OpenAI puede contestar preguntas libres en español. Solo
+recibe métricas agregadas; no recibe nombres, teléfonos ni contraseñas. La
+clave permanece en el servidor y las solicitudes usan store:false. Si el
+servicio falla o no tiene crédito, contesta el motor local.
+
+C) Predicción de demanda
+
+Analiza semanas anteriores y estima la siguiente. Compara un promedio
+ponderado, regresión Ridge y bosque aleatorio. Usa MAE, RMSE y WAPE para
+medir errores. Cada prueba utiliza solo semanas pasadas, evitando la "fuga
+temporal". Gana el menor MAE. Con menos de 12 semanas o sin Python se usa
+el promedio local.
+
+La IA es de solo lectura: nunca vende, compra, borra ni modifica datos. Sus
+pronósticos no son certezas y no conocen clima, fiestas, promociones,
+precios externos o mermas que no se hayan registrado.
+
+5. ¿SE PUEDE AGREGAR MAS IA?
+
+Sí. En el futuro podría detectar operaciones extrañas, estimar mermas,
+leer facturas con cámara, estudiar precios o incluir clima y promociones.
+Antes se necesitan suficientes datos correctos, pruebas, presupuesto y
+reglas de privacidad. Una IA más complicada no siempre es mejor: primero
+debe ser segura, medible y fácil de explicar.
+
+6. SEGURIDAD
+
+- Las contraseñas se protegen con hash y las rutas privadas exigen sesión.
+- Los roles separan permisos de administrador y cajero.
+- La clave de IA nunca se envía al navegador ni se guarda en Git.
+- La IA recibe métricas agregadas y no ejecuta acciones.
+- Si Python u OpenAI fallan, el POS sigue trabajando con métodos locales.
+- Los respaldos deben crearse y también probarse mediante restauración.
+
+7. INSTALADOR DE WINDOWS
+
+El EXE offline contiene frontend, backend, Node.js, dependencias, MariaDB,
+el servicio de Windows, scripts y migraciones. Pide los datos de MariaDB y
+del primer administrador, crea la base, instala el servicio, comprueba
+/health y crea un acceso directo. Incluye sumas SHA-256 para verificar que
+los archivos no fueron alterados.
+
+8. GUION PARA EXPONER EN 8 A 10 MINUTOS
+
+1) Problema: "El negocio necesita cobrar, controlar producto y recordar
+   deudas sin depender de varias libretas".
+2) Solución: enseña el inicio de sesión, una venta, el ticket y el inventario.
+3) Arquitectura: dibuja frontend -> backend -> MariaDB y usa el ejemplo del
+   mesero, la cocina y la despensa.
+4) IA: genera un diagnóstico. Explica prioridad, cobertura, confianza y
+   evidencia. Luego muestra el pronóstico de demanda.
+5) Seguridad: menciona sesiones, roles, hash, respaldos y solo lectura.
+6) Límites: reconoce que la IA no adivina el futuro ni conoce datos externos.
+7) Cierre: "El sistema convierte las operaciones diarias en información
+   útil y usa IA para apoyar, no para sustituir, la decisión humana".
+
+9. DEMOSTRACION QUE DEBES PRACTICAR
+
+- Iniciar sesión con datos ficticios.
+- Registrar un producto y un cliente.
+- Hacer una venta de contado y mostrar el ticket.
+- Hacer una venta a crédito y mostrar la cartera.
+- Explicar stock y stock mínimo.
+- Generar el diagnóstico y preguntar "¿Qué debería revisar hoy?".
+- Ejecutar el pronóstico de la próxima semana.
+- Mostrar cómo se crea un respaldo.
+
+Prueba antes con el proyector. Lleva instalador, proyecto y guía en USB. No
+muestres contraseñas verdaderas ni claves de API.
+
+10. LO QUE NECESITAS ESTUDIAR
+
+Básico: punto de venta, contado, crédito, stock, cartera y proveedor.
+Programación: HTML, CSS, JavaScript, Node.js, Express, API, HTTP y SQL.
+Datos: tabla, relación, consulta y transacción.
+Seguridad: hash, token, sesión, rol, respaldo, auditoría y privacidad.
+IA: datos de entrenamiento, predicción, confianza, sobreajuste y fuga temporal.
+Métricas: MAE es el error promedio; RMSE castiga errores grandes; WAPE
+compara el error total con la demanda total. Un valor menor suele ser mejor.
+
+11. PREGUNTAS DEL PROFESOR Y RESPUESTAS
+
+¿Necesita internet?
+No para el POS ni la IA local. Solo para el asistente OpenAI opcional.
+
+¿La IA puede equivocarse?
+Sí. Depende de datos correctos; por eso muestra evidencia y no actúa sola.
+
+¿Cómo se elige el modelo?
+Se prueba con semanas conocidas sin mirar el futuro y gana el menor MAE.
+
+¿Qué pasa si OpenAI o Python fallan?
+El sistema continúa con el análisis y el promedio local.
+
+¿Por qué MariaDB?
+Porque organiza datos relacionados y permite transacciones confiables.
+
+¿Qué mejorarías?
+Reuniría más datos limpios y luego probaría clima, temporadas, promociones,
+mermas y anomalías, conservando solo mejoras que reduzcan el error.
+
+12. PALABRAS CLAVE
+
+POS: punto de venta. Frontend: pantalla. Backend: reglas del servidor.
+API: puente entre pantalla y servidor. Stock: producto disponible. Cartera:
+dinero por cobrar. IA local: análisis sin internet. Machine learning: modelos
+que aprenden patrones. Pronóstico: estimación, no garantía. Cobertura: semanas
+que durará el stock. Respaldo: copia recuperable. Auditoría: registro de acciones.
+
+FIN DE LA GUIA

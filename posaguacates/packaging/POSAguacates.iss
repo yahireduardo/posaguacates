@@ -1,22 +1,22 @@
 [Setup]
 AppId={{C4F4BDB3-922F-4AD5-91E4-7EF32DC2FE1B}
 AppName=POS Aguacates
-AppVersion=1.1.5
+AppVersion=1.2.0
 AppPublisher=POS Aguacates
 VersionInfoCompany=POS Aguacates
 VersionInfoDescription=Instalador de POS Aguacates
 VersionInfoProductName=POS Aguacates
-VersionInfoProductVersion=1.1.5
+VersionInfoProductVersion=1.2.0
 DefaultDirName={autopf}\POS Aguacates
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist
-OutputBaseFilename=POS-HASS-Offline-Setup-1.1.5
+OutputBaseFilename=POS-HASS-Offline-Setup-1.2.0
 Compression=lzma2
 SolidCompression=yes
 [Files]
-Source: "..\dist\POS-Aguacates-1.1.5\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "..\dist\POS-Aguacates-1.2.0\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 [Run]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\instalar.ps1"" -ConfigPath ""{tmp}\pos-install.cfg"""; WorkingDir: "{app}"; StatusMsg: "Creando la base de datos e iniciando POS Aguacates..."; Flags: waituntilterminated runhidden
 [UninstallRun]

@@ -1,77 +1,539 @@
-const test=require('node:test');const assert=require('node:assert/strict');const bcrypt=require('bcryptjs');
-const { esBasePruebasAislada } = require('../lib/testDatabase');
-if(process.env.NODE_ENV!=='test'||process.env.TEST_DATABASE!=='true'||!esBasePruebasAislada(process.env.DB_NAME))throw new Error('Entorno de integración inseguro');
-const db=require('../db/conexion');const{app}=require('../index');
-const password='AdminTest-123';let server,base,token,clienteId,productoId;
-async function request(path,{method='GET',body,headers={}}={}){const r=await fetch(base+path,{method,headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:`Bearer ${token}`}:{}) ,...headers},body:body?JSON.stringify(body):undefined});const type=r.headers.get('content-type')||'',data=type.includes('json')?await r.json():await r.text();return{status:r.status,data,headers:r.headers};}
-test.before(async()=>{await db.promise.query('DELETE FROM pago_formas_pago');await db.promise.query('DELETE FROM venta_formas_pago')});
-test.before(async()=>{const tablas=['auditoria_operaciones','auditoria_respaldos','historial_traslados','control_instancia_pos','aplicaciones_pago','movimientos_cartera','pagos','cuentas_por_cobrar','detalle_orden_venta','ordenes_venta','detalle_venta','ventas','pagos_proveedores','cuentas_por_pagar_proveedores','detalle_compra','compras','movimientos_inventario','producto_proveedores','productos','proveedores','clientes','autorizaciones_admin','usuarios','configuracion_negocio'];for(const t of tablas)await db.promise.query(`DELETE FROM \`${t}\``);const hash=await bcrypt.hash(password,4);await db.promise.query("INSERT INTO usuarios(nombre,username,password_hash,password,rol,activo) VALUES('Administrador Prueba','admin_test',?,NULL,'ADMON_GRAL',1)",[hash]);await db.promise.query("INSERT INTO clientes(nombre_razon_social,permite_credito,activo) VALUES('Público General',0,1),('Cliente Integración',1,1)");const[[cliente]]=await db.promise.query("SELECT id FROM clientes WHERE nombre_razon_social='Cliente Integración'");clienteId=cliente.id;await db.promise.query('INSERT INTO configuracion_negocio(id,nombre_comercial) VALUES(1,\'POS Prueba\')');await new Promise(resolve=>{server=app.listen(0,'127.0.0.1',resolve)});base=`http://127.0.0.1:${server.address().port}`;});
-test.after(async()=>{if(server)await new Promise(resolve=>server.close(resolve));await db.promise.end();});
-test('recorrido transaccional HTTP completo',async()=>{
-  let r=await request('/auth/login',{method:'POST',body:{username:'admin_test',password}});assert.equal(r.status,200);token=r.data.token;
-  r=await request('/auth/me');assert.equal(r.status,200);assert.equal(r.data.usuario.rol,'ADMON_GRAL');
-  const tokenAdmin=token;
-  r=await request('/usuarios',{method:'POST',body:{nombre:'Cajero Prueba',username:'cajero_test',password,rol:'CAJERO'}});assert.equal(r.status,201);
-  r=await request('/auth/login',{method:'POST',body:{username:'cajero_test',password}});assert.equal(r.status,200);token=r.data.token;
-  r=await request('/proveedores');assert.equal(r.status,200);
-  r=await request('/ventas');assert.equal(r.status,200);
-  r=await request('/cuentas-proveedores');assert.equal(r.status,403);
-  r=await request('/proveedores',{method:'POST',body:{nombre:'No permitido'}});assert.equal(r.status,403);
-  r=await request('/compras',{method:'POST',headers:{'Idempotency-Key':'cajero-no-permitido'},body:{proveedor_id:1,productos:[{producto_id:1,cantidad:1,costo:1}]}});assert.equal(r.status,403);
-  token=tokenAdmin;
-  r=await request('/usuarios');assert.equal(r.status,200);const cajero=r.data.find(x=>x.username==='cajero_test');assert.ok(cajero);
-  const passwordEditada='CajeroEditado-456';r=await request(`/usuarios/${cajero.id}`,{method:'PUT',body:{nombre:'Cajero Prueba Editado',username:'cajero_test',password:passwordEditada,rol:'CAJERO'}});assert.equal(r.status,200);
-  r=await request('/auth/login',{method:'POST',body:{username:'cajero_test',password:passwordEditada}});assert.equal(r.status,200);token=tokenAdmin;
-  r=await request('/proveedores',{method:'POST',body:{nombre:'Proveedor Prueba',rfc:'TST010101AA1'}});assert.equal(r.status,201);const proveedorId=r.data.id;
-  r=await request('/proveedores',{method:'POST',body:{nombre:'  Proveedor   Prueba  '}});assert.equal(r.status,409);
-  r=await request('/proveedores?buscar=Prueba&estado=TODOS');assert.equal(r.status,200);assert.ok(r.data.some(x=>x.id===proveedorId));
-  r=await request(`/proveedores/${proveedorId}`,{method:'PUT',body:{nombre:'Proveedor Prueba',razon_social:'Proveedor de Integración SA',rfc:'TST010101AA1',notas:'Entrega semanal'}});assert.equal(r.status,200);
-  r=await request('/productos',{method:'POST',body:{codigo:'TEST-KG',nombre:'Aguacate prueba',precio_venta:50,costo:30,unidad:'KG',stock_minimo:2,proveedor_id:proveedorId}});assert.equal(r.status,201);productoId=r.data.id;
-  r=await request('/inventario/movimiento',{method:'POST',body:{producto_id:productoId,tipo:'ENTRADA',cantidad:10,motivo:'Carga de integración'}});assert.equal(r.status,201);assert.equal(Number(r.data.stock),10);
-  const compraKey='compra-integracion-0001',compra={proveedor_id:proveedorId,folio:'COMP-TEST-1',idempotency_key:compraKey,productos:[{producto_id:productoId,cantidad:2,costo:31}]};
-  r=await request('/compras',{method:'POST',headers:{'Idempotency-Key':compraKey},body:compra});assert.equal(r.status,201);const compraId=r.data.id;
-  const[[relacionProveedor]]=await db.promise.query('SELECT costo_ultimo,activo FROM producto_proveedores WHERE producto_id=? AND proveedor_id=?',[productoId,proveedorId]);assert.equal(Number(relacionProveedor.costo_ultimo),31);assert.equal(Number(relacionProveedor.activo),1);
-  r=await request(`/proveedores/${proveedorId}`);assert.equal(r.status,200);assert.ok(r.data.productos.some(x=>x.id===productoId));assert.ok(Number(r.data.proveedor.total_comprado)>0);
-  r=await request('/compras',{method:'POST',headers:{'Idempotency-Key':compraKey},body:compra});assert.equal(r.status,200);assert.equal(r.data.id,compraId);assert.equal(r.data.repetida,true);
-  r=await request('/compras',{method:'POST',headers:{'Idempotency-Key':'compra-producto-repetido'},body:{...compra,idempotency_key:'compra-producto-repetido',folio:'COMP-TEST-DUP',productos:[...compra.productos,...compra.productos]}});assert.equal(r.status,400);
-  r=await request(`/proveedores/${proveedorId}/estado`,{method:'PATCH',body:{activo:false}});assert.equal(r.status,200);
-  r=await request('/compras',{method:'POST',headers:{'Idempotency-Key':'compra-proveedor-inactivo'},body:{...compra,idempotency_key:'compra-proveedor-inactivo',folio:'COMP-TEST-INACTIVO'}});assert.equal(r.status,409);
-  r=await request(`/proveedores/${proveedorId}/estado`,{method:'PATCH',body:{activo:true}});assert.equal(r.status,200);
-  r=await request(`/compras/${compraId}/cancelar`,{method:'POST',body:{motivo:'Cancelación de integración'}});assert.equal(r.status,200);
-  const compraPagoKey='compra-pago-proveedor-0002';r=await request('/compras',{method:'POST',headers:{'Idempotency-Key':compraPagoKey},body:{proveedor_id:proveedorId,folio:'COMP-PAGO-2',idempotency_key:compraPagoKey,productos:[{producto_id:productoId,cantidad:1,costo:20}]}});assert.equal(r.status,201);const compraPagoId=r.data.id;
-  const[[cuentaProveedor]]=await db.promise.query('SELECT id,saldo_pendiente FROM cuentas_por_pagar_proveedores WHERE compra_id=?',[compraPagoId]);assert.equal(Number(cuentaProveedor.saldo_pendiente),20);
-  r=await request('/cuentas-proveedores/pagos',{method:'POST',body:{cuenta_id:cuentaProveedor.id,monto:5,metodo_pago:'TRANSFERENCIA',referencia:'PAGO-PROV-1'}});assert.equal(r.status,201);assert.equal(Number(r.data.saldo_pendiente),15);
-  r=await request('/cuentas-proveedores');assert.equal(r.status,200);assert.equal(Number(r.data.deuda_total),15);
-  r=await request(`/proveedores/${proveedorId}`);assert.equal(r.status,200);assert.equal(r.data.pagos.length,1);assert.ok(r.data.movimientos.some(m=>m.tipo==='PAGO'&&Number(m.abono)===5));assert.equal(Number(r.data.proveedor.deuda_pendiente),15);
-  const ventaKey='venta-integracion-0001',venta={cliente_id:clienteId,tipo_pago:'CONTADO',metodos_pago:[{metodo_pago:'EFECTIVO',monto:30},{metodo_pago:'TRANSFERENCIA',monto:64,referencia:'TEST-REF'}],idempotency_key:ventaKey,productos:[{producto_id:productoId,cantidad:2,precio_unitario:47}]};
-  r=await request('/ventas/crear',{method:'POST',headers:{'Idempotency-Key':ventaKey},body:venta});assert.equal(r.status,201);assert.equal(Number(r.data.total),94);const ventaContado=r.data.venta_id;
-  const[[detallePrecio]]=await db.promise.query('SELECT precio_unitario FROM detalle_venta WHERE venta_id=?',[ventaContado]);assert.equal(Number(detallePrecio.precio_unitario),47);
-  const[formasVenta]=await db.promise.query('SELECT metodo_pago,monto FROM venta_formas_pago WHERE venta_id=? ORDER BY id',[ventaContado]);assert.equal(formasVenta.length,2);assert.equal(formasVenta.reduce((s,x)=>s+Number(x.monto),0),94);
-  r=await request('/ventas/crear',{method:'POST',headers:{'Idempotency-Key':ventaKey},body:venta});assert.equal(r.status,200);assert.equal(r.data.venta_id,ventaContado);assert.equal(r.data.repetida,true);
-  r=await request(`/ventas/${ventaContado}/ticket-url`,{method:'POST'});assert.equal(r.status,200);const ticket=await fetch(base+r.data.url);assert.equal(ticket.status,200);assert.match(await ticket.text(),/ORIGINAL/);
-  const creditoKey='venta-integracion-0002';r=await request('/ventas/crear',{method:'POST',headers:{'Idempotency-Key':creditoKey},body:{...venta,idempotency_key:creditoKey,tipo_pago:'CREDITO',metodo_pago:null,referencia_pago:null,productos:[{producto_id:productoId,cantidad:1,precio_unitario:48}]}});assert.equal(r.status,201);const ventaCredito=r.data.venta_id;
-  const[[creditoSinMetodo]]=await db.promise.query('SELECT metodo_pago,referencia_pago,total FROM ventas WHERE id=?',[ventaCredito]);assert.equal(creditoSinMetodo.metodo_pago,null);assert.equal(creditoSinMetodo.referencia_pago,null);assert.equal(Number(creditoSinMetodo.total),48);
-  const[[cuenta]]=await db.promise.query('SELECT id,saldo_pendiente FROM cuentas_por_cobrar WHERE venta_id=?',[ventaCredito]);
-  r=await request('/cuentas/pagos',{method:'POST',body:{cliente_id:clienteId,monto_recibido:10,cuenta_ids:[cuenta.id],modo:'MANUAL',aplicaciones:[{cuenta_id:cuenta.id,monto:10}],metodos_pago:[{metodo_pago:'EFECTIVO',monto:4},{metodo_pago:'CHEQUE',monto:6,referencia:'CHK-MIXTO'}]}});assert.equal(r.status,201);assert.equal(r.data.metodo_pago,'MIXTO');const pagoId=r.data.pago_id;
-  r=await request('/cuentas/pagos',{method:'POST',body:{cliente_id:clienteId,monto_recibido:9999,cuenta_ids:[cuenta.id],modo:'MANUAL',aplicaciones:[{cuenta_id:cuenta.id,monto:9999}],metodo_pago:'EFECTIVO'}});assert.equal(r.status,409);
-  r=await request(`/cuentas/pagos/${pagoId}/cancelar`,{method:'POST',body:{motivo:'Reversión de prueba',password_admin:password}});assert.equal(r.status,200);
-  r=await request(`/ventas/${ventaCredito}/cancelar`,{method:'POST',body:{motivo:'Cancelación de prueba',password_admin:password}});assert.equal(r.status,200);
-  r=await request('/stats');assert.equal(r.status,200);assert.ok('ingresos_mes'in r.data);
-  r=await request('/chatbot',{method:'POST',body:{pregunta:'cuánto vendí hoy'}});assert.equal(r.status,200);assert.equal(r.data.soportada,true);
-  r=await request('/prediccion');assert.equal(r.status,200);assert.ok(Array.isArray(r.data.predicciones));
-  r=await request('/ordenes',{method:'POST',body:{cliente_id:clienteId,estado:'PENDIENTE',observaciones:'Orden integración',productos:[{producto_id:productoId,cantidad:1,precio_unitario:45}]}});assert.equal(r.status,201);const ordenId=r.data.orden_id;
-  r=await request(`/ordenes/${ordenId}/convertir`,{method:'POST',body:{tipo_pago:'CONTADO',metodo_pago:'CHEQUE',referencia_pago:'CHK-TEST'}});assert.equal(r.status,201);
-  const[[precioOrdenConvertida]]=await db.promise.query('SELECT precio_unitario FROM detalle_venta WHERE venta_id=?',[r.data.venta_id]);assert.equal(Number(precioOrdenConvertida.precio_unitario),45);
-  r=await request(`/ordenes/${ordenId}/convertir`,{method:'POST',body:{tipo_pago:'CONTADO',metodo_pago:'CHEQUE',referencia_pago:'CHK-TEST'}});assert.equal(r.status,409);
-  r=await request('/configuracion',{method:'PUT',body:{nombre_comercial:'POS Integración',moneda:'MXN',papel_mm:80,stock_minimo_default:1,vencimiento_dias:30}});assert.equal(r.status,200);
-  r=await request('/reportes/ventas.csv');assert.equal(r.status,200);assert.match(r.data,/folio/);
-  const[[onlyAdmin]]=await db.promise.query("SELECT id FROM usuarios WHERE username='admin_test'");r=await request(`/usuarios/${onlyAdmin.id}`,{method:'PUT',body:{nombre:'Administrador Prueba',username:'admin_test',rol:'CAJERO'}});assert.equal(r.status,409);
-  const[[stock]]=await db.promise.query('SELECT stock FROM productos WHERE id=?',[productoId]);assert.equal(Number(stock.stock),8);
-  const[[duplicadas]]=await db.promise.query('SELECT COUNT(*) total FROM ventas WHERE idempotency_key=?',[ventaKey]);assert.equal(Number(duplicadas.total),1);
-  const backupId='11111111-2222-4333-8444-555555555555';const[[admin]]=await db.promise.query("SELECT id FROM usuarios WHERE username='admin_test'");await db.promise.query("INSERT INTO historial_traslados(backup_id,equipo_origen,generado_por,estado) VALUES(?,?,?,'GENERADO')",[backupId,require('os').hostname(),admin.id]);
-  r=await request('/backups/mark-transferred',{method:'POST',body:{backupId,password_admin:password}});assert.equal(r.status,200);
-  r=await request('/clientes',{method:'POST',body:{nombre_razon_social:'Debe bloquearse'}});assert.equal(r.status,423);
-  r=await request('/clientes');assert.equal(r.status,200);
-  r=await request('/backups/reactivate',{method:'POST',body:{motivo:'Reactivación de integración',password_admin:password}});assert.equal(r.status,200);
-  r=await request('/clientes',{method:'POST',body:{nombre_razon_social:'Escritura reactivada'}});assert.equal(r.status,201);
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const bcrypt = require("bcryptjs");
+const { esBasePruebasAislada } = require("../lib/testDatabase");
+if (
+  process.env.NODE_ENV !== "test" ||
+  process.env.TEST_DATABASE !== "true" ||
+  !esBasePruebasAislada(process.env.DB_NAME)
+)
+  throw new Error("Entorno de integración inseguro");
+const db = require("../db/conexion");
+const { app } = require("../index");
+const password = "AdminTest-123";
+let server, base, token, clienteId, productoId;
+async function request(path, { method = "GET", body, headers = {} } = {}) {
+  const r = await fetch(base + path, {
+    method,
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const type = r.headers.get("content-type") || "",
+    data = type.includes("json") ? await r.json() : await r.text();
+  return { status: r.status, data, headers: r.headers };
+}
+test.before(async () => {
+  await db.promise.query("DELETE FROM pago_formas_pago");
+  await db.promise.query("DELETE FROM venta_formas_pago");
+});
+test.before(async () => {
+  const tablas = [
+    "auditoria_operaciones",
+    "auditoria_respaldos",
+    "historial_traslados",
+    "control_instancia_pos",
+    "aplicaciones_pago",
+    "movimientos_cartera",
+    "pagos",
+    "cuentas_por_cobrar",
+    "detalle_orden_venta",
+    "ordenes_venta",
+    "detalle_venta",
+    "ventas",
+    "pagos_proveedores",
+    "cuentas_por_pagar_proveedores",
+    "detalle_compra",
+    "compras",
+    "movimientos_inventario",
+    "producto_proveedores",
+    "productos",
+    "proveedores",
+    "clientes",
+    "autorizaciones_admin",
+    "usuarios",
+    "configuracion_negocio",
+  ];
+  for (const t of tablas) await db.promise.query(`DELETE FROM \`${t}\``);
+  const hash = await bcrypt.hash(password, 4);
+  await db.promise.query(
+    "INSERT INTO usuarios(nombre,username,password_hash,password,rol,activo) VALUES('Administrador Prueba','admin_test',?,NULL,'ADMON_GRAL',1)",
+    [hash],
+  );
+  await db.promise.query(
+    "INSERT INTO clientes(nombre_razon_social,permite_credito,activo) VALUES('Público General',0,1),('Cliente Integración',1,1)",
+  );
+  const [[cliente]] = await db.promise.query(
+    "SELECT id FROM clientes WHERE nombre_razon_social='Cliente Integración'",
+  );
+  clienteId = cliente.id;
+  await db.promise.query(
+    "INSERT INTO configuracion_negocio(id,nombre_comercial) VALUES(1,'POS Prueba')",
+  );
+  await new Promise((resolve) => {
+    server = app.listen(0, "127.0.0.1", resolve);
+  });
+  base = `http://127.0.0.1:${server.address().port}`;
+});
+test.after(async () => {
+  if (server) await new Promise((resolve) => server.close(resolve));
+  await db.promise.end();
+});
+test("recorrido transaccional HTTP completo", async () => {
+  let r = await request("/auth/login", {
+    method: "POST",
+    body: { username: "admin_test", password },
+  });
+  assert.equal(r.status, 200);
+  token = r.data.token;
+  r = await request("/auth/me");
+  assert.equal(r.status, 200);
+  assert.equal(r.data.usuario.rol, "ADMON_GRAL");
+  const tokenAdmin = token;
+  r = await request("/usuarios", {
+    method: "POST",
+    body: {
+      nombre: "Cajero Prueba",
+      username: "cajero_test",
+      password,
+      rol: "CAJERO",
+    },
+  });
+  assert.equal(r.status, 201);
+  r = await request("/auth/login", {
+    method: "POST",
+    body: { username: "cajero_test", password },
+  });
+  assert.equal(r.status, 200);
+  token = r.data.token;
+  r = await request("/proveedores");
+  assert.equal(r.status, 200);
+  r = await request("/ventas");
+  assert.equal(r.status, 200);
+  r = await request("/cuentas-proveedores");
+  assert.equal(r.status, 403);
+  r = await request("/proveedores", {
+    method: "POST",
+    body: { nombre: "No permitido" },
+  });
+  assert.equal(r.status, 403);
+  r = await request("/compras", {
+    method: "POST",
+    headers: { "Idempotency-Key": "cajero-no-permitido" },
+    body: {
+      proveedor_id: 1,
+      productos: [{ producto_id: 1, cantidad: 1, costo: 1 }],
+    },
+  });
+  assert.equal(r.status, 403);
+  token = tokenAdmin;
+  r = await request("/usuarios");
+  assert.equal(r.status, 200);
+  const cajero = r.data.find((x) => x.username === "cajero_test");
+  assert.ok(cajero);
+  const passwordEditada = "CajeroEditado-456";
+  r = await request(`/usuarios/${cajero.id}`, {
+    method: "PUT",
+    body: {
+      nombre: "Cajero Prueba Editado",
+      username: "cajero_test",
+      password: passwordEditada,
+      rol: "CAJERO",
+    },
+  });
+  assert.equal(r.status, 200);
+  r = await request("/auth/login", {
+    method: "POST",
+    body: { username: "cajero_test", password: passwordEditada },
+  });
+  assert.equal(r.status, 200);
+  token = tokenAdmin;
+  r = await request("/proveedores", {
+    method: "POST",
+    body: { nombre: "Proveedor Prueba", rfc: "TST010101AA1" },
+  });
+  assert.equal(r.status, 201);
+  const proveedorId = r.data.id;
+  r = await request("/proveedores", {
+    method: "POST",
+    body: { nombre: "  Proveedor   Prueba  " },
+  });
+  assert.equal(r.status, 409);
+  r = await request("/proveedores?buscar=Prueba&estado=TODOS");
+  assert.equal(r.status, 200);
+  assert.ok(r.data.some((x) => x.id === proveedorId));
+  r = await request(`/proveedores/${proveedorId}`, {
+    method: "PUT",
+    body: {
+      nombre: "Proveedor Prueba",
+      razon_social: "Proveedor de Integración SA",
+      rfc: "TST010101AA1",
+      notas: "Entrega semanal",
+    },
+  });
+  assert.equal(r.status, 200);
+  r = await request("/productos", {
+    method: "POST",
+    body: {
+      codigo: "TEST-KG",
+      nombre: "Aguacate prueba",
+      precio_venta: 50,
+      costo: 30,
+      unidad: "KG",
+      stock_minimo: 2,
+      proveedor_id: proveedorId,
+    },
+  });
+  assert.equal(r.status, 201);
+  productoId = r.data.id;
+  r = await request("/inventario/movimiento", {
+    method: "POST",
+    body: {
+      producto_id: productoId,
+      tipo: "ENTRADA",
+      cantidad: 10,
+      motivo: "Carga de integración",
+    },
+  });
+  assert.equal(r.status, 201);
+  assert.equal(Number(r.data.stock), 10);
+  const compraKey = "compra-integracion-0001",
+    compra = {
+      proveedor_id: proveedorId,
+      folio: "COMP-TEST-1",
+      idempotency_key: compraKey,
+      productos: [{ producto_id: productoId, cantidad: 2, costo: 31 }],
+    };
+  r = await request("/compras", {
+    method: "POST",
+    headers: { "Idempotency-Key": compraKey },
+    body: compra,
+  });
+  assert.equal(r.status, 201);
+  const compraId = r.data.id;
+  const [[relacionProveedor]] = await db.promise.query(
+    "SELECT costo_ultimo,activo FROM producto_proveedores WHERE producto_id=? AND proveedor_id=?",
+    [productoId, proveedorId],
+  );
+  assert.equal(Number(relacionProveedor.costo_ultimo), 31);
+  assert.equal(Number(relacionProveedor.activo), 1);
+  r = await request(`/proveedores/${proveedorId}`);
+  assert.equal(r.status, 200);
+  assert.ok(r.data.productos.some((x) => x.id === productoId));
+  assert.ok(Number(r.data.proveedor.total_comprado) > 0);
+  r = await request("/compras", {
+    method: "POST",
+    headers: { "Idempotency-Key": compraKey },
+    body: compra,
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.id, compraId);
+  assert.equal(r.data.repetida, true);
+  r = await request("/compras", {
+    method: "POST",
+    headers: { "Idempotency-Key": "compra-producto-repetido" },
+    body: {
+      ...compra,
+      idempotency_key: "compra-producto-repetido",
+      folio: "COMP-TEST-DUP",
+      productos: [...compra.productos, ...compra.productos],
+    },
+  });
+  assert.equal(r.status, 400);
+  r = await request(`/proveedores/${proveedorId}/estado`, {
+    method: "PATCH",
+    body: { activo: false },
+  });
+  assert.equal(r.status, 200);
+  r = await request("/compras", {
+    method: "POST",
+    headers: { "Idempotency-Key": "compra-proveedor-inactivo" },
+    body: {
+      ...compra,
+      idempotency_key: "compra-proveedor-inactivo",
+      folio: "COMP-TEST-INACTIVO",
+    },
+  });
+  assert.equal(r.status, 409);
+  r = await request(`/proveedores/${proveedorId}/estado`, {
+    method: "PATCH",
+    body: { activo: true },
+  });
+  assert.equal(r.status, 200);
+  r = await request(`/compras/${compraId}/cancelar`, {
+    method: "POST",
+    body: { motivo: "Cancelación de integración" },
+  });
+  assert.equal(r.status, 200);
+  const compraPagoKey = "compra-pago-proveedor-0002";
+  r = await request("/compras", {
+    method: "POST",
+    headers: { "Idempotency-Key": compraPagoKey },
+    body: {
+      proveedor_id: proveedorId,
+      folio: "COMP-PAGO-2",
+      idempotency_key: compraPagoKey,
+      productos: [{ producto_id: productoId, cantidad: 1, costo: 20 }],
+    },
+  });
+  assert.equal(r.status, 201);
+  const compraPagoId = r.data.id;
+  const [[cuentaProveedor]] = await db.promise.query(
+    "SELECT id,saldo_pendiente FROM cuentas_por_pagar_proveedores WHERE compra_id=?",
+    [compraPagoId],
+  );
+  assert.equal(Number(cuentaProveedor.saldo_pendiente), 20);
+  r = await request("/cuentas-proveedores/pagos", {
+    method: "POST",
+    body: {
+      cuenta_id: cuentaProveedor.id,
+      monto: 5,
+      metodo_pago: "TRANSFERENCIA",
+      referencia: "PAGO-PROV-1",
+    },
+  });
+  assert.equal(r.status, 201);
+  assert.equal(Number(r.data.saldo_pendiente), 15);
+  r = await request("/cuentas-proveedores");
+  assert.equal(r.status, 200);
+  assert.equal(Number(r.data.deuda_total), 15);
+  r = await request(`/proveedores/${proveedorId}`);
+  assert.equal(r.status, 200);
+  assert.equal(r.data.pagos.length, 1);
+  assert.ok(
+    r.data.movimientos.some((m) => m.tipo === "PAGO" && Number(m.abono) === 5),
+  );
+  assert.equal(Number(r.data.proveedor.deuda_pendiente), 15);
+  const ventaKey = "venta-integracion-0001",
+    venta = {
+      cliente_id: clienteId,
+      tipo_pago: "CONTADO",
+      metodos_pago: [
+        { metodo_pago: "EFECTIVO", monto: 30 },
+        { metodo_pago: "TRANSFERENCIA", monto: 64, referencia: "TEST-REF" },
+      ],
+      idempotency_key: ventaKey,
+      productos: [
+        { producto_id: productoId, cantidad: 2, precio_unitario: 47 },
+      ],
+    };
+  r = await request("/ventas/crear", {
+    method: "POST",
+    headers: { "Idempotency-Key": ventaKey },
+    body: venta,
+  });
+  assert.equal(r.status, 201);
+  assert.equal(Number(r.data.total), 94);
+  const ventaContado = r.data.venta_id;
+  const [[detallePrecio]] = await db.promise.query(
+    "SELECT precio_unitario FROM detalle_venta WHERE venta_id=?",
+    [ventaContado],
+  );
+  assert.equal(Number(detallePrecio.precio_unitario), 47);
+  const [formasVenta] = await db.promise.query(
+    "SELECT metodo_pago,monto FROM venta_formas_pago WHERE venta_id=? ORDER BY id",
+    [ventaContado],
+  );
+  assert.equal(formasVenta.length, 2);
+  assert.equal(
+    formasVenta.reduce((s, x) => s + Number(x.monto), 0),
+    94,
+  );
+  r = await request("/ventas/crear", {
+    method: "POST",
+    headers: { "Idempotency-Key": ventaKey },
+    body: venta,
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.venta_id, ventaContado);
+  assert.equal(r.data.repetida, true);
+  r = await request(`/ventas/${ventaContado}/ticket-url`, { method: "POST" });
+  assert.equal(r.status, 200);
+  const ticket = await fetch(base + r.data.url);
+  assert.equal(ticket.status, 200);
+  assert.match(await ticket.text(), /ORIGINAL/);
+  const creditoKey = "venta-integracion-0002";
+  r = await request("/ventas/crear", {
+    method: "POST",
+    headers: { "Idempotency-Key": creditoKey },
+    body: {
+      ...venta,
+      idempotency_key: creditoKey,
+      tipo_pago: "CREDITO",
+      metodo_pago: null,
+      referencia_pago: null,
+      productos: [
+        { producto_id: productoId, cantidad: 1, precio_unitario: 48 },
+      ],
+    },
+  });
+  assert.equal(r.status, 201);
+  const ventaCredito = r.data.venta_id;
+  const [[creditoSinMetodo]] = await db.promise.query(
+    "SELECT metodo_pago,referencia_pago,total FROM ventas WHERE id=?",
+    [ventaCredito],
+  );
+  assert.equal(creditoSinMetodo.metodo_pago, null);
+  assert.equal(creditoSinMetodo.referencia_pago, null);
+  assert.equal(Number(creditoSinMetodo.total), 48);
+  const [[cuenta]] = await db.promise.query(
+    "SELECT id,saldo_pendiente FROM cuentas_por_cobrar WHERE venta_id=?",
+    [ventaCredito],
+  );
+  r = await request("/cuentas/pagos", {
+    method: "POST",
+    body: {
+      cliente_id: clienteId,
+      monto_recibido: 10,
+      cuenta_ids: [cuenta.id],
+      modo: "MANUAL",
+      aplicaciones: [{ cuenta_id: cuenta.id, monto: 10 }],
+      metodos_pago: [
+        { metodo_pago: "EFECTIVO", monto: 4 },
+        { metodo_pago: "CHEQUE", monto: 6, referencia: "CHK-MIXTO" },
+      ],
+    },
+  });
+  assert.equal(r.status, 201);
+  assert.equal(r.data.metodo_pago, "MIXTO");
+  const pagoId = r.data.pago_id;
+  r = await request("/cuentas/pagos", {
+    method: "POST",
+    body: {
+      cliente_id: clienteId,
+      monto_recibido: 9999,
+      cuenta_ids: [cuenta.id],
+      modo: "MANUAL",
+      aplicaciones: [{ cuenta_id: cuenta.id, monto: 9999 }],
+      metodo_pago: "EFECTIVO",
+    },
+  });
+  assert.equal(r.status, 409);
+  r = await request(`/cuentas/pagos/${pagoId}/cancelar`, {
+    method: "POST",
+    body: { motivo: "Reversión de prueba", password_admin: password },
+  });
+  assert.equal(r.status, 200);
+  r = await request(`/ventas/${ventaCredito}/cancelar`, {
+    method: "POST",
+    body: { motivo: "Cancelación de prueba", password_admin: password },
+  });
+  assert.equal(r.status, 200);
+  r = await request("/stats");
+  assert.equal(r.status, 200);
+  assert.ok("ingresos_mes" in r.data);
+  r = await request("/chatbot", {
+    method: "POST",
+    body: { pregunta: "cuánto vendí hoy" },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.soportada, true);
+  r = await request("/prediccion");
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.data.predicciones));
+  r = await request("/ordenes", {
+    method: "POST",
+    body: {
+      cliente_id: clienteId,
+      estado: "PENDIENTE",
+      observaciones: "Orden integración",
+      productos: [
+        { producto_id: productoId, cantidad: 1, precio_unitario: 45 },
+      ],
+    },
+  });
+  assert.equal(r.status, 201);
+  const ordenId = r.data.orden_id;
+  r = await request(`/ordenes/${ordenId}/convertir`, {
+    method: "POST",
+    body: {
+      tipo_pago: "CONTADO",
+      metodo_pago: "CHEQUE",
+      referencia_pago: "CHK-TEST",
+    },
+  });
+  assert.equal(r.status, 201);
+  const [[precioOrdenConvertida]] = await db.promise.query(
+    "SELECT precio_unitario FROM detalle_venta WHERE venta_id=?",
+    [r.data.venta_id],
+  );
+  assert.equal(Number(precioOrdenConvertida.precio_unitario), 45);
+  r = await request(`/ordenes/${ordenId}/convertir`, {
+    method: "POST",
+    body: {
+      tipo_pago: "CONTADO",
+      metodo_pago: "CHEQUE",
+      referencia_pago: "CHK-TEST",
+    },
+  });
+  assert.equal(r.status, 409);
+  r = await request("/configuracion", {
+    method: "PUT",
+    body: {
+      nombre_comercial: "POS Integración",
+      moneda: "MXN",
+      papel_mm: 80,
+      stock_minimo_default: 1,
+      vencimiento_dias: 30,
+    },
+  });
+  assert.equal(r.status, 200);
+  r = await request("/reportes/ventas.csv");
+  assert.equal(r.status, 200);
+  assert.match(r.data, /folio/);
+  const [[onlyAdmin]] = await db.promise.query(
+    "SELECT id FROM usuarios WHERE username='admin_test'",
+  );
+  r = await request(`/usuarios/${onlyAdmin.id}`, {
+    method: "PUT",
+    body: {
+      nombre: "Administrador Prueba",
+      username: "admin_test",
+      rol: "CAJERO",
+    },
+  });
+  assert.equal(r.status, 409);
+  const [[stock]] = await db.promise.query(
+    "SELECT stock FROM productos WHERE id=?",
+    [productoId],
+  );
+  assert.equal(Number(stock.stock), 8);
+  const [[duplicadas]] = await db.promise.query(
+    "SELECT COUNT(*) total FROM ventas WHERE idempotency_key=?",
+    [ventaKey],
+  );
+  assert.equal(Number(duplicadas.total), 1);
+  const backupId = "11111111-2222-4333-8444-555555555555";
+  const [[admin]] = await db.promise.query(
+    "SELECT id FROM usuarios WHERE username='admin_test'",
+  );
+  await db.promise.query(
+    "INSERT INTO historial_traslados(backup_id,equipo_origen,generado_por,estado) VALUES(?,?,?,'GENERADO')",
+    [backupId, require("os").hostname(), admin.id],
+  );
+  r = await request("/backups/mark-transferred", {
+    method: "POST",
+    body: { backupId, password_admin: password },
+  });
+  assert.equal(r.status, 200);
+  r = await request("/clientes", {
+    method: "POST",
+    body: { nombre_razon_social: "Debe bloquearse" },
+  });
+  assert.equal(r.status, 423);
+  r = await request("/clientes");
+  assert.equal(r.status, 200);
+  r = await request("/backups/reactivate", {
+    method: "POST",
+    body: { motivo: "Reactivación de integración", password_admin: password },
+  });
+  assert.equal(r.status, 200);
+  r = await request("/clientes", {
+    method: "POST",
+    body: { nombre_razon_social: "Escritura reactivada" },
+  });
+  assert.equal(r.status, 201);
 });

@@ -5,14 +5,14 @@ param(
 )
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$stage=Join-Path $root 'dist\POS-Aguacates-1.1.5'
+$stage=Join-Path $root 'dist\POS-Aguacates-1.2.0'
 $distRoot=Join-Path $root 'dist'
 if(-not $stage.StartsWith($distRoot+'\')){throw 'Ruta de distribución insegura'}
 if(Test-Path -LiteralPath $stage){
   Get-ChildItem -LiteralPath $stage -Recurse -Force -File -ErrorAction SilentlyContinue|Where-Object{$_.IsReadOnly}|ForEach-Object{$_.IsReadOnly=$false}
   Remove-Item -LiteralPath $stage -Recurse -Force
 }
-New-Item -ItemType Directory -Force -Path (Join-Path $stage 'app'),(Join-Path $stage 'runtime'),(Join-Path $stage 'service'),(Join-Path $stage 'prerequisites')|Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $stage 'app'),(Join-Path $stage 'runtime'),(Join-Path $stage 'service'),(Join-Path $stage 'prerequisites'),(Join-Path $stage 'documentacion')|Out-Null
 Copy-Item (Join-Path $root 'pos-frontend') (Join-Path $stage 'app\pos-frontend') -Recurse
 Copy-Item (Join-Path $root 'pos-backend') (Join-Path $stage 'app\pos-backend') -Recurse -Exclude '.env','node_modules','logs','data','temp'
 $backendStage=Join-Path $stage 'app\pos-backend'
@@ -27,10 +27,12 @@ Copy-Item $WinSWPath (Join-Path $stage 'service\POSAguacates.exe')
 Copy-Item $MariaDBInstallerPath (Join-Path $stage 'prerequisites\mariadb-12.3.2-winx64.msi')
 Copy-Item (Join-Path $PSScriptRoot 'POSAguacates.xml') (Join-Path $stage 'service\POSAguacates.xml')
 Copy-Item (Join-Path $PSScriptRoot 'instalar.ps1') (Join-Path $stage 'instalar.ps1')
+Copy-Item (Join-Path $root 'INFORMACION_PROYECTO_PARA_ESTUDIAR.txt') (Join-Path $stage 'documentacion\INFORMACION_PROYECTO_PARA_ESTUDIAR.txt')
+Copy-Item (Join-Path $root 'docs\INTELIGENCIA_ARTIFICIAL.md') (Join-Path $stage 'documentacion\INTELIGENCIA_ARTIFICIAL.md')
 Get-ChildItem $stage -Recurse -File|Get-FileHash -Algorithm SHA256|ForEach-Object{"$($_.Hash)  $($_.Path.Substring($stage.Length+1))"}|Set-Content (Join-Path $stage 'SHA256SUMS.txt')
 $prohibidos=Get-ChildItem $stage -Recurse -Force -File|Where-Object{$_.FullName -notmatch '\\node_modules\\' -and ($_.Name -eq '.env' -or $_.FullName -match '\\(backups|logs|data|temp|test|integration-tests)\\' -or $_.Extension -in @('.bak','.backup','.dump','.log','.zip','.credentials','.cnf'))}
 if($prohibidos){throw "El paquete contiene artefactos prohibidos: $($prohibidos.FullName -join ', ')"}
-$requeridos=@('runtime\node.exe','service\POSAguacates.exe','prerequisites\mariadb-12.3.2-winx64.msi','app\pos-backend\index.js','app\pos-backend\db\conexion.js','app\pos-backend\scripts\configurarEmpresa.js','app\pos-backend\scripts\migrate.js','app\pos-backend\sql\posaguacates.sql','app\pos-backend\node_modules\express\package.json','app\pos-frontend\index.html')
+$requeridos=@('runtime\node.exe','service\POSAguacates.exe','prerequisites\mariadb-12.3.2-winx64.msi','app\pos-backend\index.js','app\pos-backend\db\conexion.js','app\pos-backend\scripts\configurarEmpresa.js','app\pos-backend\scripts\migrate.js','app\pos-backend\sql\posaguacates.sql','app\pos-backend\node_modules\express\package.json','app\pos-frontend\index.html','documentacion\INFORMACION_PROYECTO_PARA_ESTUDIAR.txt')
 foreach($relativo in $requeridos){if(-not(Test-Path -LiteralPath (Join-Path $stage $relativo))){throw "Paquete incompleto: falta $relativo"}}
 $tamano=(Get-ChildItem $stage -Recurse -File|Measure-Object Length -Sum).Sum
 if($tamano -lt 50MB){throw "Paquete incompleto: tamaño inesperado $tamano bytes"}
