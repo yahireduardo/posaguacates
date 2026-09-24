@@ -224,8 +224,10 @@ router.post('/:id/convertir', async (req, res) => {
       await connection.query(
         `INSERT INTO movimientos_cartera
          (cliente_id,venta_id,cuenta_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
-         VALUES (?,?,?,NOW(),'VENTA_CREDITO',?,?,0,?,'Venta a crédito',?)`,
-        [orden.cliente_id, venta.insertId, cuenta.insertId, venta.insertId, calculo.total, calculo.total, req.usuario.id]
+         VALUES (?,?,?,NOW(),'VENTA_CREDITO',?,?,0,
+           (SELECT COALESCE(SUM(saldo_pendiente),0) FROM cuentas_por_cobrar WHERE cliente_id=? AND estado='PENDIENTE'),
+           'Venta a crédito',?)`,
+        [orden.cliente_id, venta.insertId, cuenta.insertId, venta.insertId, calculo.total, orden.cliente_id, req.usuario.id]
       );
     }
     if (tipoPago === 'CONTADO') {

@@ -1,6 +1,6 @@
-function crearBloqueoEscrituras(instanceControl) {
+function crearBloqueoEscrituras(instanceControl, { incluirLecturas = false } = {}) {
   return async (req, res, next) => {
-    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    if (!incluirLecturas && ['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
     try {
       const estado = await instanceControl.obtenerEstado();
       if (estado.restauracion_en_progreso) {

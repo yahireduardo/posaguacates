@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
 const { esCantidadValida, mensajeCantidad } = require('../lib/cantidades');
+const { obtenerClave, validarClave, huella } = require('../lib/idempotencia');
 const router = express.Router();
 
 router.use(permitirRoles('ADMON_GRAL'));
@@ -31,12 +32,32 @@ router.post('/movimiento', async (req, res) => {
       !Number.isFinite(cantidad) || cantidad <= 0 || !motivo) {
     return res.status(400).json({ error: 'Movimiento inválido' });
   }
+  let clave;
+  try { clave = validarClave(obtenerClave(req)); }
+  catch (error) { return res.status(error.status).json({ error: error.message }); }
+  const referenciaTipo = String(req.body.referencia_tipo || 'MANUAL').trim();
+  const referenciaId = req.body.referencia_id || null;
+  const fingerprint = huella({ producto_id: productoId, tipo, cantidad, motivo,
+    referencia_tipo: referenciaTipo, referencia_id: referenciaId });
 
   const connection = await db.promise.getConnection();
   try {
     await connection.beginTransaction();
+    // Siempre bloquear primero el producto: un orden único evita deadlocks entre
+    // dos claves nuevas que afectan simultáneamente el mismo stock.
     const [productos] = await connection.query('SELECT stock, unidad FROM productos WHERE id = ? AND activo = 1 FOR UPDATE', [productoId]);
     if (!productos.length) throw Object.assign(new Error('Producto no encontrado'), { status: 404 });
+    const [existentes] = await connection.query(
+      'SELECT id,stock_final,idempotency_fingerprint FROM movimientos_inventario WHERE idempotency_key=? FOR UPDATE', [clave]
+    );
+    if (existentes.length) {
+      if (existentes[0].idempotency_fingerprint !== fingerprint) {
+        throw Object.assign(new Error('La clave de idempotencia ya fue usada con otro movimiento'), { status: 409 });
+      }
+      await connection.commit();
+      return res.json({ mensaje: 'Movimiento ya registrado', movimiento_id: existentes[0].id,
+        stock: Number(existentes[0].stock_final), repetido: true });
+    }
     if (!esCantidadValida(cantidad, productos[0].unidad)) {
       throw Object.assign(new Error(mensajeCantidad(productos[0].unidad)), { status: 400 });
     }
@@ -46,14 +67,24 @@ router.post('/movimiento', async (req, res) => {
     await connection.query('UPDATE productos SET stock = ? WHERE id = ?', [nuevoStock, productoId]);
     await connection.query(
       `INSERT INTO movimientos_inventario
-       (producto_id,tipo,cantidad,stock_anterior,stock_final,motivo,referencia_tipo,referencia_id,usuario_id)
-       VALUES (?,?,?,?,?,?,?, ?,?)`, [productoId,tipo,tipo === 'AJUSTE' ? Math.abs(nuevoStock-stockAnterior) : cantidad,
-        stockAnterior,nuevoStock,motivo,String(req.body.referencia_tipo||'MANUAL').trim(),req.body.referencia_id||null,req.usuario.id]
+       (producto_id,tipo,cantidad,stock_anterior,stock_final,motivo,referencia_tipo,referencia_id,usuario_id,idempotency_key,idempotency_fingerprint)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [productoId,tipo,tipo === 'AJUSTE' ? Math.abs(nuevoStock-stockAnterior) : cantidad,
+        stockAnterior,nuevoStock,motivo,referenciaTipo,referenciaId,req.usuario.id,clave,fingerprint]
     );
     await connection.commit();
     res.status(201).json({ mensaje: 'Movimiento registrado', stock: nuevoStock });
   } catch (error) {
     await connection.rollback();
+    if (error.code === 'ER_DUP_ENTRY') {
+      const [rows] = await db.promise.query(
+        'SELECT id,stock_final,idempotency_fingerprint FROM movimientos_inventario WHERE idempotency_key=?', [clave]
+      );
+      if (rows[0]?.idempotency_fingerprint === fingerprint) {
+        return res.json({ mensaje: 'Movimiento ya registrado', movimiento_id: rows[0].id,
+          stock: Number(rows[0].stock_final), repetido: true });
+      }
+      if (rows.length) return res.status(409).json({ error: 'La clave de idempotencia ya fue usada con otro movimiento' });
+    }
     res.status(error.status || 500).json({ error: error.status ? error.message : 'No fue posible registrar el movimiento' });
   } finally { connection.release(); }
 });

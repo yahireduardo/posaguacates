@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const db = require('../db/conexion');
 const { jwtSecret } = require('../middleware/auth');
+const { normalizarTicket } = require('../lib/ticketConfig');
 
 const router = express.Router();
 const dinero = new Intl.NumberFormat('es-MX', {
@@ -58,6 +59,7 @@ router.get('/:ventaId', async (req, res) => {
     const cambio = formasPago.some(forma => forma.metodo_pago === 'EFECTIVO')
       ? Math.max(0, Number((totalRecibido - Number(venta.total)).toFixed(2))) : 0;
     const [[configuracion]] = await connection.query('SELECT * FROM configuracion_negocio WHERE id=1');
+    const ticket = normalizarTicket(configuracion);
     const numeroImpresion = Number(venta.impresiones) + 1;
     const leyenda = numeroImpresion === 1 ? 'ORIGINAL' : 'COPIA';
     await connection.query(
@@ -69,14 +71,14 @@ router.get('/:ventaId', async (req, res) => {
     return res.type('html').send(`<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Ticket ${esc(venta.id)}</title><style>
-@page{margin:5mm}body{width:72mm;margin:0 auto;padding:4mm;font-family:monospace;color:#000}
-.logo-ticket{display:block;width:90px;max-width:70%;height:auto;margin:0 auto 8px}
-header{text-align:center}h1{font-size:20px;margin:2px 0}h2{font-size:14px;margin:2px 0}
+@page{size:${ticket.papel}mm auto;margin:${ticket.margen}mm}*{box-sizing:border-box}html,body{margin:0;padding:0}body{width:${ticket.contenido}mm;max-width:100%;margin:0 auto;font-family:monospace;color:#000;font-size:${ticket.escala}%}
+.logo-ticket{display:block;width:${ticket.logoAncho}%;max-width:100%;height:auto;margin:0 auto 8px;${ticket.logoAltoContraste?'filter:grayscale(1) contrast(2);':''}}
+header{text-align:center}h1{font-size:1.45em;margin:2px 0}h2{font-size:1.05em;margin:2px 0}
 table{width:100%;border-collapse:collapse}th,td{padding:2px;text-align:left;vertical-align:top}
-th:last-child,td:last-child{text-align:right}.total{text-align:right;font-size:18px}.meta{font-size:11px}
-@media print{body{padding:0}}
+th:last-child,td:last-child{text-align:right}.total{text-align:right;font-size:1.3em}.meta{font-size:.86em}
+@media print{html,body{width:${ticket.contenido}mm}}
 </style></head><body>
-<img src="${esc(configuracion?.logo?.startsWith('/')?configuracion.logo:'/assets/logo-ticket.png')}" class="logo-ticket" alt="Logo">
+${ticket.mostrarLogo?`<img src="${esc(configuracion?.logo?.startsWith('/')?configuracion.logo:'/assets/logo-ticket.png')}" class="logo-ticket" alt="Logo">`:''}
 <header><h1>${esc(configuracion?.nombre_comercial||'AGUACATES HASS')}</h1><h2>${esc(configuracion?.razon_social||'')}</h2><h2>${leyenda}</h2></header>
 <p class="meta">Folio: ${esc(venta.id)}<br>Cliente: ${esc(venta.cliente || 'Público general')}
 <br>Cajero: ${esc(venta.cajero || 'Sin cajero')}<br>Fecha: ${esc(new Date(venta.fecha).toLocaleString('es-MX'))}

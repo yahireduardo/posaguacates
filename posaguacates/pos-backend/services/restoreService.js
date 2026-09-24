@@ -6,7 +6,7 @@ const { extraerZipSeguro } = require('../utils/safeZip');
 const { hashFile } = require('../utils/hashFile');
 const { ejecutarProceso } = require('../utils/processRunner');
 const { crearCredencialesTemporales, eliminarCredencialesTemporales } = require('../utils/tempCredentials');
-const { configDb } = require('./backupService');
+const { configDb, claveFirma, verificarFirmaManifest } = require('./backupService');
 
 const ESTADOS = {
   NEWER: 'RESPALDO MÁS RECIENTE',
@@ -97,11 +97,14 @@ class RestoreService {
         const extraido = await this.unzip(upload.path, workingDir, this.maxBytes());
         sqlPath = extraido.sqlPath;
         manifest = JSON.parse(await fs.readFile(extraido.manifestPath, 'utf8'));
-        if (manifest.format !== 'POS_AGUACATES_BACKUP' || manifest.version !== 1 ||
+        if (manifest.format !== 'POS_AGUACATES_BACKUP' || ![1, 2].includes(manifest.version) ||
             manifest.database !== String(this.env.DB_NAME || 'posaguacates') || manifest.sqlFile !== 'backup.sql') {
           throw Object.assign(new Error('El manifiesto no corresponde a un respaldo compatible'), { status: 400 });
         }
       } else {
+        if (String(this.env.ALLOW_UNSIGNED_BACKUPS || '').toLowerCase() !== 'true') {
+          throw Object.assign(new Error('Los respaldos SQL sin firma están deshabilitados; seleccione un ZIP firmado por el POS'), { status: 400 });
+        }
         const destino = path.join(workingDir, 'backup.sql');
         await fs.copyFile(upload.path, destino);
         sqlPath = destino;
@@ -110,6 +113,13 @@ class RestoreService {
       const sha256 = await this.hash(sqlPath);
       if (manifest && (Number(manifest.sqlSize) !== sqlStat.size || manifest.sha256 !== sha256)) {
         throw Object.assign(new Error('El respaldo está dañado: tamaño o hash incorrecto'), { status: 400 });
+      }
+      if (manifest) {
+        let firmaValida = false;
+        try { firmaValida = verificarFirmaManifest(manifest, claveFirma(this.env)); } catch (_) {}
+        if (!firmaValida && String(this.env.ALLOW_UNSIGNED_BACKUPS || '').toLowerCase() !== 'true') {
+          throw Object.assign(new Error('La firma del respaldo no es válida para esta instalación'), { status: 400 });
+        }
       }
       const handle = await fs.open(sqlPath, 'r');
       const buffer = Buffer.alloc(4096);

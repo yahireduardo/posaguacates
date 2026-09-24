@@ -7,7 +7,7 @@ const router = express.Router();
 router.use(permitirRoles('ADMON_GRAL'));
 
 const usernameValido = value => /^[a-zA-Z0-9._-]{3,50}$/.test(value);
-const passwordValido = value => typeof value === 'string' && value.length >= 8 && value.length <= 128;
+const passwordValido = value => typeof value === 'string' && value.length >= 1 && value.length <= 128;
 const fallo = (mensaje, status) => Object.assign(new Error(mensaje), { status });
 
 async function auditar(connection, usuarioId, accion, entidadId, motivo, datos = null) {
@@ -34,7 +34,7 @@ router.post('/', async (req, res, next) => {
   const password = String(req.body.password || '');
   const rol = String(req.body.rol || 'CAJERO');
   if (!nombre || !usernameValido(username) || !passwordValido(password) || !['ADMON_GRAL', 'CAJERO'].includes(rol)) {
-    return res.status(400).json({ error: 'Nombre, username, contraseña (mínimo 8 caracteres) y rol válidos son obligatorios' });
+    return res.status(400).json({ error: 'Nombre, username, contraseña y rol válidos son obligatorios' });
   }
   try {
     const hash = await bcrypt.hash(password, 12);
@@ -112,7 +112,7 @@ router.patch('/:id/estado', async (req, res, next) => {
 router.put('/:id/password', async (req, res, next) => {
   const id = Number(req.params.id);
   const password = String(req.body.password || '');
-  if (!Number.isInteger(id) || id <= 0 || !passwordValido(password)) return res.status(400).json({ error: 'La contraseña debe tener entre 8 y 128 caracteres' });
+  if (!Number.isInteger(id) || id <= 0 || !passwordValido(password)) return res.status(400).json({ error: 'La contraseña no puede estar vacía' });
   try {
     const hash = await bcrypt.hash(password, 12);
     const [result] = await db.promise.query('UPDATE usuarios SET password_hash=?,password=NULL WHERE id=?', [hash, id]);

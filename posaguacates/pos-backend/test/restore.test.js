@@ -129,3 +129,13 @@ test('rechaza SQL que excede el máximo y archivos incorrectos', async () => {
   await assert.rejects(service.analizar({ path: file, originalname: 'large.sql' }, 1), /excede/);
   await fs.rm(base, { recursive: true, force: true });
 });
+
+test('rechaza por defecto un SQL suelto aunque tenga cabecera conocida', async () => {
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), 'pos-unsigned-'));
+  const file = path.join(base, 'backup.sql');
+  await fs.writeFile(file, '-- POS_AGUACATES_BACKUP\nSELECT 1;');
+  const service = new RestoreService({ env: { BACKUP_MAX_SIZE_MB: '1' }, db: {}, backupService: {}, instanceControl: {},
+    audit: { async registrar() {} } });
+  await assert.rejects(service.analizar({ path: file, originalname: 'backup.sql' }, 1), /sin firma/);
+  await fs.rm(base, { recursive: true, force: true });
+});

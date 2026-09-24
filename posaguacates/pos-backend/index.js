@@ -95,10 +95,8 @@ function crearLimitadorLogin({ maxIntentos = 10, ventanaMs = 15 * 60 * 1000, now
   };
 }
 
-app.use('/auth/login', crearLimitadorLogin());
-
 app.use('/auth', require('./routes/auth'));
-app.use('/tickets', require('./routes/tickets'));
+app.use('/tickets', crearBloqueoEscrituras(instanceControl, { incluirLecturas: true }), require('./routes/tickets'));
 app.use('/backups', autenticar, validarSesion, require('./routes/backups'));
 app.use(crearBloqueoEscrituras(instanceControl));
 const sesion = [autenticar, validarSesion];

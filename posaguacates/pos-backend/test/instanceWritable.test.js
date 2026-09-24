@@ -39,6 +39,15 @@ test('una escritura activa se contabiliza hasta terminar la respuesta', async ()
   assert.equal(activas, 0);
 });
 
+test('puede proteger una lectura que internamente modifica datos, como el ticket', async () => {
+  const instance = { obtenerEstado: async () => ({ estado: 'ACTIVA', bloqueada: 0, restauracion_en_progreso: true }),
+    iniciarEscritura: () => true, finalizarEscritura() {} };
+  const middleware = crearBloqueoEscrituras(instance, { incluirLecturas: true });
+  const req = { method: 'GET' }, res = response();
+  await middleware(req, res, () => assert.fail('no debe imprimir durante restauración'));
+  assert.equal(res.statusCode, 503);
+});
+
 test('solo ADMON_GRAL puede entrar al módulo de respaldos', () => {
   const res = response();
   permitirRoles('ADMON_GRAL')({ usuario: { rol: 'CAJERO' } }, res, () => assert.fail());

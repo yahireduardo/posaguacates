@@ -1,7 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
-require('dotenv').config();
+require('dotenv').config({ path: process.env.SOURCE_ENV_PATH || undefined, override: process.env.POS_ENV_OVERRIDE === '1', quiet: true });
 const db = require('../db/conexion');
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'sql', 'migrations');
@@ -36,6 +36,9 @@ async function preflight(connection) {
 async function migrate() {
   const connection = await db.promise.getConnection();
   try {
+    if (process.env.EXPECTED_UPDATE_DATABASE && process.env.DB_NAME !== process.env.EXPECTED_UPDATE_DATABASE) {
+      throw new Error('Migración abortada: DB_NAME no coincide con la base esperada');
+    }
     await preflight(connection);
     await connection.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
       version VARCHAR(100) NOT NULL PRIMARY KEY, description VARCHAR(255) NOT NULL,

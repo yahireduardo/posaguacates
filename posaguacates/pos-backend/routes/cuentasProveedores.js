@@ -2,6 +2,8 @@ const express = require('express');
 const db = require('../db/conexion');
 const { permitirRoles } = require('../middleware/auth');
 const { prepararCancelacionPagoProveedor } = require('../lib/cancelacionPagoProveedor');
+const { obtenerClave, validarClave, huella } = require('../lib/idempotencia');
+const { esImporteCentavos } = require('../lib/metodosPago');
 
 const router = express.Router();
 router.use(permitirRoles('ADMON_GRAL'));
@@ -38,16 +40,30 @@ router.post('/pagos', async (req, res, next) => {
   const metodo = String(req.body.metodo_pago || '').toUpperCase();
   const referencia = String(req.body.referencia || '').trim() || null;
   const observaciones = String(req.body.observaciones || '').trim() || null;
-  if (!Number.isInteger(cuentaId) || cuentaId <= 0 || !Number.isFinite(monto) || monto <= 0 ||
+  if (!Number.isInteger(cuentaId) || cuentaId <= 0 || !Number.isFinite(monto) || monto <= 0 || !esImporteCentavos(req.body.monto) ||
       !['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE'].includes(metodo)) {
     return res.status(400).json({ error: 'Cuenta, monto y método de pago válidos son obligatorios' });
   }
   if (metodo !== 'EFECTIVO' && !referencia) {
     return res.status(400).json({ error: 'La referencia es obligatoria para transferencia o cheque' });
   }
+  let idempotencyKey;
+  try { idempotencyKey = validarClave(obtenerClave(req)); }
+  catch (error) { return res.status(error.status).json({ error: error.message }); }
+  const fingerprint = huella({ cuentaId, monto, metodo, referencia, observaciones });
   const connection = await db.promise.getConnection();
   try {
     await connection.beginTransaction();
+    const [[existente]] = await connection.query(
+      'SELECT id,cuenta_id,proveedor_id,monto,idempotency_fingerprint FROM pagos_proveedores WHERE idempotency_key=? FOR UPDATE',
+      [idempotencyKey]
+    );
+    if (existente) {
+      if (existente.idempotency_fingerprint !== fingerprint) throw fallo('La clave de idempotencia ya fue utilizada con datos diferentes', 409);
+      await connection.commit();
+      return res.status(200).json({ pago_id: existente.id, cuenta_id: existente.cuenta_id,
+        proveedor_id: existente.proveedor_id, monto: Number(existente.monto), repetido: true });
+    }
     const [[cuenta]] = await connection.query(
       `SELECT id,proveedor_id,saldo_pendiente,estado FROM cuentas_por_pagar_proveedores
        WHERE id=? FOR UPDATE`, [cuentaId]
@@ -58,9 +74,10 @@ router.post('/pagos', async (req, res, next) => {
     const saldo = Number((Number(cuenta.saldo_pendiente) - monto).toFixed(2));
     const [pago] = await connection.query(
       `INSERT INTO pagos_proveedores
-       (cuenta_id,proveedor_id,monto,metodo_pago,referencia,observaciones,usuario_id)
-       VALUES (?,?,?,?,?,?,?)`,
-      [cuenta.id, cuenta.proveedor_id, monto, metodo, referencia, observaciones, req.usuario.id]
+       (cuenta_id,proveedor_id,monto,metodo_pago,referencia,observaciones,usuario_id,idempotency_key,idempotency_fingerprint)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      [cuenta.id, cuenta.proveedor_id, monto, metodo, referencia, observaciones, req.usuario.id,
+        idempotencyKey, fingerprint]
     );
     await connection.query(
       `UPDATE cuentas_por_pagar_proveedores SET saldo_pendiente=?,estado=? WHERE id=?`,
@@ -73,7 +90,31 @@ router.post('/pagos', async (req, res, next) => {
     );
     await connection.commit();
     res.status(201).json({ pago_id: pago.insertId, saldo_pendiente: saldo, estado: saldo === 0 ? 'PAGADA' : 'PENDIENTE' });
-  } catch (error) { await connection.rollback(); next(error); }
+  } catch (error) {
+    await connection.rollback();
+    if (['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT', 'ER_CHECKREAD'].includes(error.code)) {
+      for (let intento = 0; intento < 5; intento += 1) {
+        if (intento) await new Promise(resolve => setTimeout(resolve, 25));
+        const [[existente]] = await db.promise.query(
+          'SELECT id,cuenta_id,proveedor_id,monto,idempotency_fingerprint FROM pagos_proveedores WHERE idempotency_key=?',
+          [idempotencyKey]
+        );
+        if (existente?.idempotency_fingerprint === fingerprint) return res.status(200).json({ pago_id: existente.id,
+          cuenta_id: existente.cuenta_id, proveedor_id: existente.proveedor_id, monto: Number(existente.monto), repetido: true });
+      }
+      return res.status(409).json({ error: 'La cuenta cambió mientras se aplicaba el pago. Actualiza el saldo e intenta nuevamente' });
+    }
+    if (error.code === 'ER_DUP_ENTRY') {
+      const [[existente]] = await db.promise.query(
+        'SELECT id,cuenta_id,proveedor_id,monto,idempotency_fingerprint FROM pagos_proveedores WHERE idempotency_key=?',
+        [idempotencyKey]
+      );
+      if (existente?.idempotency_fingerprint === fingerprint) return res.status(200).json({ pago_id: existente.id,
+        cuenta_id: existente.cuenta_id, proveedor_id: existente.proveedor_id, monto: Number(existente.monto), repetido: true });
+      return res.status(409).json({ error: 'La clave de idempotencia ya fue utilizada con datos diferentes' });
+    }
+    next(error);
+  }
   finally { connection.release(); }
 });
 

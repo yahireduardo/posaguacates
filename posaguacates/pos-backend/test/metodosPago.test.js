@@ -32,3 +32,10 @@ test('no permite cambio sin efectivo', () => {
     { metodo_pago: 'TRANSFERENCIA', monto: 110, referencia: 'ABC' }
   ] }, 100, { permitirCambio: true }), /Solo el efectivo/);
 });
+
+test('acepta centavos exactos y rechaza fracciones menores a un centavo', () => {
+  for (const monto of [0.01, 0.1, 0.10, 10.99, 99.99, 1000.50]) {
+    assert.equal(normalizarMetodosPago({ metodos_pago: [{ metodo_pago: 'EFECTIVO', monto }] }, monto).importe_recibido, monto);
+  }
+  assert.throws(() => normalizarMetodosPago({ metodos_pago: [{ metodo_pago: 'EFECTIVO', monto: 1.005 }] }, 1.005), /dos decimales/);
+});

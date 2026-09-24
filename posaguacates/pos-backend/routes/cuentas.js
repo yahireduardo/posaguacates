@@ -7,7 +7,8 @@ const {
 } = require('../lib/autorizacionAdmin');
 const { construirAplicaciones } = require('../lib/cartera');
 const { prepararReversionPago } = require('../lib/pagos');
-const { normalizarMetodosPago, insertarMetodosPago } = require('../lib/metodosPago');
+const { normalizarMetodosPago, insertarMetodosPago, esImporteCentavos } = require('../lib/metodosPago');
+const { obtenerClave, validarClave, huella } = require('../lib/idempotencia');
 const router = express.Router();
 
 const idValido = value => Number.isInteger(Number(value)) && Number(value) > 0;
@@ -105,16 +106,32 @@ router.get('/cliente/:id', async (req, res) => {
 router.post('/pagos', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) => {
   const clienteId = Number(req.body.cliente_id);
   const monto = Number(req.body.monto_recibido);
-  if (!idValido(clienteId) || !Number.isFinite(monto) || monto <= 0) return res.status(400).json({ error: 'Cliente y monto válidos son obligatorios' });
+  if (!idValido(clienteId) || !Number.isFinite(monto) || monto <= 0 || !esImporteCentavos(req.body.monto_recibido)) return res.status(400).json({ error: 'Cliente y monto positivo con máximo dos decimales son obligatorios' });
   let desglose;
   try { desglose = normalizarMetodosPago(req.body, monto); }
   catch (error) { return res.status(error.status || 400).json({ error: error.message }); }
   const metodo = desglose.metodo_resumen, referencia = desglose.referencia_resumen;
   const ids = [...new Set((req.body.cuenta_ids || []).map(Number).filter(idValido))].sort((a, b) => a - b);
   if (!ids.length) return res.status(400).json({ error: 'Selecciona al menos una nota' });
+  let idempotencyKey;
+  try { idempotencyKey = validarClave(obtenerClave(req)); }
+  catch (error) { return res.status(error.status).json({ error: error.message }); }
+  const fingerprint = huella({ clienteId, monto, ids, aplicaciones: req.body.aplicaciones || null, desglose: desglose.metodos,
+    observaciones: String(req.body.observaciones || '').trim() || null });
   const connection = await db.promise.getConnection();
   try {
     await connection.beginTransaction();
+    const [[existente]] = await connection.query(
+      'SELECT id,cliente_id,monto_total,metodo_pago,referencia,idempotency_fingerprint FROM pagos WHERE idempotency_key=? FOR UPDATE',
+      [idempotencyKey]
+    );
+    if (existente) {
+      if (existente.idempotency_fingerprint !== fingerprint) throw fallo('La clave de idempotencia ya fue utilizada con datos diferentes', 409);
+      await connection.commit();
+      return res.status(200).json({ pago_id: existente.id, cliente_id: existente.cliente_id,
+        monto_total: Number(existente.monto_total), metodo_pago: existente.metodo_pago,
+        referencia: existente.referencia, repetido: true });
+    }
     const [cuentas] = await connection.query(
       `SELECT id,cliente_id,venta_id,total_deuda,saldo_pendiente,estado,fecha
        FROM cuentas_por_cobrar WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY fecha,id FOR UPDATE`, ids
@@ -130,9 +147,10 @@ router.post('/pagos', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) =>
     }
     const aplicaciones = construirAplicaciones(cuentas, req.body, monto);
     const [pago] = await connection.query(
-      `INSERT INTO pagos (cuenta_id,monto,metodo_pago,fecha,cliente_id,monto_total,referencia,observaciones,usuario_id)
-       VALUES (NULL,NULL,?,NOW(),?,?,?,?,?)`,
-      [metodo, clienteId, monto, referencia, String(req.body.observaciones || '').trim() || null, req.usuario.id]
+      `INSERT INTO pagos (cuenta_id,monto,metodo_pago,fecha,cliente_id,monto_total,referencia,observaciones,usuario_id,idempotency_key,idempotency_fingerprint)
+       VALUES (NULL,NULL,?,NOW(),?,?,?,?,?,?,?)`,
+      [metodo, clienteId, monto, referencia, String(req.body.observaciones || '').trim() || null, req.usuario.id,
+        idempotencyKey, fingerprint]
     );
     await insertarMetodosPago(connection, 'pago_formas_pago', 'pago_id', pago.insertId, desglose.metodos);
     const recibo = [];
@@ -163,6 +181,29 @@ router.post('/pagos', permitirRoles('ADMON_GRAL', 'CAJERO'), async (req, res) =>
     res.status(201).json({ pago_id: pago.insertId, cliente_id: clienteId, monto_total: monto, metodo_pago: metodo, metodos_pago: desglose.metodos, referencia, aplicaciones: recibo });
   } catch (e) {
     await connection.rollback();
+    if (['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT', 'ER_CHECKREAD'].includes(e.code)) {
+      for (let intento = 0; intento < 5; intento += 1) {
+        if (intento) await new Promise(resolve => setTimeout(resolve, 25));
+        const [[existente]] = await db.promise.query(
+          'SELECT id,cliente_id,monto_total,metodo_pago,referencia,idempotency_fingerprint FROM pagos WHERE idempotency_key=?',
+          [idempotencyKey]
+        );
+        if (existente?.idempotency_fingerprint === fingerprint) return res.status(200).json({ pago_id: existente.id,
+          cliente_id: existente.cliente_id, monto_total: Number(existente.monto_total), metodo_pago: existente.metodo_pago,
+          referencia: existente.referencia, repetido: true });
+      }
+      return res.status(409).json({ error: 'La cuenta cambió mientras se aplicaba el pago. Actualiza el saldo e intenta nuevamente' });
+    }
+    if (e.code === 'ER_DUP_ENTRY') {
+      const [[existente]] = await db.promise.query(
+        'SELECT id,cliente_id,monto_total,metodo_pago,referencia,idempotency_fingerprint FROM pagos WHERE idempotency_key=?',
+        [idempotencyKey]
+      );
+      if (existente?.idempotency_fingerprint === fingerprint) return res.status(200).json({ pago_id: existente.id,
+        cliente_id: existente.cliente_id, monto_total: Number(existente.monto_total), metodo_pago: existente.metodo_pago,
+        referencia: existente.referencia, repetido: true });
+      return res.status(409).json({ error: 'La clave de idempotencia ya fue utilizada con datos diferentes' });
+    }
     res.status(e.status || 500).json({ error: e.status ? e.message : 'No fue posible aplicar el pago' });
   } finally { connection.release(); }
 });
@@ -212,6 +253,12 @@ router.post('/pagos/:id/cancelar', permitirRoles('ADMON_GRAL', 'CAJERO'), async 
     );
     for (const aplicacion of reversiones) {
       const saldoNuevo = aplicacion.saldo_nuevo;
+      await connection.query(
+        `UPDATE aplicaciones_pago
+         SET estado='CANCELADA',cancelada_por=?,cancelada_at=NOW(),motivo_cancelacion=?
+         WHERE id=?`,
+        [autorizacion.autorizadoPor, motivo, aplicacion.id]
+      );
       await connection.query(
         "UPDATE cuentas_por_cobrar SET saldo_pendiente=?,estado='PENDIENTE' WHERE id=?",
         [saldoNuevo, aplicacion.cuenta_id]

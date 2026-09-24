@@ -9,7 +9,7 @@ El paquete no contiene `.env`, contraseñas, respaldos, logs, `instance-id` ni u
 3. Desde la raíz ejecute `npm.cmd --prefix pos-backend run package:windows`.
 4. Para compilar el instalador ejecute `powershell -ExecutionPolicy Bypass -File packaging/build-release.ps1 -CompileInstaller`.
 
-El resultado es `dist/POS-HASS-Offline-Setup-1.1.0.exe`. La compilación incorpora MariaDB, un runtime privado de Node, dependencias, servicio y frontend; el usuario final no necesita Internet, Node.js, npm, VS Code ni XAMPP.
+El resultado es `dist/POS-HASS-Offline-Setup-1.1.6.exe`. La compilación incorpora MariaDB, un runtime privado de Node, dependencias, servicio y frontend; el usuario final no necesita Internet, Node.js, npm, VS Code ni XAMPP.
 
 El instalador no está firmado digitalmente. Windows puede mostrar una advertencia de editor desconocido; para distribución comercial se recomienda adquirir un certificado de firma de código y firmar el EXE antes de entregarlo.
 

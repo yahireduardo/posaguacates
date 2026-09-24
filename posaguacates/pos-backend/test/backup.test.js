@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs/promises');
 const os = require('os');
 const path = require('path');
-const { BackupService } = require('../services/backupService');
+const { BackupService, firmarManifest, verificarFirmaManifest } = require('../services/backupService');
 const { extraerZipSeguro, validarNombre } = require('../utils/safeZip');
 const { hashFile } = require('../utils/hashFile');
 const { crearCredencialesTemporales, eliminarCredencialesTemporales, obtenerSidWindows } = require('../utils/tempCredentials');
@@ -35,7 +35,8 @@ function dependenciasBackup(base, overrides = {}) {
       db, instanceControl, audit,
       env: {
         DB_HOST: '127.0.0.1', DB_PORT: '3306', DB_USER: 'pos_app',
-        DB_PASSWORD: 'secreto-de-prueba', DB_NAME: 'posaguacates', MARIADB_BIN_DIR: bin
+        DB_PASSWORD: 'secreto-de-prueba', DB_NAME: 'posaguacates', MARIADB_BIN_DIR: bin,
+        BACKUP_SIGNING_KEY: 'clave-de-firma-de-prueba-con-32-caracteres-minimo'
       },
       now: () => new Date('2026-07-30T18:30:00Z'),
       runner: async (exe, args, options) => {
@@ -73,6 +74,9 @@ test('exporta ZIP con backup.sql, manifest correcto y SHA-256', async () => {
   assert.equal(manifest.generatedByUserId, 7);
   assert.equal(manifest.lastKnownSaleId, 12);
   assert.equal(manifest.sha256, await hashFile(files.sqlPath));
+  assert.equal(manifest.version, 2);
+  assert.equal(manifest.signatureAlgorithm, 'HMAC-SHA256');
+  assert.match(manifest.signature, /^[0-9a-f]{64}$/);
   assert.match(await fs.readFile(files.sqlPath, 'utf8'), /^-- POS_AGUACATES_BACKUP/);
   assert.equal(d.auditRows.at(-1).resultado, 'EXITOSO');
   await fs.rm(base, { recursive: true, force: true });
@@ -123,4 +127,15 @@ test('rechaza nombres Zip Slip y contenido inesperado', () => {
   assert.throws(() => validarNombre('../backup.sql'), /no permitidos/);
   assert.throws(() => validarNombre('carpeta/backup.sql'), /no permitidos/);
   assert.throws(() => validarNombre('programa.exe'), /no permitidos/);
+});
+
+test('la firma detecta cualquier modificación del manifiesto', () => {
+  const key = 'clave-de-firma-de-prueba-con-32-caracteres-minimo';
+  const manifest = { format: 'POS_AGUACATES_BACKUP', version: 2, backupId: 'id', createdAt: '2026-08-11T00:00:00Z',
+    database: 'posaguacates', hostname: 'POS', instanceId: 'i', appVersion: '1', schemaVersion: '1',
+    sqlFile: 'backup.sql', sqlSize: 10, sha256: 'a'.repeat(64), lastKnownSaleId: 1,
+    lastKnownSaleAt: null, lastOperationAt: null, generatedByUserId: 1, signatureAlgorithm: 'HMAC-SHA256' };
+  manifest.signature = firmarManifest(manifest, key);
+  assert.equal(verificarFirmaManifest(manifest, key), true);
+  assert.equal(verificarFirmaManifest({ ...manifest, sqlSize: 11 }, key), false);
 });

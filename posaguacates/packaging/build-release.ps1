@@ -5,17 +5,16 @@ param(
 )
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$stage=Join-Path $root 'dist\POS-Aguacates-1.1.5'
+$stage=Join-Path $root ("dist\POS-Aguacates-1.1.11-"+(Get-Date -Format 'yyyyMMddHHmmss'))
 $distRoot=Join-Path $root 'dist'
 if(-not $stage.StartsWith($distRoot+'\')){throw 'Ruta de distribución insegura'}
-if(Test-Path -LiteralPath $stage){
-  Get-ChildItem -LiteralPath $stage -Recurse -Force -File -ErrorAction SilentlyContinue|Where-Object{$_.IsReadOnly}|ForEach-Object{$_.IsReadOnly=$false}
-  Remove-Item -LiteralPath $stage -Recurse -Force
-}
+if(Test-Path -LiteralPath $stage){throw 'La carpeta única de staging ya existe.'}
 New-Item -ItemType Directory -Force -Path (Join-Path $stage 'app'),(Join-Path $stage 'runtime'),(Join-Path $stage 'service'),(Join-Path $stage 'prerequisites')|Out-Null
 Copy-Item (Join-Path $root 'pos-frontend') (Join-Path $stage 'app\pos-frontend') -Recurse
-Copy-Item (Join-Path $root 'pos-backend') (Join-Path $stage 'app\pos-backend') -Recurse -Exclude '.env','node_modules','logs','data','temp'
 $backendStage=Join-Path $stage 'app\pos-backend'
+New-Item -ItemType Directory -Force -Path $backendStage|Out-Null
+$backendSource=Join-Path $root 'pos-backend'
+Get-ChildItem -LiteralPath $backendSource -Force|Where-Object{$_.Name -notin @('.env','node_modules','logs','data','temp','backups','test','integration-tests')}|Copy-Item -Destination $backendStage -Recurse
 @('backups','logs','data','temp','test','integration-tests')|ForEach-Object{$path=Join-Path $backendStage $_;if(Test-Path -LiteralPath $path){Remove-Item -LiteralPath $path -Recurse -Force}}
 Get-ChildItem $backendStage -Recurse -Force -File|Where-Object{$_.Name -eq '.env' -or $_.Extension -in @('.bak','.backup','.dump','.log','.zip','.credentials','.cnf') -or $_.Name -match '\.sql\.gz$'}|Remove-Item -Force
 Get-ChildItem (Join-Path $stage 'app\pos-frontend') -Recurse -Force -File|Where-Object{$_.Extension -in @('.bak','.backup','.log')}|Remove-Item -Force
@@ -27,6 +26,8 @@ Copy-Item $WinSWPath (Join-Path $stage 'service\POSAguacates.exe')
 Copy-Item $MariaDBInstallerPath (Join-Path $stage 'prerequisites\mariadb-12.3.2-winx64.msi')
 Copy-Item (Join-Path $PSScriptRoot 'POSAguacates.xml') (Join-Path $stage 'service\POSAguacates.xml')
 Copy-Item (Join-Path $PSScriptRoot 'instalar.ps1') (Join-Path $stage 'instalar.ps1')
+Copy-Item (Join-Path $PSScriptRoot 'actualizar.ps1') (Join-Path $stage 'actualizar.ps1')
+Copy-Item (Join-Path $PSScriptRoot 'migrar-legacy.ps1') (Join-Path $stage 'migrar-legacy.ps1')
 Get-ChildItem $stage -Recurse -File|Get-FileHash -Algorithm SHA256|ForEach-Object{"$($_.Hash)  $($_.Path.Substring($stage.Length+1))"}|Set-Content (Join-Path $stage 'SHA256SUMS.txt')
 $prohibidos=Get-ChildItem $stage -Recurse -Force -File|Where-Object{$_.FullName -notmatch '\\node_modules\\' -and ($_.Name -eq '.env' -or $_.FullName -match '\\(backups|logs|data|temp|test|integration-tests)\\' -or $_.Extension -in @('.bak','.backup','.dump','.log','.zip','.credentials','.cnf'))}
 if($prohibidos){throw "El paquete contiene artefactos prohibidos: $($prohibidos.FullName -join ', ')"}
@@ -35,6 +36,8 @@ foreach($relativo in $requeridos){if(-not(Test-Path -LiteralPath (Join-Path $sta
 $tamano=(Get-ChildItem $stage -Recurse -File|Measure-Object Length -Sum).Sum
 if($tamano -lt 50MB){throw "Paquete incompleto: tamaño inesperado $tamano bytes"}
 if($CompileInstaller){
+  & (Join-Path $PSScriptRoot 'check-inno-lifecycle.ps1') -ScriptPath (Join-Path $PSScriptRoot 'POSAguacates.iss')
+  if($LASTEXITCODE -ne 0){throw 'La verificación preventiva del ciclo de vida de Inno Setup falló.'}
   $isccCommand=Get-Command ISCC.exe -ErrorAction SilentlyContinue
   $isccCandidates=@(@(
     $(if($isccCommand){$isccCommand.Source}),
@@ -43,7 +46,7 @@ if($CompileInstaller){
     (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
   ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
   if(-not $isccCandidates){throw 'No se encontró ISCC.exe. Instale Inno Setup 6.'}
-  & $isccCandidates[0] (Join-Path $PSScriptRoot 'POSAguacates.iss')
+  & $isccCandidates[0] "/DStageDir=$stage" (Join-Path $PSScriptRoot 'POSAguacates.iss')
   if($LASTEXITCODE -ne 0){throw "Inno Setup terminó con código $LASTEXITCODE"}
 }
 Write-Host "Distribución creada en $stage"

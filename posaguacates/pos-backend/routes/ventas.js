@@ -859,8 +859,10 @@ router.post('/crear', async (req, res) => {
       await connection.query(
         `INSERT INTO movimientos_cartera
          (cliente_id,venta_id,cuenta_id,fecha,concepto,folio,cargo,credito,saldo_resultante,descripcion,usuario_id)
-         VALUES (?,?,?,NOW(),'VENTA_CREDITO',?,?,0,?,'Venta a crédito',?)`,
-        [clienteId, ventaId, cuentaResult.insertId, ventaId, total, total, req.usuario.id]
+         VALUES (?,?,?,NOW(),'VENTA_CREDITO',?,?,0,
+           (SELECT COALESCE(SUM(saldo_pendiente),0) FROM cuentas_por_cobrar WHERE cliente_id=? AND estado='PENDIENTE'),
+           'Venta a crédito',?)`,
+        [clienteId, ventaId, cuentaResult.insertId, ventaId, total, clienteId, req.usuario.id]
       );
 
     }
@@ -899,6 +901,22 @@ router.post('/crear', async (req, res) => {
 
     if (connection) {
       await connection.rollback();
+    }
+
+    if (['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT', 'ER_CHECKREAD'].includes(error.code)) {
+      for (let intento = 0; intento < 5; intento += 1) {
+        if (intento) await new Promise(resolve => setTimeout(resolve, 25));
+        const [[ventaRepetida]] = await db.promise.query(
+          'SELECT id,total FROM ventas WHERE idempotency_key=? LIMIT 1', [idempotencyKey]
+        );
+        if (ventaRepetida) {
+          return res.json({ mensaje: 'Venta ya registrada', venta_id: ventaRepetida.id,
+            folio: ventaRepetida.id, total: Number(ventaRepetida.total), repetida: true });
+        }
+      }
+      return res.status(409).json({
+        error: 'Otra caja modificó el inventario al mismo tiempo. Actualiza existencias e intenta nuevamente'
+      });
     }
 
     console.error(

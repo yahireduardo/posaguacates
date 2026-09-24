@@ -27,6 +27,8 @@ MARIADB_BIN_DIR=C:\Program Files\MariaDB 12.3\bin
 BACKUP_RETENTION_COUNT=30
 PRE_RESTORE_RETENTION_COUNT=10
 BACKUP_ANALYSIS_TOKEN_TTL_MS=600000
+BACKUP_SIGNING_KEY=CLAVE_ALEATORIA_INDEPENDIENTE_DE_AL_MENOS_32_CARACTERES
+ALLOW_UNSIGNED_BACKUPS=false
 ```
 
 Si `INSTANCE_ID` queda vacío, el sistema crea un UUID en `pos-backend/data/instance-id`. Ese archivo es local, está ignorado por Git y nunca se incluye en un respaldo SQL.
@@ -81,6 +83,8 @@ Para recuperación manual, use únicamente el script existente `scripts/backup/r
 - No trabaje en dos computadoras a la vez. El control local reduce errores, pero sin un servidor central no puede impedir una copia manual fuera del sistema.
 
 ## Registros
+
+Cada ZIP nuevo incluye una firma HMAC-SHA256. La restauración solo acepta por defecto archivos firmados con la misma `BACKUP_SIGNING_KEY`. Para trasladar un respaldo a otra instalación autorizada, configure allí la misma clave mediante un canal seguro; no la guarde dentro del USB ni del ZIP. Los respaldos antiguos sin firma quedan bloqueados. `ALLOW_UNSIGNED_BACKUPS=true` existe únicamente para una recuperación excepcional y debe volver a `false` inmediatamente.
 
 Las operaciones quedan en `auditoria_respaldos` y `historial_traslados`. Los errores se resumen sin contraseñas ni contenido del `.env`. Los logs generales del servicio se guardan conforme a la instalación Windows documentada en `INSTALACION_EMPRESA.md`.
 

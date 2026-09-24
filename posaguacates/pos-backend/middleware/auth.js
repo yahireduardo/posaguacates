@@ -42,12 +42,15 @@ function permitirRoles(...roles) {
 
 async function validarSesion(req, res, next) {
   try {
+    if (!req.usuario?.sid) return res.status(401).json({ error: 'La sesión ya no está activa' });
     const [rows] = await db.promise.query(
-      'SELECT id,username,nombre,rol,activo FROM usuarios WHERE id=? LIMIT 1',
-      [req.usuario?.id]
+      `SELECT u.id,u.username,u.nombre,u.rol,u.activo,s.revocada_at,s.expira_at
+       FROM usuarios u JOIN sesiones_usuario s ON s.usuario_id=u.id
+       WHERE u.id=? AND s.id=? LIMIT 1`,
+      [req.usuario.id, req.usuario.sid]
     );
     const usuario = rows[0];
-    if (!usuario || !Number(usuario.activo)) {
+    if (!usuario || !Number(usuario.activo) || usuario.revocada_at || new Date(usuario.expira_at).getTime() <= Date.now()) {
       return res.status(401).json({ error: 'La sesión ya no está activa' });
     }
     if (!['ADMON_GRAL', 'CAJERO'].includes(usuario.rol)) {

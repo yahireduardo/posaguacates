@@ -25,6 +25,36 @@ function configDb(env) {
   };
 }
 
+function claveFirma(env) {
+  const key = String(env.BACKUP_SIGNING_KEY || '');
+  if (Buffer.byteLength(key, 'utf8') < 32) {
+    throw Object.assign(new Error('BACKUP_SIGNING_KEY debe contener al menos 32 caracteres'), { status: 503 });
+  }
+  return key;
+}
+
+function contenidoFirmado(manifest) {
+  return JSON.stringify({
+    format: manifest.format, version: manifest.version, backupId: manifest.backupId,
+    createdAt: manifest.createdAt, database: manifest.database, hostname: manifest.hostname,
+    instanceId: manifest.instanceId, appVersion: manifest.appVersion, schemaVersion: manifest.schemaVersion,
+    sqlFile: manifest.sqlFile, sqlSize: Number(manifest.sqlSize), sha256: manifest.sha256,
+    lastKnownSaleId: Number(manifest.lastKnownSaleId || 0), lastKnownSaleAt: manifest.lastKnownSaleAt || null,
+    lastOperationAt: manifest.lastOperationAt || null, generatedByUserId: Number(manifest.generatedByUserId)
+  });
+}
+
+function firmarManifest(manifest, key) {
+  return crypto.createHmac('sha256', key).update(contenidoFirmado(manifest)).digest('hex');
+}
+
+function verificarFirmaManifest(manifest, key) {
+  if (manifest.signatureAlgorithm !== 'HMAC-SHA256' || !/^[0-9a-f]{64}$/i.test(manifest.signature || '')) return false;
+  const esperada = Buffer.from(firmarManifest(manifest, key), 'hex');
+  const recibida = Buffer.from(manifest.signature, 'hex');
+  return recibida.length === esperada.length && crypto.timingSafeEqual(recibida, esperada);
+}
+
 class BackupService {
   constructor({ db, instanceControl, audit, env = process.env, runner = ejecutarProceso,
     createCredentials = crearCredencialesTemporales, removeCredentials = eliminarCredencialesTemporales,
@@ -50,6 +80,7 @@ class BackupService {
 
   async crearZip(usuarioId, opciones = {}) {
     const dbConfig = configDb(this.env);
+    const signingKey = claveFirma(this.env);
     const bin = path.resolve(this.env.MARIADB_BIN_DIR || 'C:\\Program Files\\MariaDB 12.3\\bin');
     const executable = path.join(bin, 'mariadb-dump.exe');
     const baseDir = opciones.baseDir || os.tmpdir();
@@ -93,13 +124,15 @@ class BackupService {
       const stat = await fsp.stat(sqlPath);
       const sha256 = await this.hash(sqlPath);
       const manifest = {
-        format: 'POS_AGUACATES_BACKUP', version: 1, backupId, createdAt: createdAt.toISOString(),
+        format: 'POS_AGUACATES_BACKUP', version: 2, backupId, createdAt: createdAt.toISOString(),
         database: dbConfig.database, hostname: os.hostname(), instanceId,
         appVersion: require('../package.json').version, schemaVersion: SCHEMA_VERSION,
         sqlFile: 'backup.sql', sqlSize: stat.size, sha256,
         lastKnownSaleId: local.lastKnownSaleId, lastKnownSaleAt: local.lastKnownSaleAt,
         lastOperationAt: local.lastOperationAt, generatedByUserId: Number(usuarioId)
       };
+      manifest.signatureAlgorithm = 'HMAC-SHA256';
+      manifest.signature = firmarManifest(manifest, signingKey);
       await fsp.writeFile(manifestPath, JSON.stringify(manifest, null, 2), { mode: 0o600 });
       const zipPath = path.join(tempDir, nombreZip);
       await new Promise((resolve, reject) => {
@@ -138,4 +171,4 @@ class BackupService {
   }
 }
 
-module.exports = { BackupService, configDb, fechaArchivo };
+module.exports = { BackupService, configDb, fechaArchivo, claveFirma, firmarManifest, verificarFirmaManifest };

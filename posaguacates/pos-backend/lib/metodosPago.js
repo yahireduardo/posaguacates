@@ -1,4 +1,5 @@
 const METODOS = new Set(['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE']);
+const esImporteCentavos = valor => Number.isFinite(Number(valor)) && Math.abs(Number(valor) * 100 - Math.round(Number(valor) * 100)) < 1e-8;
 
 function error(mensaje) { return Object.assign(new Error(mensaje), { status: 400 }); }
 
@@ -11,7 +12,8 @@ function normalizarMetodosPago(body, total, { metodo = 'metodo_pago', referencia
   const vistos = new Set();
   const metodos = entrada.map(item => {
     const nombre = String(item.metodo_pago || '').trim().toUpperCase();
-    const monto = Number(Number(item.monto).toFixed(2));
+    if (!esImporteCentavos(item.monto)) throw error('Los importes solo pueden tener hasta dos decimales');
+    const monto = Math.round(Number(item.monto) * 100) / 100;
     const ref = String(item.referencia || '').trim() || null;
     if (!METODOS.has(nombre) || !Number.isFinite(monto) || monto <= 0) throw error('Cada método debe tener un monto positivo');
     if (vistos.has(nombre)) throw error(`El método ${nombre} está repetido`);
@@ -43,4 +45,4 @@ async function insertarMetodosPago(connection, tabla, llave, id, metodos) {
   }
 }
 
-module.exports = { normalizarMetodosPago, insertarMetodosPago };
+module.exports = { normalizarMetodosPago, insertarMetodosPago, esImporteCentavos };
